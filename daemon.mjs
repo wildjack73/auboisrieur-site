@@ -777,22 +777,38 @@ async function ftpUpload() {
     const remote = config.ftp.remotePath || "/public_html";
     let uploadCount = 0;
 
-    // Upload all HTML files (skip data/ folder)
-    async function uploadDir(localDir, remoteDir) {
-      try { await client.send("MKD " + remoteDir); } catch {}
-      await client.cd(remoteDir);
+    // Collect all files first, then upload
+    function collectFiles(localDir, remoteDir, files = []) {
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
-        const localPath = path.join(localDir, entry.name);
         if (entry.isDirectory()) {
           if (entry.name === "data") continue;
-          await uploadDir(localPath, `${remoteDir}/${entry.name}`);
+          collectFiles(path.join(localDir, entry.name), `${remoteDir}/${entry.name}`, files);
         } else if (entry.name.endsWith(".html")) {
-          await client.uploadFrom(localPath, `${remoteDir}/${entry.name}`);
-          uploadCount++;
-          if (uploadCount % 100 === 0) console.log(`    ${uploadCount} fichiers uploadés...`);
+          files.push({ local: path.join(localDir, entry.name), remote: `${remoteDir}/${entry.name}` });
         }
       }
+      return files;
+    }
+
+    const files = collectFiles(SITE_DIR, remote);
+    console.log(`  📤 ${files.length} fichiers à uploader...`);
+
+    // Create all needed directories
+    const dirs = new Set();
+    for (const f of files) {
+      const dir = f.remote.substring(0, f.remote.lastIndexOf("/"));
+      dirs.add(dir);
+    }
+    for (const dir of [...dirs].sort()) {
+      try { await client.ensureDir(dir); } catch {}
+    }
+
+    // Upload all files
+    for (const f of files) {
+      await client.uploadFrom(f.local, f.remote);
+      uploadCount++;
+      if (uploadCount % 100 === 0) console.log(`    ${uploadCount}/${files.length} fichiers uploadés...`);
     }
 
     const start = Date.now();
