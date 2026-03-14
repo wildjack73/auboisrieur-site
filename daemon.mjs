@@ -31,17 +31,37 @@ const SITE_DIR = path.join(__dirname, "site");
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function curlFetch(url) {
-  const result = execFileSync("curl", [
-    "-s",
-    "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "-H", "Accept: application/json, text/plain, */*",
-    "-H", "Accept-Language: fr-FR,fr;q=0.9,en;q=0.8",
-    "-H", "Referer: https://www.interencheres.com/",
-    "-H", "Origin: https://www.interencheres.com",
-    url,
-  ], { maxBuffer: 50 * 1024 * 1024, timeout: 30000 });
-  return JSON.parse(result.toString("utf-8"));
+function curlFetch(url, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const result = execFileSync("curl", [
+        "-s", "--compressed", "--tlsv1.3",
+        "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "-H", "Accept: application/json, text/plain, */*",
+        "-H", "Accept-Language: fr-FR,fr;q=0.9,en;q=0.8",
+        "-H", "Accept-Encoding: gzip, deflate, br",
+        "-H", "Referer: https://www.interencheres.com/",
+        "-H", "Origin: https://www.interencheres.com",
+        "-H", "sec-ch-ua: \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
+        "-H", "sec-ch-ua-mobile: ?0",
+        "-H", "sec-ch-ua-platform: \"Windows\"",
+        "-H", "sec-fetch-dest: empty",
+        "-H", "sec-fetch-mode: cors",
+        "-H", "sec-fetch-site: same-site",
+        url,
+      ], { maxBuffer: 50 * 1024 * 1024, timeout: 30000 });
+      const text = result.toString("utf-8");
+      if (text.startsWith("<!")) throw new Error("Cloudflare block — got HTML instead of JSON");
+      return JSON.parse(text);
+    } catch (err) {
+      if (attempt < retries) {
+        console.warn(`  ⚠ Retry ${attempt + 1}/${retries}: ${err.message}`);
+        execFileSync("sleep", ["2"]);
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 function apiFetch(endpoint, params = {}) {
