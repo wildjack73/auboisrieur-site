@@ -295,16 +295,25 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       --radius: 14px; --radius-sm: 8px;
       --shadow: 0 4px 24px rgba(0,0,0,0.3); --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { overflow-x: hidden; }
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; overflow-x: hidden; min-height: 100vh; }
+    img, svg, video { display: block; max-width: 100%; }
+    img { height: auto; }
+    input, button, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; border: none; background: none; }
+    table { border-collapse: collapse; border-spacing: 0; }
+    h1, h2, h3, h4 { line-height: 1.3; text-wrap: balance; }
+    p { text-wrap: pretty; }
     a { color: var(--accent2); text-decoration: none; transition: color 0.2s; }
     a:hover { color: #fff; text-decoration: none; }
     ::selection { background: var(--accent); color: #fff; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     /* Nav */
     .topnav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
     .topnav .brand { font-weight: 800; font-size: 1.15rem; color: #fff; padding: 0.9rem 1.2rem 0.9rem 1.5rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-bottom: none !important; display: flex; align-items: center; }
+    .topnav .brand svg { display: inline-block; }
     .topnav .brand:hover { -webkit-text-fill-color: transparent; background: linear-gradient(135deg, #a78bfa, #c4b5fd); -webkit-background-clip: text; }
     .topnav a { color: var(--text2); font-size: 0.88rem; padding: 0.9rem 1.2rem; font-weight: 500; transition: all 0.2s; border-bottom: 2px solid transparent; }
     .topnav a:hover { color: #fff; background: var(--accent-glow); border-bottom-color: var(--accent); }
