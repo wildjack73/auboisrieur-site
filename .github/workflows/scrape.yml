@@ -4,8 +4,12 @@ on:
   # Toutes les 2 heures entre 8h et 22h (heure Paris = UTC+1/+2)
   schedule:
     - cron: "0 7,9,11,13,15,17,19,21 * * *"
-  # Lancement manuel possible
+  # Lancement manuel
   workflow_dispatch:
+    inputs:
+      date:
+        description: "Date à scraper (YYYY-MM-DD, vide = aujourd'hui)"
+        required: false
 
 jobs:
   scrape-and-deploy:
@@ -36,4 +40,9 @@ jobs:
           AD_SLOT_SIDEBAR: ${{ secrets.AD_SLOT_SIDEBAR }}
           AD_SLOT_INARTICLE: ${{ secrets.AD_SLOT_INARTICLE }}
           AD_SLOT_BETWEENLOTS: ${{ secrets.AD_SLOT_BETWEENLOTS }}
-        run: node daemon.mjs --once
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            node daemon.mjs --once --date "${{ github.event.inputs.date }}"
+          else
+            node daemon.mjs --once
+          fi
