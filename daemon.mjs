@@ -242,6 +242,7 @@ function htmlHead(title, description, extraHead = "") {
   ${config.gaId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${config.gaId}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${config.gaId}');</script>` : ""}
   ${config.adsenseId ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsenseId}" crossorigin="anonymous"></script>` : ""}
+  <script data-goatcounter="https://wildjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   ${extraHead}
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
