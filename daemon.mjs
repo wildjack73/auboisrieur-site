@@ -365,7 +365,9 @@ function sidebarHtml() {
 }
 
 function lotCard(item) {
-  const title = (item.description || item.title_translations?.["fr-FR"] || "").substring(0, 70);
+  const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+  const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+  const title = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
   const price = item.pricing?.auctioned?.price || 0;
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
   const catName = item.category?.name || "";
@@ -396,8 +398,14 @@ function similarLots(item) {
 // ─── Page generators ────────────────────────────────────────────────────────
 
 function generateLotPage(item, sale) {
-  const title = item.description || item.title_translations?.["fr-FR"] || "Objet de collection";
-  const shortTitle = title.substring(0, 70);
+  const rawDesc = item.description || item.title_translations?.["fr-FR"] || "Objet de collection";
+  const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
+  // If first line is short (<60 chars) and there are more lines → it's a title
+  const hasShortTitle = lines.length > 1 && lines[0].length < 60;
+  const lotTitle = hasShortTitle ? lines[0] : lines[0]?.substring(0, 70) || "Objet de collection";
+  const lotDesc = hasShortTitle ? lines.slice(1).join(" ") : (lines.length > 1 ? lines.slice(1).join(" ") : "");
+  const title = rawDesc;
+  const shortTitle = lotTitle;
   const auc = item.pricing?.auctioned || {};
   const est = item.pricing?.estimates || {};
   const org = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
@@ -410,7 +418,7 @@ function generateLotPage(item, sale) {
   const catSlug = slugify(catName);
   const medias = item.medias || [];
 
-  const desc = `${shortTitle} vendu ${auc.price || 0}€ aux enchères. ${catName}. ${org}, ${city}.`;
+  const desc = `${lotTitle} — ${lotDesc ? lotDesc.substring(0, 120) : ""} vendu ${auc.price || 0}€ aux enchères. ${catName}.`;
 
   const carouselImages = medias.map((m, i) => {
     const src = imgUrl(m, "lg");
@@ -495,7 +503,8 @@ function generateLotPage(item, sale) {
       <main>
         <div class="card">
           <div class="card-body">
-            <h1 style="font-size:1.3rem;margin-bottom:0.5rem;line-height:1.4;">${esc(title)}</h1>
+            <h1 style="font-size:1.4rem;margin-bottom:0.3rem;line-height:1.4;">${esc(lotTitle)}</h1>
+            ${lotDesc ? `<p style="color:#555;font-size:0.95rem;line-height:1.5;margin-bottom:0.8rem;">${esc(lotDesc)}</p>` : ""}
             <div style="margin:0.5rem 0 1rem;">
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
