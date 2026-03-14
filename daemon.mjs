@@ -372,7 +372,37 @@ function htmlHead(title, description, extraHead = "") {
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+    /* Light mode */
+    [data-theme="light"] {
+      --bg: #f4f4f8; --surface: #ffffff; --surface2: #f9f9fc; --surface3: #eeeef2;
+      --text: #1a1a2e; --text2: #555568; --text3: #8888a0;
+      --accent: #6d4aff; --accent2: #5a3de8; --accent-glow: rgba(109,74,255,0.08);
+      --green: #16a34a; --green-bg: rgba(22,163,74,0.08);
+      --red: #dc2626; --red-bg: rgba(220,38,38,0.08);
+      --gold: #d97706; --blue: #2563eb;
+      --border: rgba(0,0,0,0.06); --border2: rgba(0,0,0,0.1);
+      --shadow: 0 4px 24px rgba(0,0,0,0.06); --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    [data-theme="light"] .stat-number { background: linear-gradient(135deg, var(--accent), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    [data-theme="light"] .price.sold { text-shadow: none; }
+    [data-theme="light"] .topnav .brand { background: linear-gradient(135deg, var(--accent), #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    [data-theme="light"] .lot-card { box-shadow: var(--shadow-sm); }
+    [data-theme="light"] .lot-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.1); }
+    [data-theme="light"] .carousel { background: #222; }
+    [data-theme="light"] .carousel-dots { background: #222; }
+    [data-theme="light"] .carousel-thumbs { background: #222; }
+
+    /* Theme toggle */
+    .theme-toggle { background: var(--surface3); border: 1px solid var(--border2); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s; margin-right: 1rem; }
+    .theme-toggle:hover { background: var(--accent-glow); border-color: var(--accent); transform: scale(1.1); }
   </style>
+  <script>
+    (function(){
+      const t = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
 </head>`;
 }
 
@@ -382,8 +412,25 @@ function navHtml() {
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
   <span style="flex:1;"></span>
-  <span style="color:var(--text3);font-size:0.78rem;padding-right:2rem;">${registry.items.size} lots en ligne</span>
-</nav>`;
+  <span style="color:var(--text3);font-size:0.78rem;">${registry.items.size} lots</span>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">
+    <span class="theme-icon">🌙</span>
+  </button>
+</nav>
+<script>
+function toggleTheme(){
+  const h=document.documentElement;
+  const c=h.getAttribute('data-theme')==='light'?'dark':'light';
+  h.setAttribute('data-theme',c);
+  localStorage.setItem('theme',c);
+  document.querySelector('.theme-icon').textContent=c==='light'?'☀️':'🌙';
+}
+(function(){
+  const t=localStorage.getItem('theme')||'dark';
+  const i=document.querySelector('.theme-icon');
+  if(i)i.textContent=t==='light'?'☀️':'🌙';
+})();
+</script>`;
 }
 
 function footerHtml() {
