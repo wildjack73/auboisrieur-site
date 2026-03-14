@@ -394,8 +394,24 @@ function htmlHead(title, description, extraHead = "") {
     [data-theme="light"] .carousel-thumbs { background: #222; }
 
     /* Theme toggle */
-    .theme-toggle { background: var(--surface3); border: 1px solid var(--border2); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s; margin-right: 1rem; }
+    .theme-toggle { background: var(--surface3); border: 1px solid var(--border2); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s; margin-right: 0.5rem; }
     .theme-toggle:hover { background: var(--accent-glow); border-color: var(--accent); transform: scale(1.1); }
+
+    /* Search */
+    .search-wrap { position: relative; margin: 0 0.5rem; }
+    .search-input { background: var(--surface3); border: 1px solid var(--border2); color: var(--text); padding: 7px 14px 7px 34px; border-radius: 20px; font-size: 0.84rem; width: 200px; outline: none; transition: all 0.3s; font-family: inherit; }
+    .search-input::placeholder { color: var(--text3); }
+    .search-input:focus { border-color: var(--accent); background: var(--surface); width: 280px; box-shadow: 0 0 0 3px var(--accent-glow); }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; font-size: 0.85rem; }
+    .search-results { position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-sm); box-shadow: var(--shadow); max-height: 400px; overflow-y: auto; z-index: 200; display: none; min-width: 320px; }
+    .search-results.active { display: block; }
+    .search-result { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); transition: background 0.15s; }
+    .search-result:hover { background: var(--accent-glow); }
+    .search-result img { width: 48px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+    .search-result .sr-title { font-size: 0.82rem; line-height: 1.3; flex: 1; }
+    .search-result .sr-price { color: var(--green); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+    .search-no-result { padding: 1rem; text-align: center; color: var(--text3); font-size: 0.85rem; }
+    @media (max-width: 800px) { .search-input { width: 140px; } .search-input:focus { width: 200px; } .search-results { min-width: 260px; } }
   </style>
   <script>
     (function(){
@@ -412,7 +428,11 @@ function navHtml() {
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
   <span style="flex:1;"></span>
-  <span style="color:var(--text3);font-size:0.78rem;">${registry.items.size} lots</span>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un lot..." autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+  </div>
   <button class="theme-toggle" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">
     <span class="theme-icon">🌙</span>
   </button>
@@ -429,6 +449,38 @@ function toggleTheme(){
   const t=localStorage.getItem('theme')||'dark';
   const i=document.querySelector('.theme-icon');
   if(i)i.textContent=t==='light'?'☀️':'🌙';
+})();
+// Search
+(function(){
+  let idx=null;
+  const input=document.getElementById('searchInput');
+  const results=document.getElementById('searchResults');
+  if(!input)return;
+  async function loadIndex(){
+    if(idx)return idx;
+    try{ const r=await fetch('/search-index.json'); idx=await r.json(); }catch(e){ idx=[]; }
+    return idx;
+  }
+  let timer=null;
+  input.addEventListener('input',function(){
+    clearTimeout(timer);
+    const q=this.value.trim().toLowerCase();
+    if(q.length<2){results.classList.remove('active');results.innerHTML='';return;}
+    timer=setTimeout(async()=>{
+      const data=await loadIndex();
+      const words=q.split(/\\s+/);
+      const matches=data.filter(it=>words.every(w=>it.t.toLowerCase().includes(w))).slice(0,12);
+      if(!matches.length){results.innerHTML='<div class="search-no-result">Aucun résultat</div>';results.classList.add('active');return;}
+      results.innerHTML=matches.map(m=>\`<a href="/lot/\${m.id}.html" class="search-result">
+        \${m.img?\`<img src="\${m.img}" alt="" loading="lazy">\`:''}
+        <span class="sr-title">\${m.t.substring(0,80)}</span>
+        <span class="sr-price">\${m.p} €</span>
+      </a>\`).join('');
+      results.classList.add('active');
+    },200);
+  });
+  document.addEventListener('click',function(e){if(!e.target.closest('.search-wrap'))results.classList.remove('active');});
+  input.addEventListener('focus',function(){if(results.innerHTML)results.classList.add('active');});
 })();
 </script>`;
 }
@@ -916,6 +968,18 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "index.html"), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
   pageCount += 3;
+
+  // Search index JSON
+  const searchIndex = [...registry.items.values()].map(({ item }) => {
+    const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+    const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+    const title = (lns.length > 1 && lns[0].length < 60) ? lns[0] + " " + lns.slice(1).join(" ") : lns.join(" ");
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
+    const price = formatPrice(item.pricing?.auctioned?.price || 0);
+    return { id: item.id, t: title.substring(0, 150), p: price, img: thumb };
+  });
+  fs.writeFileSync(path.join(SITE_DIR, "search-index.json"), JSON.stringify(searchIndex), "utf-8");
+  pageCount++;
 
   // .htaccess — force index.html priority over WordPress index.php
   fs.writeFileSync(path.join(SITE_DIR, ".htaccess"), `DirectoryIndex index.html index.php
