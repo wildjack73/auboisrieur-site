@@ -763,7 +763,7 @@ async function ftpUpload() {
   if (!config.ftp?.enabled || !config.ftp.host) return;
 
   const { Client } = await import("basic-ftp");
-  const client = new Client();
+  const client = new Client(600000); // 10 min timeout
   client.ftp.verbose = false;
 
   try {
@@ -775,19 +775,22 @@ async function ftpUpload() {
     });
 
     const remote = config.ftp.remotePath || "/public_html";
+    let uploadCount = 0;
 
     // Upload all HTML files (skip data/ folder)
     async function uploadDir(localDir, remoteDir) {
       try { await client.send("MKD " + remoteDir); } catch {}
+      await client.cd(remoteDir);
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
         const localPath = path.join(localDir, entry.name);
-        const remotePath = `${remoteDir}/${entry.name}`;
         if (entry.isDirectory()) {
-          if (entry.name === "data") continue; // Skip data/ folder
-          await uploadDir(localPath, remotePath);
+          if (entry.name === "data") continue;
+          await uploadDir(localPath, `${remoteDir}/${entry.name}`);
         } else if (entry.name.endsWith(".html")) {
-          await client.uploadFrom(localPath, remotePath);
+          await client.uploadFrom(localPath, `${remoteDir}/${entry.name}`);
+          uploadCount++;
+          if (uploadCount % 100 === 0) console.log(`    ${uploadCount} fichiers uploadés...`);
         }
       }
     }
