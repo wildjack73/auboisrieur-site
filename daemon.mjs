@@ -1248,17 +1248,15 @@ function runDaemon(dateStr, intervalSec) {
 
 // ─── Single run (for GitHub Actions / CI) ────────────────────────────────────
 
-async function runOnce(dateStr) {
-  ensureDir(SITE_DIR);
-  const dataDir = path.join(SITE_DIR, "data");
-  ensureDir(dataDir);
+function yesterdayStr(dateStr) {
+  const d = new Date(dateStr + "T12:00:00Z");
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
 
-  console.log(`\n🏛️  Interenchères — Exécution unique (${dateStr})`);
-  console.log(`   Amazon tag: ${config.amazonTag}`);
-  console.log(`   FTP: ${config.ftp?.enabled ? config.ftp.host : "désactivé"}\n`);
-
+function scrapDate(dateStr) {
   const sales = fetchTodaySales(dateStr);
-  console.log(`  ${sales.length} ventes trouvées`);
+  console.log(`  📅 ${dateStr}: ${sales.length} ventes trouvées`);
 
   let soldCount = 0;
   for (const sale of sales) {
@@ -1266,7 +1264,7 @@ async function runOnce(dateStr) {
       const items = fetchAllItems(sale.id);
       for (const item of items) {
         const auc = item.pricing?.auctioned;
-        if (auc?.sold) {
+        if (auc?.sold && !registry.items.has(item.id)) {
           registerItem(item, sale);
           soldCount++;
         }
@@ -1275,10 +1273,28 @@ async function runOnce(dateStr) {
       console.warn(`  ⚠ Vente ${sale.id}: ${err.message}`);
     }
   }
+  console.log(`  → ${soldCount} nouveaux lots vendus`);
+  return soldCount;
+}
 
-  console.log(`  ${soldCount} lots vendus collectés`);
+async function runOnce(dateStr) {
+  ensureDir(SITE_DIR);
+  const dataDir = path.join(SITE_DIR, "data");
+  ensureDir(dataDir);
 
-  if (soldCount > 0) {
+  console.log(`\n🏛️  Interenchères — Exécution unique`);
+  console.log(`   Amazon tag: ${config.amazonTag}`);
+  console.log(`   FTP: ${config.ftp?.enabled ? config.ftp.host : "désactivé"}\n`);
+
+  // Scrape yesterday + today to catch late evening sales
+  const yesterday = yesterdayStr(dateStr);
+  let totalSold = 0;
+  totalSold += scrapDate(yesterday);
+  totalSold += scrapDate(dateStr);
+
+  console.log(`\n  Total: ${totalSold} lots vendus collectés (${yesterday} + ${dateStr})`);
+
+  if (totalSold > 0) {
     const pageCount = rebuildAllPages(dateStr);
     console.log(`  ${pageCount} pages générées`);
     await ftpUpload();
