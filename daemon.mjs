@@ -256,90 +256,122 @@ function htmlHead(title, description, extraHead = "") {
   ${config.adsenseId ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsenseId}" crossorigin="anonymous"></script>` : ""}
   <script data-goatcounter="https://wildjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   ${extraHead}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg: #0f0f13; --surface: #1a1a24; --surface2: #22222e; --surface3: #2a2a38;
+      --text: #e8e8ed; --text2: #9999ab; --text3: #666678;
+      --accent: #7c5cfc; --accent2: #9b7dff; --accent-glow: rgba(124,92,252,0.15);
+      --green: #34d399; --green-bg: rgba(52,211,153,0.1);
+      --red: #f87171; --red-bg: rgba(248,113,113,0.1);
+      --gold: #fbbf24; --blue: #60a5fa;
+      --border: rgba(255,255,255,0.06); --border2: rgba(255,255,255,0.1);
+      --radius: 14px; --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.3); --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-    a { color: #1a56db; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent2); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: #fff; text-decoration: none; }
+    ::selection { background: var(--accent); color: #fff; }
 
     /* Nav */
-    .topnav { background: #1a1a2e; color: #fff; padding: 0.8rem 2rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
-    .topnav .brand { font-weight: 700; font-size: 1.1rem; color: #fff; }
-    .topnav a { color: #8ab4f8; font-size: 0.9rem; }
-    .topnav a:hover { color: #fff; }
+    .topnav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
+    .topnav .brand { font-weight: 800; font-size: 1.15rem; color: #fff; padding: 0.9rem 2rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .topnav a { color: var(--text2); font-size: 0.88rem; padding: 0.9rem 1.2rem; font-weight: 500; transition: all 0.2s; border-bottom: 2px solid transparent; }
+    .topnav a:hover { color: #fff; background: var(--accent-glow); border-bottom-color: var(--accent); }
 
     /* Breadcrumb */
-    .breadcrumb { padding: 0.8rem 2rem; font-size: 0.85rem; color: #888; background: #fff; border-bottom: 1px solid #eee; }
-    .breadcrumb a { color: #666; }
+    .breadcrumb { padding: 0.7rem 2rem; font-size: 0.82rem; color: var(--text3); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .breadcrumb a { color: var(--text2); }
+    .breadcrumb a:hover { color: var(--accent2); }
 
     /* Layout */
-    .container { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; }
+    .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; }
-    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } .topnav { flex-wrap: wrap; } .topnav .brand { width: 100%; } }
 
     /* Cards */
-    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 1.5rem; }
-    .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid #eee; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; transition: border-color 0.3s; }
+    .card:hover { border-color: var(--border2); }
+    .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
+    .card-header h2, .card-header h3 { color: var(--text); font-weight: 700; }
     .card-body { padding: 1.5rem; }
 
     /* Images */
-    .gallery { display: flex; flex-wrap: wrap; gap: 8px; padding: 1.5rem; background: #fafafa; justify-content: center; }
-    .gallery img { max-height: 300px; max-width: 100%; border-radius: 8px; cursor: pointer; transition: transform 0.2s; }
-    .gallery img:hover { transform: scale(1.05); }
+    .gallery { display: flex; flex-wrap: wrap; gap: 8px; padding: 1.5rem; background: var(--bg); justify-content: center; }
+    .gallery img { max-height: 300px; max-width: 100%; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.2s; }
+    .gallery img:hover { transform: scale(1.03); }
 
     /* Price */
-    .price { font-size: 1.8rem; font-weight: 700; }
-    .price.sold { color: #2d7d46; }
-    .price.unsold { color: #b33; }
-    .estimate { color: #888; font-size: 0.95rem; }
-    .tag { background: #e8f5e9; color: #2d7d46; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+    .price { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
+    .price.sold { color: var(--green); text-shadow: 0 0 30px rgba(52,211,153,0.3); }
+    .price.unsold { color: var(--red); }
+    .estimate { color: var(--text3); font-size: 0.9rem; }
+    .tag { background: var(--green-bg); color: var(--green); padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
 
-    /* Amazon button */
-    .amazon-btn { display: inline-flex; align-items: center; gap: 8px; background: #f0c14b; color: #111; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; transition: background 0.2s; margin: 1rem 0; }
-    .amazon-btn:hover { background: #ddb347; text-decoration: none; }
-    .ebay-btn { display: inline-flex; align-items: center; gap: 8px; background: #0064d2; color: #fff; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; transition: background 0.2s; }
-    .ebay-btn:hover { background: #004fa3; text-decoration: none; color: #fff; }
+    /* Affiliate buttons */
+    .amazon-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #f0c14b, #e6a817); color: #111; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; transition: all 0.25s; box-shadow: 0 2px 12px rgba(240,193,75,0.25); }
+    .amazon-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(240,193,75,0.4); text-decoration: none; color: #111; }
+    .ebay-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #0064d2, #0050aa); color: #fff; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; transition: all 0.25s; box-shadow: 0 2px 12px rgba(0,100,210,0.25); }
+    .ebay-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,100,210,0.4); text-decoration: none; color: #fff; }
 
     /* Meta table */
-    .meta-table { width: 100%; }
-    .meta-table td { padding: 0.4rem 0; vertical-align: top; }
-    .meta-table td:first-child { font-weight: 600; color: #666; width: 120px; }
+    .meta-table { width: 100%; margin-top: 1rem; }
+    .meta-table td { padding: 0.5rem 0; vertical-align: top; border-bottom: 1px solid var(--border); }
+    .meta-table tr:last-child td { border: 0; }
+    .meta-table td:first-child { font-weight: 600; color: var(--text3); width: 120px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
     /* Lot grid */
-    .lot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
-    .lot-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: box-shadow 0.2s; }
-    .lot-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    .lot-card img { width: 100%; height: 160px; object-fit: cover; }
-    .lot-card .no-img { width: 100%; height: 160px; background: #eee; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 2rem; }
-    .lot-card .lot-info { padding: 0.7rem; }
-    .lot-card .lot-title { font-size: 0.8rem; line-height: 1.3; height: 2.6em; overflow: hidden; color: #333; }
-    .lot-card .lot-price { font-weight: 700; color: #2d7d46; margin-top: 0.3rem; }
-    .lot-card .lot-cat { font-size: 0.7rem; color: #999; margin-top: 0.2rem; }
+    .lot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1.2rem; }
+    .lot-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: all 0.3s; position: relative; }
+    .lot-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
+    .lot-card img { width: 100%; height: 180px; object-fit: cover; transition: transform 0.3s; }
+    .lot-card:hover img { transform: scale(1.05); }
+    .lot-card .no-img { width: 100%; height: 180px; background: var(--surface3); display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 2.5rem; }
+    .lot-card .lot-info { padding: 0.9rem; }
+    .lot-card .lot-title { font-size: 0.82rem; font-weight: 500; line-height: 1.4; height: 2.8em; overflow: hidden; color: var(--text); }
+    .lot-card .lot-price { font-weight: 800; color: var(--green); margin-top: 0.4rem; font-size: 1rem; }
+    .lot-card .lot-cat { font-size: 0.72rem; color: var(--text3); margin-top: 0.3rem; font-weight: 500; }
 
     /* Lot list row */
-    .lot-row { display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem; border-bottom: 1px solid #f0f0f0; text-decoration: none; color: inherit; transition: background 0.15s; }
-    .lot-row:hover { background: #f8f9ff; }
-    .lot-row img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; }
-    .lot-row .lot-title { flex: 1; font-size: 0.85rem; }
-    .lot-row .lot-price { font-weight: 700; color: #2d7d46; white-space: nowrap; }
+    .lot-row { display: flex; align-items: center; gap: 1rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); text-decoration: none; color: inherit; transition: all 0.15s; border-radius: var(--radius-sm); }
+    .lot-row:hover { background: var(--accent-glow); }
+    .lot-row img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; }
+    .lot-row .lot-title { flex: 1; font-size: 0.85rem; color: var(--text); }
+    .lot-row .lot-price { font-weight: 700; color: var(--green); white-space: nowrap; }
 
     /* Sidebar */
     .sidebar .card { margin-bottom: 1rem; }
-    .sidebar .card-header h3 { font-size: 0.95rem; }
-    .cat-list a, .maison-list a { display: block; padding: 0.3rem 0; font-size: 0.85rem; border-bottom: 1px solid #f5f5f5; }
+    .sidebar .card-header h3 { font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text2); }
+    .cat-list a, .maison-list a { display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.5rem; font-size: 0.84rem; border-bottom: 1px solid var(--border); border-radius: 4px; color: var(--text); transition: all 0.15s; }
+    .cat-list a:hover, .maison-list a:hover { background: var(--accent-glow); color: var(--accent2); }
     .cat-list a:last-child, .maison-list a:last-child { border: 0; }
-    .cat-count { color: #999; font-size: 0.8rem; }
+    .cat-count { color: var(--text3); font-size: 0.78rem; font-weight: 600; background: var(--surface3); padding: 2px 8px; border-radius: 10px; }
 
     /* Stats */
-    .stat-box { text-align: center; padding: 1rem; }
-    .stat-number { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
-    .stat-label { color: #888; font-size: 0.85rem; }
+    .stat-box { text-align: center; padding: 1.2rem 1.5rem; }
+    .stat-number { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg, var(--accent2), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { color: var(--text3); font-size: 0.82rem; font-weight: 500; margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Hero section for home */
+    .hero-stats { background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%); border: 1px solid var(--border2); border-radius: var(--radius); padding: 0; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+    .hero-stats::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 40%, var(--accent-glow) 0%, transparent 50%); pointer-events: none; }
+    .hero-stats .stat-box { position: relative; z-index: 1; }
 
     /* Ad */
-    .ad-slot { margin: 1rem 0; text-align: center; min-height: 90px; }
+    .ad-slot { margin: 1rem 0; text-align: center; min-height: 90px; border-radius: var(--radius-sm); }
 
     /* Footer */
-    .footer { text-align: center; color: #aaa; padding: 2rem; font-size: 0.8rem; margin-top: 2rem; }
+    .footer { text-align: center; color: var(--text3); padding: 2.5rem; font-size: 0.78rem; margin-top: 2rem; border-top: 1px solid var(--border); }
+    .footer a { color: var(--text2); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
   </style>
 </head>`;
 }
@@ -349,13 +381,16 @@ function navHtml() {
   <span class="brand">${esc(config.siteName)}</span>
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
+  <span style="flex:1;"></span>
+  <span style="color:var(--text3);font-size:0.78rem;padding-right:2rem;">${registry.items.size} lots en ligne</span>
 </nav>`;
 }
 
 function footerHtml() {
   return `<footer class="footer">
-  ${esc(config.siteName)} · Résultats de ventes aux enchères en France<br>
-  Les liens Amazon sont des liens affiliés.
+  <div style="font-weight:600;color:var(--text2);margin-bottom:0.3rem;">${esc(config.siteName)}</div>
+  Résultats de ventes aux enchères en France · Photos · Prix · Estimations<br>
+  <span style="color:var(--text3);font-size:0.72rem;">Les liens marchands sont des liens affiliés.</span>
 </footer>`;
 }
 
@@ -777,9 +812,9 @@ function generateHomePage(dateStr) {
   ${navHtml()}
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
-    <div class="card" style="margin-bottom:1.5rem;">
-      <div class="card-body" style="display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;">
-        <div class="stat-box"><div class="stat-number">${totalItems}</div><div class="stat-label">objets</div></div>
+    <div class="hero-stats">
+      <div style="display:flex;gap:0;justify-content:center;flex-wrap:wrap;">
+        <div class="stat-box"><div class="stat-number">${totalItems}</div><div class="stat-label">objets vendus</div></div>
         <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
         <div class="stat-box"><div class="stat-number">${registry.categories.size}</div><div class="stat-label">catégories</div></div>
       </div>
