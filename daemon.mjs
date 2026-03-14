@@ -775,9 +775,8 @@ async function ftpUpload() {
     });
 
     const remote = config.ftp.remotePath || "/public_html";
-    let uploadCount = 0;
 
-    // Collect all files first, then upload
+    // Collect all files
     function collectFiles(localDir, remoteDir, files = []) {
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
@@ -794,27 +793,27 @@ async function ftpUpload() {
     const files = collectFiles(SITE_DIR, remote);
     console.log(`  📤 ${files.length} fichiers à uploader...`);
 
-    // Create all needed directories
+    // Create directories with MKD (doesn't change CWD)
     const dirs = new Set();
     for (const f of files) {
       const dir = f.remote.substring(0, f.remote.lastIndexOf("/"));
       dirs.add(dir);
     }
     for (const dir of [...dirs].sort()) {
-      try { await client.ensureDir(dir); } catch {}
+      try { await client.send("MKD " + dir); } catch {}
     }
 
-    // Upload all files
+    // Reset to root and upload all files
+    await client.cd("/");
+    const start = Date.now();
+    let uploadCount = 0;
     for (const f of files) {
       await client.uploadFrom(f.local, f.remote);
       uploadCount++;
-      if (uploadCount % 100 === 0) console.log(`    ${uploadCount}/${files.length} fichiers uploadés...`);
+      if (uploadCount % 100 === 0) console.log(`    ${uploadCount}/${files.length} uploadés...`);
     }
-
-    const start = Date.now();
-    await uploadDir(SITE_DIR, remote);
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.log(`  📤 FTP upload terminé en ${elapsed}s`);
+    console.log(`  📤 FTP upload terminé: ${uploadCount} fichiers en ${elapsed}s`);
   } catch (err) {
     console.warn(`  ⚠ FTP erreur: ${err.message}`);
   } finally {
