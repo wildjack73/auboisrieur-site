@@ -265,9 +265,11 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>${esc(title)} — ${esc(config.siteName)}</title>
   <meta name="description" content="${esc(description)}">
   <meta name="robots" content="index, follow">
+  <meta name="google-site-verification" content="_Kyi4x31upT8Ey-EZ-TPUZoFOLBIqW4uLb7iY6MSJNo">
   ${canonical}
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(description)}">
@@ -1068,6 +1070,15 @@ Disallow: /data/
   RewriteRule ^$ /index.html [L]
 </IfModule>
 `, "utf-8");
+
+  // favicon.svg — maillet d'enchères
+  fs.writeFileSync(path.join(SITE_DIR, "favicon.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#9b7dff"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient></defs>
+  <rect x="8" y="8" width="32" height="14" rx="3" transform="rotate(-45 24 15)" fill="url(#g)"/>
+  <rect x="26" y="22" width="6" height="28" rx="2" transform="rotate(-45 29 36)" fill="#7c5cfc"/>
+  <ellipse cx="44" cy="54" rx="14" ry="5" fill="#34d399" opacity="0.8"/>
+  <rect x="30" y="48" width="28" height="6" rx="2" fill="#34d399"/>
+</svg>`, "utf-8");
 
   return pageCount;
 }
