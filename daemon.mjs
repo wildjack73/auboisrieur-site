@@ -257,7 +257,9 @@ function amazonButton(title) {
 
 // ─── Shared HTML parts ──────────────────────────────────────────────────────
 
-function htmlHead(title, description, extraHead = "") {
+function htmlHead(title, description, extraHead = "", canonicalPath = "") {
+  const siteUrl = config.siteUrl || "";
+  const canonical = canonicalPath && siteUrl ? `<link rel="canonical" href="${siteUrl}${canonicalPath}">` : "";
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -266,6 +268,11 @@ function htmlHead(title, description, extraHead = "") {
   <title>${esc(title)} — ${esc(config.siteName)}</title>
   <meta name="description" content="${esc(description)}">
   <meta name="robots" content="index, follow">
+  ${canonical}
+  <meta property="og:title" content="${esc(title)}">
+  <meta property="og:description" content="${esc(description)}">
+  <meta property="og:type" content="website">
+  ${canonicalPath && siteUrl ? `<meta property="og:url" content="${siteUrl}${canonicalPath}">` : ""}
   ${config.gaId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${config.gaId}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${config.gaId}');</script>` : ""}
   ${config.adsenseId ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsenseId}" crossorigin="anonymous"></script>` : ""}
@@ -652,7 +659,29 @@ function generateLotPage(item, sale) {
         ${carouselImages.length > 1 ? `<div class="carousel-thumbs">${carouselImages.map((img, i) => `<img src="${esc(imgUrl(medias[i], "sm"))}" alt="Thumb ${i + 1}" class="${i === 0 ? "active" : ""}">`).join("")}</div>` : ""}
       </div>`;
 
-  return `${htmlHead(`${shortTitle} — ${auc.sold ? auc.price + "€" : "Non vendu"}`, desc, `<style>${carouselCSS}</style>`)}
+  const slug = lotSlug(item);
+  const canonicalPath = `/lot/${slug}.html`;
+  const ogImage = medias[0] ? imgUrl(medias[0], "lg") : "";
+
+  const jsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": lotTitle,
+    "description": lotDesc || lotTitle,
+    "image": ogImage || undefined,
+    "category": catName || undefined,
+    "offers": {
+      "@type": "Offer",
+      "price": auc.price || 0,
+      "priceCurrency": "EUR",
+      "availability": "https://schema.org/SoldOut",
+      "itemCondition": "https://schema.org/UsedCondition"
+    }
+  });
+
+  return `${htmlHead(`${shortTitle} — ${auc.sold ? auc.price + "€" : "Non vendu"}`, desc, `<style>${carouselCSS}</style>
+  ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ""}
+  <script type="application/ld+json">${jsonLd}<\/script>`, canonicalPath)}
 <body>
   ${navHtml()}
   <div class="breadcrumb">
@@ -710,7 +739,7 @@ function generateCategoryPage(slug, data) {
     byMaison[org].push(item);
   }
 
-  return `${htmlHead(data.name, desc)}
+  return `${htmlHead(data.name, desc, "", `/categorie/${slug}.html`)}
 <body>
   ${navHtml()}
   <div class="breadcrumb">
@@ -921,7 +950,7 @@ function generateHomePage(dateStr) {
     .sort((a, b) => (b.item.last_updated || "").localeCompare(a.item.last_updated || ""))
     .slice(0, 24);
 
-  return `${htmlHead(`Enchères du ${dateStr}`, `${totalItems} lots vendus aux enchères le ${dateStr}. Photos, prix, estimations.`)}
+  return `${htmlHead(`Enchères du ${dateStr}`, `${totalItems} lots vendus aux enchères le ${dateStr}. Photos, prix, estimations.`, "", `/index.html`)}
 <body>
   ${navHtml()}
   ${adSlot("header", "padding: 0.5rem 2rem;")}
@@ -996,6 +1025,34 @@ function rebuildAllPages(dateStr) {
   });
   fs.writeFileSync(path.join(SITE_DIR, "search-index.json"), JSON.stringify(searchIndex), "utf-8");
   pageCount++;
+
+  // Sitemap.xml
+  const siteUrl = config.siteUrl || "https://auboisrieur.fr";
+  const today = dateStr || new Date().toISOString().slice(0, 10);
+  let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+  sitemap += `  <url><loc>${siteUrl}/index.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/categories.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
+  for (const [slug] of registry.categories) {
+    sitemap += `  <url><loc>${siteUrl}/categorie/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
+  }
+  for (const [, { item }] of registry.items) {
+    sitemap += `  <url><loc>${siteUrl}/lot/${lotSlug(item)}.html</loc><lastmod>${today}</lastmod><priority>0.6</priority></url>\n`;
+  }
+  sitemap += `</urlset>`;
+  fs.writeFileSync(path.join(SITE_DIR, "sitemap.xml"), sitemap, "utf-8");
+
+  // robots.txt
+  const robots = `User-agent: *
+Allow: /
+Sitemap: ${siteUrl}/sitemap.xml
+
+User-agent: Googlebot
+Allow: /
+
+Disallow: /data/
+`;
+  fs.writeFileSync(path.join(SITE_DIR, "robots.txt"), robots, "utf-8");
+  pageCount += 2;
 
   // .htaccess — force index.html priority over WordPress index.php
   fs.writeFileSync(path.join(SITE_DIR, ".htaccess"), `DirectoryIndex index.html index.php

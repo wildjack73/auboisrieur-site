@@ -23,7 +23,7 @@ export default {
   // Site
   siteName: env("SITE_NAME", "Enchères Archives"),
   siteDescription: "Résultats de ventes aux enchères en France — Prix, photos, estimations",
-  siteUrl: env("SITE_URL"),  // ex: "https://auboisrieur.fr"
+  siteUrl: env("SITE_URL", "https://auboisrieur.fr"),
 
   // FTP Hostinger
   ftp: {
