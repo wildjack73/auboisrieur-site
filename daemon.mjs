@@ -1113,24 +1113,36 @@ async function ftpUpload() {
   const client = new Client(600000); // 10 min timeout
   client.ftp.verbose = false;
 
-  try {
-    await client.access({
-      host: config.ftp.host,
-      user: config.ftp.user,
-      password: config.ftp.password,
-      secure: config.ftp.secure || false,
-    });
+  // Retry connection up to 3 times
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await client.access({
+        host: config.ftp.host,
+        user: config.ftp.user,
+        password: config.ftp.password,
+        secure: config.ftp.secure || false,
+      });
+      break; // connected
+    } catch (err) {
+      console.warn(`  ⚠ FTP connexion tentative ${attempt}/${maxRetries}: ${err.message}`);
+      if (attempt === maxRetries) { client.close(); return; }
+      await new Promise(r => setTimeout(r, 10000)); // wait 10s
+    }
+  }
 
+  try {
     const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");
 
-    // Collect all HTML files (skip data/)
+    // Upload extensions: html, xml, txt, json, svg, htaccess
+    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".svg"]);
     function collectFiles(localDir, remoteDir, files = []) {
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory()) {
           if (entry.name === "data") continue;
           collectFiles(path.join(localDir, entry.name), `${remoteDir}/${entry.name}`, files);
-        } else if (entry.name.endsWith(".html") || entry.name === ".htaccess") {
+        } else if (UPLOAD_EXT.has(path.extname(entry.name)) || entry.name === ".htaccess") {
           files.push({ local: path.join(localDir, entry.name), remote: `${remoteDir}/${entry.name}` });
         }
       }
