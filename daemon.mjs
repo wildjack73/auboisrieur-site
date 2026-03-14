@@ -304,7 +304,8 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
     /* Nav */
     .topnav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
-    .topnav .brand { font-weight: 800; font-size: 1.15rem; color: #fff; padding: 0.9rem 2rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .topnav .brand { font-weight: 800; font-size: 1.15rem; color: #fff; padding: 0.9rem 1.2rem 0.9rem 1.5rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-bottom: none !important; display: flex; align-items: center; }
+    .topnav .brand:hover { -webkit-text-fill-color: transparent; background: linear-gradient(135deg, #a78bfa, #c4b5fd); -webkit-background-clip: text; }
     .topnav a { color: var(--text2); font-size: 0.88rem; padding: 0.9rem 1.2rem; font-weight: 500; transition: all 0.2s; border-bottom: 2px solid transparent; }
     .topnav a:hover { color: #fff; background: var(--accent-glow); border-bottom-color: var(--accent); }
 
@@ -433,6 +434,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     [data-theme="light"] .stat-number { background: linear-gradient(135deg, var(--accent), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     [data-theme="light"] .price.sold { text-shadow: none; }
     [data-theme="light"] .topnav .brand { background: linear-gradient(135deg, var(--accent), #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    [data-theme="light"] .topnav .brand:hover { background: linear-gradient(135deg, #7c3aed, #6d28d9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     [data-theme="light"] .lot-card { box-shadow: var(--shadow-sm); }
     [data-theme="light"] .lot-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.1); }
     [data-theme="light"] .carousel { background: #222; }
@@ -475,7 +477,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
 function navHtml() {
   return `<nav class="topnav">
-  <span class="brand">${esc(config.siteName)}</span>
+  <a href="/index.html" class="brand"><svg viewBox="0 0 28 28" width="22" height="22" style="vertical-align:-3px;margin-right:6px;"><defs><linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient><linearGradient id="ng2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient></defs><rect x="5" y="1" width="14" height="6" rx="2" transform="rotate(-40 12 4)" fill="url(#ng)"/><rect x="10" y="6" width="3" height="12" rx="1.5" transform="rotate(-40 11.5 12)" fill="#7c5cfc"/><rect x="3" y="21" width="22" height="4" rx="2" fill="url(#ng2)"/><rect x="6" y="18.5" width="16" height="3.5" rx="1.5" fill="url(#ng2)" opacity="0.6"/></svg>${esc(config.siteName)}</a>
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
   <span style="flex:1;"></span>
@@ -1122,13 +1124,17 @@ AddType application/json .json
 </IfModule>
 `, "utf-8");
 
-  // favicon.svg — maillet d'enchères
+  // favicon.svg — maillet "Adjugé !"
   fs.writeFileSync(path.join(SITE_DIR, "favicon.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#9b7dff"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient></defs>
-  <rect x="8" y="8" width="32" height="14" rx="3" transform="rotate(-45 24 15)" fill="url(#g)"/>
-  <rect x="26" y="22" width="6" height="28" rx="2" transform="rotate(-45 29 36)" fill="#7c5cfc"/>
-  <ellipse cx="44" cy="54" rx="14" ry="5" fill="#34d399" opacity="0.8"/>
-  <rect x="30" y="48" width="28" height="6" rx="2" fill="#34d399"/>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient>
+  </defs>
+  <rect x="14" y="6" width="28" height="12" rx="4" transform="rotate(-40 28 12)" fill="url(#g)"/>
+  <rect x="24" y="16" width="5" height="24" rx="2.5" transform="rotate(-40 26.5 28)" fill="#7c5cfc"/>
+  <rect x="10" y="49" width="44" height="7" rx="3.5" fill="url(#g2)"/>
+  <rect x="16" y="44" width="32" height="7" rx="2" fill="url(#g2)" opacity="0.6"/>
+  <text x="32" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="9" fill="#fff" opacity="0.9">!</text>
 </svg>`, "utf-8");
 
   return pageCount;
