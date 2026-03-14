@@ -95,6 +95,21 @@ function slugify(s) {
     .substring(0, 80) || "sans-nom";
 }
 
+function lotSlug(item) {
+  const raw = item.description || item.title_translations?.["fr-FR"] || "";
+  const words = raw
+    .split(/\n/)[0]
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(w => w.length > 1)
+    .slice(0, 4)
+    .join("-")
+    .toLowerCase();
+  return `${words || "lot"}-${item.id}`;
+}
+
 function imgUrl(media, size = "lg") {
   const url = media?.rewriteImgUrl?.[size] || media?.rewriteImgUrl?.md || media?.url || "";
   return url.startsWith("//") ? `https:${url}` : url;
@@ -520,7 +535,7 @@ function lotCard(item) {
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
   const catName = item.category?.name || "";
   const catSlug = catName ? slugify(catName) : "";
-  return `<a href="/lot/${item.id}.html" class="lot-card">
+  return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
     ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" loading="lazy">` : `<div class="no-img">📦</div>`}
     <div class="lot-info">
       <div class="lot-title">${esc(title)}</div>
@@ -953,7 +968,8 @@ function rebuildAllPages(dateStr) {
 
   // Lot pages
   for (const [itemId, { item, sale }] of registry.items) {
-    fs.writeFileSync(path.join(SITE_DIR, "lot", `${itemId}.html`), generateLotPage(item, sale), "utf-8");
+    const slug = lotSlug(item);
+    fs.writeFileSync(path.join(SITE_DIR, "lot", `${slug}.html`), generateLotPage(item, sale), "utf-8");
     pageCount++;
   }
 
@@ -976,7 +992,7 @@ function rebuildAllPages(dateStr) {
     const title = (lns.length > 1 && lns[0].length < 60) ? lns[0] + " " + lns.slice(1).join(" ") : lns.join(" ");
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
     const price = formatPrice(item.pricing?.auctioned?.price || 0);
-    return { id: item.id, t: title.substring(0, 150), p: price, img: thumb };
+    return { id: lotSlug(item), t: title.substring(0, 150), p: price, img: thumb };
   });
   fs.writeFileSync(path.join(SITE_DIR, "search-index.json"), JSON.stringify(searchIndex), "utf-8");
   pageCount++;
