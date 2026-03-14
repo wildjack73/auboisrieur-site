@@ -793,18 +793,26 @@ async function ftpUpload() {
     const files = collectFiles(SITE_DIR, remote);
     console.log(`  📤 ${files.length} fichiers à uploader...`);
 
-    // Create directories with MKD (doesn't change CWD)
+    // Create directories level by level
     const dirs = new Set();
     for (const f of files) {
       const dir = f.remote.substring(0, f.remote.lastIndexOf("/"));
       dirs.add(dir);
     }
+    const createdDirs = new Set();
     for (const dir of [...dirs].sort()) {
-      try { await client.send("MKD " + dir); } catch {}
+      // Create each parent level: /public_html, /public_html/lot, etc.
+      const parts = dir.split("/").filter(Boolean);
+      let current = "";
+      for (const part of parts) {
+        current += "/" + part;
+        if (!createdDirs.has(current)) {
+          try { await client.send("MKD " + current); } catch {}
+          createdDirs.add(current);
+        }
+      }
     }
-
-    // Reset to root and upload all files
-    await client.cd("/");
+    console.log(`  📁 ${createdDirs.size} dossiers créés`);
     const start = Date.now();
     let uploadCount = 0;
     for (const f of files) {
