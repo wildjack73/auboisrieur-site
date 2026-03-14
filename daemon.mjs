@@ -754,6 +754,21 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
   pageCount += 3;
 
+  // .htaccess — force index.html priority over WordPress index.php
+  fs.writeFileSync(path.join(SITE_DIR, ".htaccess"), `DirectoryIndex index.html index.php
+# Disable WordPress rewrite for our static pages
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  # If the requested file or directory exists, serve it directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  # Otherwise try index.html
+  RewriteRule ^$ /index.html [L]
+</IfModule>
+`, "utf-8");
+
   return pageCount;
 }
 
@@ -783,7 +798,7 @@ async function ftpUpload() {
         if (entry.isDirectory()) {
           if (entry.name === "data") continue;
           collectFiles(path.join(localDir, entry.name), `${remoteDir}/${entry.name}`, files);
-        } else if (entry.name.endsWith(".html")) {
+        } else if (entry.name.endsWith(".html") || entry.name === ".htaccess") {
           files.push({ local: path.join(localDir, entry.name), remote: `${remoteDir}/${entry.name}` });
         }
       }
