@@ -21,7 +21,7 @@ export default {
   gaId: env("GA_ID"),  // ex: "G-XXXXXXXXXX"
 
   // Site
-  siteName: env("SITE_NAME", "Enchères Archives"),
+  siteName: env("SITE_NAME", "Adjugé !"),
   siteDescription: "Résultats de ventes aux enchères en France — Prix, photos, estimations",
   siteUrl: env("SITE_URL", "https://auboisrieur.fr"),
 

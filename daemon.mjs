@@ -280,6 +280,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
   ${config.adsenseId ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsenseId}" crossorigin="anonymous"></script>` : ""}
   <script data-goatcounter="https://wildjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   ${extraHead}
+  <script src="/search-data.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -294,15 +295,28 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       --radius: 14px; --radius-sm: 8px;
       --shadow: 0 4px 24px rgba(0,0,0,0.3); --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; overflow-x: hidden; min-height: 100vh; }
+    img, svg, video { display: block; max-width: 100%; }
+    img { height: auto; }
+    input, button, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; border: none; background: none; }
+    table { border-collapse: collapse; border-spacing: 0; }
+    h1, h2, h3, h4 { line-height: 1.3; text-wrap: balance; }
+    p { text-wrap: pretty; }
     a { color: var(--accent2); text-decoration: none; transition: color 0.2s; }
     a:hover { color: #fff; text-decoration: none; }
     ::selection { background: var(--accent); color: #fff; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     /* Nav */
     .topnav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
-    .topnav .brand { font-weight: 800; font-size: 1.15rem; color: #fff; padding: 0.9rem 2rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .topnav .brand { padding: 0.9rem 1.2rem 0.9rem 1.5rem; border-bottom: none !important; display: flex; align-items: center; gap: 8px; }
+    .topnav .brand:hover { background: none; }
+    .topnav .brand svg { flex-shrink: 0; }
+    .brand-text { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .topnav .brand:hover .brand-text { background: linear-gradient(135deg, #a78bfa, #c4b5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .topnav a { color: var(--text2); font-size: 0.88rem; padding: 0.9rem 1.2rem; font-weight: 500; transition: all 0.2s; border-bottom: 2px solid transparent; }
     .topnav a:hover { color: #fff; background: var(--accent-glow); border-bottom-color: var(--accent); }
 
@@ -314,7 +328,30 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     /* Layout */
     .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; }
-    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } .topnav { flex-wrap: wrap; } .topnav .brand { width: 100%; } }
+    @media (max-width: 800px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .topnav { padding: 0 0.3rem; }
+      .topnav .brand { padding: 0.6rem 0.4rem 0.6rem 0.6rem; font-size: 0.9rem; gap: 5px; }
+      .topnav .brand svg { width: 20px; height: 20px; }
+      .topnav a { padding: 0.6rem 0.5rem; font-size: 0.78rem; }
+      .brand-text { font-size: 0.9rem; }
+      .container { margin: 0.8rem auto; padding: 0 0.6rem; }
+      .breadcrumb { padding: 0.5rem 0.8rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .card-body { padding: 1rem; }
+      .card-header { padding: 0.8rem 1rem; }
+      .price { font-size: 1.5rem; }
+      .estimate { display: block; margin-top: 0.3rem; margin-left: 0 !important; }
+      .lot-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; }
+      .lot-card img { height: 140px; }
+      .lot-card .lot-info { padding: 0.6rem; }
+      .lot-card .lot-title { font-size: 0.75rem; }
+      .amazon-btn, .ebay-btn { padding: 10px 16px; font-size: 0.82rem; }
+      .stat-number { font-size: 1.4rem; }
+      .stat-label { font-size: 0.7rem; }
+      .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+      .stat-box { padding: 0.8rem 0.3rem; }
+      h1 { font-size: 1.15rem !important; }
+    }
 
     /* Cards */
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; transition: border-color 0.3s; }
@@ -410,7 +447,8 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     }
     [data-theme="light"] .stat-number { background: linear-gradient(135deg, var(--accent), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     [data-theme="light"] .price.sold { text-shadow: none; }
-    [data-theme="light"] .topnav .brand { background: linear-gradient(135deg, var(--accent), #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    [data-theme="light"] .brand-text { background: linear-gradient(135deg, var(--accent), #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    [data-theme="light"] .topnav .brand:hover .brand-text { background: linear-gradient(135deg, #7c3aed, #6d28d9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     [data-theme="light"] .lot-card { box-shadow: var(--shadow-sm); }
     [data-theme="light"] .lot-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.1); }
     [data-theme="light"] .carousel { background: #222; }
@@ -435,7 +473,12 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .search-result .sr-title { font-size: 0.82rem; line-height: 1.3; flex: 1; }
     .search-result .sr-price { color: var(--green); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
     .search-no-result { padding: 1rem; text-align: center; color: var(--text3); font-size: 0.85rem; }
-    @media (max-width: 800px) { .search-input { width: 140px; } .search-input:focus { width: 200px; } .search-results { min-width: 260px; } }
+    @media (max-width: 800px) {
+      .search-wrap { flex: 1; margin: 0 0.3rem; }
+      .search-input { width: 100%; }
+      .search-input:focus { width: 100%; }
+      .search-results { min-width: 0; left: -40px; right: -40px; }
+    }
   </style>
   <script>
     (function(){
@@ -448,13 +491,13 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
 function navHtml() {
   return `<nav class="topnav">
-  <span class="brand">${esc(config.siteName)}</span>
+  <a href="/index.html" class="brand"><svg viewBox="0 0 28 28" width="24" height="24"><defs><linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient><linearGradient id="ng2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient></defs><rect x="5" y="1" width="14" height="6" rx="2" transform="rotate(-40 12 4)" fill="url(#ng)"/><rect x="10" y="6" width="3" height="12" rx="1.5" transform="rotate(-40 11.5 12)" fill="#7c5cfc"/><rect x="3" y="21" width="22" height="4" rx="2" fill="url(#ng2)"/><rect x="6" y="18.5" width="16" height="3.5" rx="1.5" fill="url(#ng2)" opacity="0.6"/></svg><span class="brand-text">${esc(config.siteName)}</span></a>
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
   <span style="flex:1;"></span>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
-    <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un lot..." autocomplete="off">
+    <input type="text" class="search-input" id="searchInput" placeholder="Rechercher..." autocomplete="off">
     <div class="search-results" id="searchResults"></div>
   </div>
   <button class="theme-toggle" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">
@@ -474,24 +517,18 @@ function toggleTheme(){
   const i=document.querySelector('.theme-icon');
   if(i)i.textContent=t==='light'?'☀️':'🌙';
 })();
-// Search
+// Search (uses window.__SI loaded via search-data.js)
 (function(){
-  let idx=null;
   const input=document.getElementById('searchInput');
   const results=document.getElementById('searchResults');
   if(!input)return;
-  async function loadIndex(){
-    if(idx)return idx;
-    try{ const r=await fetch('/search-index.json'); idx=await r.json(); }catch(e){ idx=[]; }
-    return idx;
-  }
   let timer=null;
   input.addEventListener('input',function(){
     clearTimeout(timer);
     const q=this.value.trim().toLowerCase();
     if(q.length<2){results.classList.remove('active');results.innerHTML='';return;}
-    timer=setTimeout(async()=>{
-      const data=await loadIndex();
+    timer=setTimeout(()=>{
+      const data=window.__SI||[];
       const words=q.split(/\\s+/);
       const matches=data.filter(it=>words.every(w=>it.t.toLowerCase().includes(w))).slice(0,12);
       if(!matches.length){results.innerHTML='<div class="search-no-result">Aucun résultat</div>';results.classList.add('active');return;}
@@ -606,19 +643,28 @@ function generateLotPage(item, sale) {
 
   const carouselCSS = `
     .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; }
-    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 350px; max-height: 500px; }
-    .carousel-main img { max-width: 100%; max-height: 500px; object-fit: contain; cursor: zoom-in; }
+    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 300px; max-height: 500px; padding: 1rem 50px; }
+    .carousel-main img { max-width: 100%; max-height: 480px; object-fit: contain; cursor: zoom-in; }
     .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .carousel-btn:hover { background: #fff; }
     .carousel-prev { left: 10px; }
     .carousel-next { right: 10px; }
-    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; }
+    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; flex-wrap: wrap; }
     .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; border: none; cursor: pointer; padding: 0; }
     .carousel-dot.active { background: #fff; }
-    .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; justify-content: center; }
-    .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; }
+    .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; }
+    .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; flex-shrink: 0; }
     .carousel-thumbs img.active { opacity: 1; border-color: #fff; }
     .carousel-counter { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; z-index: 2; }
+    @media (max-width: 800px) {
+      .carousel-main { min-height: 220px; padding: 0.5rem 36px; }
+      .carousel-btn { width: 32px; height: 32px; font-size: 1rem; }
+      .carousel-prev { left: 4px; }
+      .carousel-next { right: 4px; }
+      .carousel-thumbs img { width: 48px; height: 36px; }
+      .carousel-dots { gap: 4px; padding: 8px; }
+      .carousel-dot { width: 6px; height: 6px; }
+    }
   `;
 
   const carouselJS = carouselImages.length > 1 ? `
@@ -1016,7 +1062,7 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
   pageCount += 3;
 
-  // Search index JSON
+  // Search index as JS (more reliable than JSON fetch on shared hosting)
   const searchIndex = [...registry.items.values()].map(({ item }) => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
@@ -1025,7 +1071,7 @@ function rebuildAllPages(dateStr) {
     const price = formatPrice(item.pricing?.auctioned?.price || 0);
     return { id: lotSlug(item), t: title.substring(0, 150), p: price, img: thumb };
   });
-  fs.writeFileSync(path.join(SITE_DIR, "search-index.json"), JSON.stringify(searchIndex), "utf-8");
+  fs.writeFileSync(path.join(SITE_DIR, "search-data.js"), `window.__SI=${JSON.stringify(searchIndex)};`, "utf-8");
   pageCount++;
 
   // Sitemap.xml
@@ -1092,13 +1138,17 @@ AddType application/json .json
 </IfModule>
 `, "utf-8");
 
-  // favicon.svg — maillet d'enchères
+  // favicon.svg — maillet "Adjugé !"
   fs.writeFileSync(path.join(SITE_DIR, "favicon.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#9b7dff"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient></defs>
-  <rect x="8" y="8" width="32" height="14" rx="3" transform="rotate(-45 24 15)" fill="url(#g)"/>
-  <rect x="26" y="22" width="6" height="28" rx="2" transform="rotate(-45 29 36)" fill="#7c5cfc"/>
-  <ellipse cx="44" cy="54" rx="14" ry="5" fill="#34d399" opacity="0.8"/>
-  <rect x="30" y="48" width="28" height="6" rx="2" fill="#34d399"/>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient>
+  </defs>
+  <rect x="14" y="6" width="28" height="12" rx="4" transform="rotate(-40 28 12)" fill="url(#g)"/>
+  <rect x="24" y="16" width="5" height="24" rx="2.5" transform="rotate(-40 26.5 28)" fill="#7c5cfc"/>
+  <rect x="10" y="49" width="44" height="7" rx="3.5" fill="url(#g2)"/>
+  <rect x="16" y="44" width="32" height="7" rx="2" fill="url(#g2)" opacity="0.6"/>
+  <text x="32" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="9" fill="#fff" opacity="0.9">!</text>
 </svg>`, "utf-8");
 
   return pageCount;
@@ -1135,7 +1185,7 @@ async function ftpUpload() {
     const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");
 
     // Upload extensions: html, xml, txt, json, svg, htaccess
-    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".svg"]);
+    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".js", ".svg"]);
     function collectFiles(localDir, remoteDir, files = []) {
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
