@@ -1056,18 +1056,39 @@ Disallow: /data/
   fs.writeFileSync(path.join(SITE_DIR, "robots.txt"), robots, "utf-8");
   pageCount += 2;
 
-  // .htaccess — force index.html priority over WordPress index.php
-  fs.writeFileSync(path.join(SITE_DIR, ".htaccess"), `DirectoryIndex index.html index.php
-# Disable WordPress rewrite for our static pages
+  // .htaccess — override WordPress completely
+  fs.writeFileSync(path.join(SITE_DIR, ".htaccess"), `# Force static site over WordPress
+DirectoryIndex index.html index.php
+
+# Correct MIME types
+AddType application/xml .xml
+AddType text/plain .txt
+AddType image/svg+xml .svg
+AddType application/json .json
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
-  # If the requested file or directory exists, serve it directly
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
+
+  # Serve sitemap.xml, robots.txt, favicon.svg directly
+  RewriteRule ^sitemap\\.xml$ /sitemap.xml [L]
+  RewriteRule ^robots\\.txt$ /robots.txt [L]
+  RewriteRule ^favicon\\.svg$ /favicon.svg [L]
+
+  # If the requested file exists on disk, serve it (our static HTML)
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
+  # If directory, serve it
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
-  # Otherwise try index.html
+
+  # Homepage
   RewriteRule ^$ /index.html [L]
+
+  # Block WordPress wp-login, wp-admin, xmlrpc
+  RewriteRule ^wp-login\\.php$ - [R=404,L]
+  RewriteRule ^xmlrpc\\.php$ - [R=404,L]
 </IfModule>
 `, "utf-8");
 
