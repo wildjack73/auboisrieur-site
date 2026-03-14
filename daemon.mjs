@@ -411,11 +411,11 @@ function generateLotPage(item, sale) {
 
   const desc = `${shortTitle} vendu ${auc.price || 0}€ aux enchères. ${catName}. ${org}, ${city}.`;
 
-  const imagesHtml = medias.map((m, i) => {
+  const carouselImages = medias.map((m, i) => {
     const src = imgUrl(m, "lg");
     const original = imgUrl(m, "original") || src;
-    return `<a href="${esc(original)}" target="_blank"><img src="${esc(src)}" alt="${esc(shortTitle)} - Photo ${i + 1}" loading="lazy"></a>`;
-  }).join("\n          ");
+    return { src, original, alt: `${shortTitle} - Photo ${i + 1}` };
+  });
 
   const priceHtml = auc.sold
     ? `<span class="price sold">${formatPrice(auc.price)} €</span>`
@@ -423,7 +423,64 @@ function generateLotPage(item, sale) {
 
   const estHtml = est.min != null ? `Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
 
-  return `${htmlHead(`${shortTitle} — ${auc.sold ? auc.price + "€" : "Non vendu"}`, desc)}
+  const carouselCSS = `
+    .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; }
+    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 350px; max-height: 500px; }
+    .carousel-main img { max-width: 100%; max-height: 500px; object-fit: contain; cursor: zoom-in; }
+    .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    .carousel-btn:hover { background: #fff; }
+    .carousel-prev { left: 10px; }
+    .carousel-next { right: 10px; }
+    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; }
+    .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; border: none; cursor: pointer; padding: 0; }
+    .carousel-dot.active { background: #fff; }
+    .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; justify-content: center; }
+    .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; }
+    .carousel-thumbs img.active { opacity: 1; border-color: #fff; }
+    .carousel-counter { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; z-index: 2; }
+  `;
+
+  const carouselJS = carouselImages.length > 1 ? `
+    <script>
+    (function(){
+      const imgs = ${JSON.stringify(carouselImages.map(i => ({ src: i.src, original: i.original })))};
+      let cur = 0;
+      const main = document.getElementById('carouselMain');
+      const counter = document.getElementById('carouselCounter');
+      const dots = document.querySelectorAll('.carousel-dot');
+      const thumbs = document.querySelectorAll('.carousel-thumbs img');
+      function show(i) {
+        cur = (i + imgs.length) % imgs.length;
+        main.querySelector('img').src = imgs[cur].src;
+        main.querySelector('a').href = imgs[cur].original;
+        counter.textContent = (cur+1) + ' / ' + imgs.length;
+        dots.forEach((d,j) => d.classList.toggle('active', j===cur));
+        thumbs.forEach((t,j) => t.classList.toggle('active', j===cur));
+      }
+      document.querySelector('.carousel-prev').onclick = () => show(cur-1);
+      document.querySelector('.carousel-next').onclick = () => show(cur+1);
+      dots.forEach((d,j) => d.onclick = () => show(j));
+      thumbs.forEach((t,j) => t.onclick = () => show(j));
+      // Swipe support
+      let sx=0;
+      main.addEventListener('touchstart', e => sx=e.touches[0].clientX);
+      main.addEventListener('touchend', e => { const dx=e.changedTouches[0].clientX-sx; if(Math.abs(dx)>40){dx<0?show(cur+1):show(cur-1);} });
+    })();
+    </script>` : "";
+
+  const carouselHtml = carouselImages.length === 0
+    ? `<div class="carousel"><div class="carousel-main" style="min-height:200px;display:flex;align-items:center;justify-content:center;color:#666;font-size:1.5rem;">📦 Pas de photo</div></div>`
+    : `<div class="carousel">
+        <div class="carousel-main" id="carouselMain">
+          <a href="${esc(carouselImages[0].original)}" target="_blank"><img src="${esc(carouselImages[0].src)}" alt="${esc(carouselImages[0].alt)}"></a>
+        </div>
+        ${carouselImages.length > 1 ? `<button class="carousel-btn carousel-prev">‹</button><button class="carousel-btn carousel-next">›</button>` : ""}
+        <span class="carousel-counter" id="carouselCounter">1 / ${carouselImages.length}</span>
+        ${carouselImages.length > 1 ? `<div class="carousel-dots">${carouselImages.map((_, i) => `<button class="carousel-dot${i === 0 ? " active" : ""}"></button>`).join("")}</div>` : ""}
+        ${carouselImages.length > 1 ? `<div class="carousel-thumbs">${carouselImages.map((img, i) => `<img src="${esc(imgUrl(medias[i], "sm"))}" alt="Thumb ${i + 1}" class="${i === 0 ? "active" : ""}">`).join("")}</div>` : ""}
+      </div>`;
+
+  return `${htmlHead(`${shortTitle} — ${auc.sold ? auc.price + "€" : "Non vendu"}`, desc, `<style>${carouselCSS}</style>`)}
 <body>
   ${navHtml()}
   <div class="breadcrumb">
@@ -436,16 +493,15 @@ function generateLotPage(item, sale) {
     <div class="grid-2">
       <main>
         <div class="card">
-          <div class="gallery">
-            ${imagesHtml || "<p>Pas de photo</p>"}
-          </div>
           <div class="card-body">
-            <h1 style="font-size:1.3rem;margin-bottom:1rem;line-height:1.4;">${esc(title)}</h1>
-            <div style="margin:1rem 0;">
+            <h1 style="font-size:1.3rem;margin-bottom:0.5rem;line-height:1.4;">${esc(title)}</h1>
+            <div style="margin:0.5rem 0 1rem;">
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
             </div>
-
+          </div>
+          ${carouselHtml}
+          <div class="card-body">
             ${amazonButton(title)}
 
             ${adSlot("inArticle")}
@@ -462,6 +518,7 @@ function generateLotPage(item, sale) {
       ${sidebarHtml()}
     </div>
   </div>
+  ${carouselJS}
   ${footerHtml()}
 </body>
 </html>`;
