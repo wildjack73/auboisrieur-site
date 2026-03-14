@@ -280,6 +280,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
   ${config.adsenseId ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsenseId}" crossorigin="anonymous"></script>` : ""}
   <script data-goatcounter="https://wildjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   ${extraHead}
+  <script src="/search-data.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -474,24 +475,18 @@ function toggleTheme(){
   const i=document.querySelector('.theme-icon');
   if(i)i.textContent=t==='light'?'☀️':'🌙';
 })();
-// Search
+// Search (uses window.__SI loaded via search-data.js)
 (function(){
-  let idx=null;
   const input=document.getElementById('searchInput');
   const results=document.getElementById('searchResults');
   if(!input)return;
-  async function loadIndex(){
-    if(idx)return idx;
-    try{ const r=await fetch('/search-index.json'); idx=await r.json(); }catch(e){ idx=[]; }
-    return idx;
-  }
   let timer=null;
   input.addEventListener('input',function(){
     clearTimeout(timer);
     const q=this.value.trim().toLowerCase();
     if(q.length<2){results.classList.remove('active');results.innerHTML='';return;}
-    timer=setTimeout(async()=>{
-      const data=await loadIndex();
+    timer=setTimeout(()=>{
+      const data=window.__SI||[];
       const words=q.split(/\\s+/);
       const matches=data.filter(it=>words.every(w=>it.t.toLowerCase().includes(w))).slice(0,12);
       if(!matches.length){results.innerHTML='<div class="search-no-result">Aucun résultat</div>';results.classList.add('active');return;}
@@ -1016,7 +1011,7 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
   pageCount += 3;
 
-  // Search index JSON
+  // Search index as JS (more reliable than JSON fetch on shared hosting)
   const searchIndex = [...registry.items.values()].map(({ item }) => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
@@ -1025,7 +1020,7 @@ function rebuildAllPages(dateStr) {
     const price = formatPrice(item.pricing?.auctioned?.price || 0);
     return { id: lotSlug(item), t: title.substring(0, 150), p: price, img: thumb };
   });
-  fs.writeFileSync(path.join(SITE_DIR, "search-index.json"), JSON.stringify(searchIndex), "utf-8");
+  fs.writeFileSync(path.join(SITE_DIR, "search-data.js"), `window.__SI=${JSON.stringify(searchIndex)};`, "utf-8");
   pageCount++;
 
   // Sitemap.xml
@@ -1135,7 +1130,7 @@ async function ftpUpload() {
     const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");
 
     // Upload extensions: html, xml, txt, json, svg, htaccess
-    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".svg"]);
+    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".js", ".svg"]);
     function collectFiles(localDir, remoteDir, files = []) {
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
