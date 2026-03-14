@@ -296,7 +296,8 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       --shadow: 0 4px 24px rgba(0,0,0,0.3); --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    html { overflow-x: hidden; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
     a { color: var(--accent2); text-decoration: none; transition: color 0.2s; }
     a:hover { color: #fff; text-decoration: none; }
     ::selection { background: var(--accent); color: #fff; }
@@ -601,17 +602,17 @@ function generateLotPage(item, sale) {
 
   const carouselCSS = `
     .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; }
-    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 350px; max-height: 500px; }
-    .carousel-main img { max-width: 100%; max-height: 500px; object-fit: contain; cursor: zoom-in; }
+    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 300px; max-height: 500px; padding: 1rem 50px; }
+    .carousel-main img { max-width: 100%; max-height: 480px; object-fit: contain; cursor: zoom-in; }
     .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .carousel-btn:hover { background: #fff; }
     .carousel-prev { left: 10px; }
     .carousel-next { right: 10px; }
-    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; }
+    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; flex-wrap: wrap; }
     .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; border: none; cursor: pointer; padding: 0; }
     .carousel-dot.active { background: #fff; }
-    .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; justify-content: center; }
-    .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; }
+    .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; }
+    .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; flex-shrink: 0; }
     .carousel-thumbs img.active { opacity: 1; border-color: #fff; }
     .carousel-counter { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; z-index: 2; }
   `;
