@@ -778,7 +778,7 @@ async function ftpUpload() {
 
     // Upload all HTML files (skip data/ folder)
     async function uploadDir(localDir, remoteDir) {
-      await client.ensureDir(remoteDir);
+      try { await client.send("MKD " + remoteDir); } catch {}
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
         const localPath = path.join(localDir, entry.name);
