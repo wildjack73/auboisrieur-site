@@ -316,7 +316,27 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     /* Layout */
     .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; }
-    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } .topnav { flex-wrap: wrap; } .topnav .brand { width: 100%; } }
+    @media (max-width: 800px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .topnav { flex-wrap: wrap; padding: 0 0.5rem; }
+      .topnav .brand { padding: 0.7rem 0.8rem; font-size: 1rem; }
+      .topnav a { padding: 0.6rem 0.8rem; font-size: 0.82rem; }
+      .container { margin: 0.8rem auto; padding: 0 0.6rem; }
+      .breadcrumb { padding: 0.5rem 0.8rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .card-body { padding: 1rem; }
+      .card-header { padding: 0.8rem 1rem; }
+      .price { font-size: 1.5rem; }
+      .estimate { display: block; margin-top: 0.3rem; margin-left: 0 !important; }
+      .lot-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; }
+      .lot-card img { height: 140px; }
+      .lot-card .lot-info { padding: 0.6rem; }
+      .lot-card .lot-title { font-size: 0.75rem; }
+      .amazon-btn, .ebay-btn { padding: 10px 16px; font-size: 0.82rem; }
+      .stat-number { font-size: 1.6rem; }
+      .hero-stats { display: grid; grid-template-columns: repeat(2, 1fr); }
+      .stat-box { padding: 0.8rem 0.5rem; }
+      h1 { font-size: 1.15rem !important; }
+    }
 
     /* Cards */
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; transition: border-color 0.3s; }
@@ -437,7 +457,12 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .search-result .sr-title { font-size: 0.82rem; line-height: 1.3; flex: 1; }
     .search-result .sr-price { color: var(--green); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
     .search-no-result { padding: 1rem; text-align: center; color: var(--text3); font-size: 0.85rem; }
-    @media (max-width: 800px) { .search-input { width: 140px; } .search-input:focus { width: 200px; } .search-results { min-width: 260px; } }
+    @media (max-width: 800px) {
+      .search-wrap { flex: 1; margin: 0 0.3rem; }
+      .search-input { width: 100%; }
+      .search-input:focus { width: 100%; }
+      .search-results { min-width: 0; left: -40px; right: -40px; }
+    }
   </style>
   <script>
     (function(){
@@ -615,6 +640,15 @@ function generateLotPage(item, sale) {
     .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; flex-shrink: 0; }
     .carousel-thumbs img.active { opacity: 1; border-color: #fff; }
     .carousel-counter { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; z-index: 2; }
+    @media (max-width: 800px) {
+      .carousel-main { min-height: 220px; padding: 0.5rem 36px; }
+      .carousel-btn { width: 32px; height: 32px; font-size: 1rem; }
+      .carousel-prev { left: 4px; }
+      .carousel-next { right: 4px; }
+      .carousel-thumbs img { width: 48px; height: 36px; }
+      .carousel-dots { gap: 4px; padding: 8px; }
+      .carousel-dot { width: 6px; height: 6px; }
+    }
   `;
 
   const carouselJS = carouselImages.length > 1 ? `
