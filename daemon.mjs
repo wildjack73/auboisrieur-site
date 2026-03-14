@@ -330,9 +330,11 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; }
     @media (max-width: 800px) {
       .grid-2 { grid-template-columns: 1fr; }
-      .topnav { flex-wrap: wrap; padding: 0 0.5rem; }
-      .topnav .brand { padding: 0.7rem 0.8rem; font-size: 1rem; }
-      .topnav a { padding: 0.6rem 0.8rem; font-size: 0.82rem; }
+      .topnav { padding: 0 0.3rem; }
+      .topnav .brand { padding: 0.6rem 0.4rem 0.6rem 0.6rem; font-size: 0.9rem; gap: 5px; }
+      .topnav .brand svg { width: 20px; height: 20px; }
+      .topnav a { padding: 0.6rem 0.5rem; font-size: 0.78rem; }
+      .brand-text { font-size: 0.9rem; }
       .container { margin: 0.8rem auto; padding: 0 0.6rem; }
       .breadcrumb { padding: 0.5rem 0.8rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .card-body { padding: 1rem; }
@@ -344,9 +346,10 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       .lot-card .lot-info { padding: 0.6rem; }
       .lot-card .lot-title { font-size: 0.75rem; }
       .amazon-btn, .ebay-btn { padding: 10px 16px; font-size: 0.82rem; }
-      .stat-number { font-size: 1.6rem; }
-      .hero-stats { display: grid; grid-template-columns: repeat(2, 1fr); }
-      .stat-box { padding: 0.8rem 0.5rem; }
+      .stat-number { font-size: 1.4rem; }
+      .stat-label { font-size: 0.7rem; }
+      .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+      .stat-box { padding: 0.8rem 0.3rem; }
       h1 { font-size: 1.15rem !important; }
     }
 
@@ -494,7 +497,7 @@ function navHtml() {
   <span style="flex:1;"></span>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
-    <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un lot..." autocomplete="off">
+    <input type="text" class="search-input" id="searchInput" placeholder="Rechercher..." autocomplete="off">
     <div class="search-results" id="searchResults"></div>
   </div>
   <button class="theme-toggle" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">
