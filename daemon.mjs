@@ -774,9 +774,9 @@ async function ftpUpload() {
       secure: config.ftp.secure || false,
     });
 
-    const remote = config.ftp.remotePath || "/public_html";
+    const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");
 
-    // Collect all files
+    // Collect all HTML files (skip data/)
     function collectFiles(localDir, remoteDir, files = []) {
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
@@ -791,37 +791,39 @@ async function ftpUpload() {
     }
 
     const files = collectFiles(SITE_DIR, remote);
-    console.log(`  📤 ${files.length} fichiers à uploader...`);
+    console.log(`  📤 ${files.length} fichiers à uploader vers ${remote}`);
 
-    // Create directories level by level
+    // Use ensureDir for each unique directory (basic-ftp handles nested creation)
     const dirs = new Set();
     for (const f of files) {
       const dir = f.remote.substring(0, f.remote.lastIndexOf("/"));
       dirs.add(dir);
     }
-    const createdDirs = new Set();
     for (const dir of [...dirs].sort()) {
-      // Create each parent level: /public_html, /public_html/lot, etc.
-      const parts = dir.split("/").filter(Boolean);
-      let current = "";
-      for (const part of parts) {
-        current += "/" + part;
-        if (!createdDirs.has(current)) {
-          try { await client.send("MKD " + current); } catch {}
-          createdDirs.add(current);
-        }
+      try {
+        await client.ensureDir(dir);
+      } catch (err) {
+        console.warn(`  ⚠ Dossier ${dir}: ${err.message}`);
       }
     }
-    console.log(`  📁 ${createdDirs.size} dossiers créés`);
+    console.log(`  📁 ${dirs.size} dossiers vérifiés`);
+
+    // Upload files one by one
     const start = Date.now();
     let uploadCount = 0;
+    let errorCount = 0;
     for (const f of files) {
-      await client.uploadFrom(f.local, f.remote);
-      uploadCount++;
-      if (uploadCount % 100 === 0) console.log(`    ${uploadCount}/${files.length} uploadés...`);
+      try {
+        await client.uploadFrom(f.local, f.remote);
+        uploadCount++;
+        if (uploadCount % 100 === 0) console.log(`    ${uploadCount}/${files.length} uploadés...`);
+      } catch (err) {
+        errorCount++;
+        if (errorCount <= 5) console.warn(`  ⚠ Upload ${f.remote}: ${err.message}`);
+      }
     }
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.log(`  📤 FTP upload terminé: ${uploadCount} fichiers en ${elapsed}s`);
+    console.log(`  📤 FTP terminé: ${uploadCount}/${files.length} fichiers en ${elapsed}s${errorCount ? ` (${errorCount} erreurs)` : ""}`);
   } catch (err) {
     console.warn(`  ⚠ FTP erreur: ${err.message}`);
   } finally {
