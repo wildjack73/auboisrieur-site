@@ -166,7 +166,8 @@ function fetchAllItems(saleId) {
 // ─── State / Registry ───────────────────────────────────────────────────────
 // Global registries for cross-linking
 const registry = {
-  items: new Map(),       // itemId -> item data
+  items: new Map(),       // itemId -> item data (sold)
+  unsold: new Map(),      // itemId -> item data (unsold)
   sales: new Map(),       // saleId -> { sale, items: [] }
   categories: new Map(),  // categorySlug -> { name, id, description, items: [] }
   maisons: new Map(),     // orgSlug -> { name, city, id, items: [], sales: Set }
@@ -248,6 +249,15 @@ function registerItem(item, sale) {
     m.items.push(item);
     if (saleId) m.saleIds.add(saleId);
   }
+}
+
+function registerUnsoldItem(item, sale) {
+  // Apply smart re-categorization
+  const correctedCat = smartCategory(item);
+  if (correctedCat && correctedCat !== item.category?.name) {
+    item.category = { ...item.category, name: correctedCat };
+  }
+  registry.unsold.set(item.id, { item, sale });
 }
 
 // ─── Ad & Amazon HTML snippets ──────────────────────────────────────────────
@@ -340,9 +350,9 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .topnav .brand { padding: 0.9rem 1.2rem 0.9rem 1.5rem; border-bottom: none !important; display: flex; align-items: center; gap: 8px; }
     .topnav .brand:hover { background: none; }
     .topnav .brand svg { flex-shrink: 0; }
-    .brand-text { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .brand-text { font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .topnav .brand:hover .brand-text { background: linear-gradient(135deg, #a78bfa, #c4b5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .topnav a { color: var(--text2); font-size: 0.88rem; padding: 0.9rem 1.2rem; font-weight: 500; transition: all 0.2s; border-bottom: 2px solid transparent; }
+    .topnav a { color: var(--text2); font-size: 1rem; padding: 0.9rem 1.2rem; font-weight: 600; transition: all 0.2s; border-bottom: 2px solid transparent; }
     .topnav a:hover { color: #fff; background: var(--accent-glow); border-bottom-color: var(--accent); }
 
     /* Breadcrumb */
@@ -359,8 +369,8 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       .topnav { padding: 0 0.3rem; }
       .topnav .brand { padding: 0.6rem 0.4rem 0.6rem 0.6rem; font-size: 0.9rem; gap: 5px; }
       .topnav .brand svg { width: 20px; height: 20px; }
-      .topnav a { padding: 0.6rem 0.5rem; font-size: 0.78rem; }
-      .brand-text { font-size: 0.9rem; }
+      .topnav a { padding: 0.6rem 0.5rem; font-size: 0.85rem; }
+      .brand-text { font-size: 1.05rem; }
       .container { margin: 0.8rem auto; padding: 0 0.6rem; }
       .breadcrumb { padding: 0.5rem 0.8rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .card-body { padding: 1rem; }
@@ -528,6 +538,7 @@ function navHtml() {
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
   <a href="/top-ventes.html">🏆 Top</a>
+  <a href="/invendus.html">Invendus</a>
   <span style="flex:1;"></span>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -1237,6 +1248,158 @@ function generateTopVentesPage() {
 </html>`;
 }
 
+// ─── Unsold item page ────────────────────────────────────────────────────────
+
+function generateUnsoldPage(item, sale) {
+  const rawDesc = item.description || item.title_translations?.["fr-FR"] || "Objet";
+  const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
+  const hasShortTitle = lines.length > 1 && lines[0].length < 60;
+  const lotTitle = item._aiTitle || (hasShortTitle ? lines[0] : lines[0]?.substring(0, 70) || "Objet");
+  const lotDesc = item._aiDesc || (hasShortTitle ? lines.slice(1).join(" ") : lines.length > 1 ? lines.slice(1).join(" ") : "");
+  const est = item.pricing?.estimates || {};
+  const org = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
+  const orgSlug = slugify(org);
+  const city = sale?.address?.city || item.sale?.address?.city || "";
+  const saleDate = (sale?.datetime || item.sale?.datetime || "").substring(0, 10);
+  const catName = item.category?.name || "";
+  const catSlug = slugify(catName);
+  const medias = item.medias || [];
+  const thumb = medias[0] ? imgUrl(medias[0], "lg") : "";
+
+  const desc = `${lotTitle} — Invendu aux enchères. ${est.min ? `Estimation ${est.min}-${est.max}€.` : ""} Contactez la maison de vente.`;
+  const slug = lotSlug(item);
+
+  // Contact info
+  const orgAddress = item.organization?.address || sale?.address || {};
+  const orgPhone = item.organization?.phone || sale?.organization?.phone || "";
+  const orgEmail = item.organization?.email || sale?.organization?.email || "";
+  const orgWebsite = item.organization?.website || sale?.organization?.website || "";
+
+  return `${htmlHead(`${lotTitle} — Invendu`, desc, `${thumb ? `<meta property="og:image" content="${thumb}">` : ""}`, `/lot/${slug}.html`)}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb">
+    <a href="/index.html">Accueil</a> ›
+    <a href="/invendus.html">Invendus</a> ›
+    ${esc(lotTitle)}
+  </div>
+  ${adSlot("header", "padding: 0.5rem 2rem;")}
+  <div class="container">
+    <div class="grid-2">
+      <main>
+        <div class="card">
+          ${medias.length > 0 ? `<div style="background:#111;padding:1rem;display:flex;justify-content:center;border-radius:var(--radius) var(--radius) 0 0;">
+            <img src="${esc(thumb)}" alt="${esc(lotTitle)}" style="max-height:400px;max-width:100%;object-fit:contain;border-radius:var(--radius-sm);">
+          </div>` : ""}
+          <div class="card-body">
+            <div style="display:inline-block;background:var(--red-bg);color:var(--red);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:700;margin-bottom:0.8rem;">Invendu</div>
+            <h1 style="font-size:1.4rem;margin-bottom:0.5rem;line-height:1.4;overflow-wrap:break-word;">${esc(lotTitle)}</h1>
+            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:0.8rem;">${esc(lotDesc)}</p>` : ""}
+            ${est.min != null ? `<div style="margin:0.8rem 0;">
+              <span style="font-size:1.3rem;font-weight:700;color:var(--text);">Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €</span>
+            </div>` : ""}
+            ${adSlot("inArticle")}
+            <table class="meta-table">
+              ${catSlug ? `<tr><td>Catégorie</td><td><a href="/categorie/${catSlug}.html">${esc(catName)}</a></td></tr>` : ""}
+              <tr><td>Date</td><td>${saleDate}</td></tr>
+              ${org ? `<tr><td>Maison</td><td>${esc(org)}${city ? ` · ${esc(city)}` : ""}</td></tr>` : ""}
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="border-color:var(--accent);border-width:2px;">
+          <div class="card-header"><h3 style="font-size:1.1rem;">📞 Contacter la maison de vente</h3></div>
+          <div class="card-body">
+            <p style="color:var(--text);margin-bottom:1rem;font-size:0.95rem;">Cet objet n'a pas trouvé preneur. Il est peut-être encore disponible ! Contactez directement la maison de vente pour négocier.</p>
+            <div style="display:flex;flex-direction:column;gap:0.8rem;">
+              ${org ? `<div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.2rem;">🏛️</span>
+                <div><strong>${esc(org)}</strong>${city ? `<br><span style="color:var(--text2);font-size:0.88rem;">${esc(city)}${orgAddress.street ? ` · ${esc(orgAddress.street)}` : ""}</span>` : ""}</div>
+              </div>` : ""}
+              ${orgPhone ? `<a href="tel:${esc(orgPhone)}" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--green-bg);border:1px solid var(--green);border-radius:10px;color:var(--green);font-weight:700;font-size:1rem;text-decoration:none;">
+                <span style="font-size:1.2rem;">📞</span> ${esc(orgPhone)}
+              </a>` : ""}
+              ${orgEmail ? `<a href="mailto:${esc(orgEmail)}?subject=${encodeURIComponent("Demande concernant : " + lotTitle)}" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;color:var(--accent2);font-weight:700;font-size:0.95rem;text-decoration:none;">
+                <span style="font-size:1.2rem;">✉️</span> ${esc(orgEmail)}
+              </a>` : ""}
+              <a href="https://www.google.com/search?q=${encodeURIComponent(org + " " + city + " enchères contact")}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-weight:600;font-size:0.92rem;text-decoration:none;">
+                <span style="font-size:1.2rem;">🔍</span> Rechercher les coordonnées de ${esc(org)}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        ${adSlot("betweenLots")}
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+</body>
+</html>`;
+}
+
+function unsoldLotCard(item) {
+  const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+  const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+  const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
+  const title = item._aiTitle || fallback;
+  const est = item.pricing?.estimates || {};
+  const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+  const catName = item.category?.name || "";
+  return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
+    ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" loading="lazy">` : `<div class="no-img">📦</div>`}
+    <div class="lot-info">
+      <div class="lot-title">${esc(title)}</div>
+      <div style="font-weight:700;color:var(--red);margin-top:0.3rem;font-size:0.88rem;">Invendu</div>
+      ${est.min != null ? `<div style="font-size:0.78rem;color:var(--text2);margin-top:0.2rem;">Est. ${formatPrice(est.min)} – ${formatPrice(est.max)} €</div>` : ""}
+      ${catName ? `<div class="lot-cat">${esc(catName)}</div>` : ""}
+    </div>
+  </a>`;
+}
+
+function generateInvendusIndex() {
+  const unsoldItems = [...registry.unsold.values()]
+    .sort((a, b) => (b.item.pricing?.estimates?.max || 0) - (a.item.pricing?.estimates?.max || 0));
+
+  const metaDesc = `${unsoldItems.length} lots invendus. Contactez les maisons de vente pour négocier.`;
+
+  return `${htmlHead("Invendus — Objets non vendus aux enchères", metaDesc, "", "/invendus.html")}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › Invendus</div>
+  ${adSlot("header", "padding: 0.5rem 2rem;")}
+  <div class="container">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📦</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(unsoldItems.length)}</div><div class="stat-label">invendus</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💬</div>
+        <div><div class="stat-number" style="font-size:1.4rem;">Négociez !</div><div class="stat-label">contactez la maison</div></div>
+      </div></div>
+    </div>
+    <div class="grid-2">
+      <main>
+        <div class="card">
+          <div class="card-header"><h1 style="font-size:1.2rem;">Lots invendus — À négocier directement</h1></div>
+          <div class="card-body">
+            <p style="color:var(--text2);margin-bottom:1.5rem;font-size:0.92rem;">Ces objets n'ont pas trouvé preneur. Ils sont peut-être encore disponibles ! Cliquez sur un lot pour contacter la maison de vente.</p>
+            <div class="lot-grid">
+              ${unsoldItems.map(({ item }) => unsoldLotCard(item)).join("\n              ")}
+            </div>
+          </div>
+        </div>
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+</body>
+</html>`;
+}
+
 function generateHomePage(dateStr) {
   const totalItems = registry.items.size;
   const totalPrice = [...registry.items.values()].reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
@@ -1438,7 +1601,15 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "index.html"), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "top-ventes.html"), generateTopVentesPage(), "utf-8");
-  pageCount += 4;
+  fs.writeFileSync(path.join(SITE_DIR, "invendus.html"), generateInvendusIndex(), "utf-8");
+  pageCount += 5;
+
+  // Unsold lot pages
+  for (const [itemId, { item, sale }] of registry.unsold) {
+    const slug = lotSlug(item);
+    fs.writeFileSync(path.join(SITE_DIR, "lot", `${slug}.html`), generateUnsoldPage(item, sale), "utf-8");
+    pageCount++;
+  }
 
   // Search index as JS (more reliable than JSON fetch on shared hosting)
   const searchIndex = [...registry.items.values()].map(({ item }) => {
@@ -1460,11 +1631,15 @@ function rebuildAllPages(dateStr) {
   sitemap += `  <url><loc>${siteUrl}/index.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/categories.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/top-ventes.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/invendus.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   for (const [slug] of registry.categories) {
     sitemap += `  <url><loc>${siteUrl}/categorie/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   }
   for (const [, { item }] of registry.items) {
     sitemap += `  <url><loc>${siteUrl}/lot/${lotSlug(item)}.html</loc><lastmod>${today}</lastmod><priority>0.6</priority></url>\n`;
+  }
+  for (const [, { item }] of registry.unsold) {
+    sitemap += `  <url><loc>${siteUrl}/lot/${lotSlug(item)}.html</loc><lastmod>${today}</lastmod><priority>0.5</priority></url>\n`;
   }
   sitemap += `</urlset>`;
   fs.writeFileSync(path.join(SITE_DIR, "sitemap.xml"), sitemap, "utf-8");
@@ -2015,6 +2190,7 @@ function scrapDate(dateStr) {
   console.log(`  📅 ${dateStr}: ${sales.length} ventes trouvées`);
 
   let soldCount = 0;
+  let unsoldCount = 0;
   for (const sale of sales) {
     try {
       const items = fetchAllItems(sale.id);
@@ -2023,13 +2199,16 @@ function scrapDate(dateStr) {
         if (auc?.sold && !registry.items.has(item.id)) {
           registerItem(item, sale);
           soldCount++;
+        } else if (auc && !auc.sold && !registry.unsold.has(item.id) && !registry.items.has(item.id)) {
+          registerUnsoldItem(item, sale);
+          unsoldCount++;
         }
       }
     } catch (err) {
       console.warn(`  ⚠ Vente ${sale.id}: ${err.message}`);
     }
   }
-  console.log(`  → ${soldCount} nouveaux lots vendus`);
+  console.log(`  → ${soldCount} vendus, ${unsoldCount} invendus`);
   return soldCount;
 }
 
@@ -2066,7 +2245,10 @@ async function runOnce(dateStr) {
     for (const f of files) {
       try {
         const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
-        if (saved.item && !registry.items.has(saved.item.id)) {
+        if (saved.unsold && saved.item && !registry.unsold.has(saved.item.id)) {
+          registerUnsoldItem(saved.item, saved.sale);
+          cachedCount++;
+        } else if (saved.item && !registry.items.has(saved.item.id)) {
           registerItem(saved.item, saved.sale);
           cachedCount++;
         }
@@ -2081,15 +2263,21 @@ async function runOnce(dateStr) {
   totalSold += scrapDate(yesterday);
   totalSold += scrapDate(dateStr);
 
-  // Save new items to data dir
+  // Save new items to data dir (sold + unsold)
   for (const [itemId, { item, sale }] of registry.items) {
     const itemFile = path.join(dataDir, `${itemId}.json`);
     if (!fs.existsSync(itemFile)) {
       fs.writeFileSync(itemFile, JSON.stringify({ item, sale: { id: sale?.id, name: sale?.name, datetime: sale?.datetime, address: sale?.address, organization: sale?.organization } }, null, 2), "utf-8");
     }
   }
+  for (const [itemId, { item, sale }] of registry.unsold) {
+    const itemFile = path.join(dataDir, `unsold_${itemId}.json`);
+    if (!fs.existsSync(itemFile)) {
+      fs.writeFileSync(itemFile, JSON.stringify({ item, sale: { id: sale?.id, name: sale?.name, datetime: sale?.datetime, address: sale?.address, organization: sale?.organization }, unsold: true }, null, 2), "utf-8");
+    }
+  }
   // Save state
-  fs.writeFileSync(stateFile, JSON.stringify({ knownSold: [...registry.items.keys()], lastPoll: new Date().toISOString() }, null, 2), "utf-8");
+  fs.writeFileSync(stateFile, JSON.stringify({ knownSold: [...registry.items.keys()], knownUnsold: [...registry.unsold.keys()], lastPoll: new Date().toISOString() }, null, 2), "utf-8");
 
   const totalItems = registry.items.size;
   console.log(`\n  Total: ${totalSold} nouveaux lots scrapés, ${totalItems} lots au total (cache + scrape)`);
@@ -2142,7 +2330,10 @@ async function runRebuild(dateStr) {
     for (const f of files) {
       try {
         const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
-        if (saved.item && !registry.items.has(saved.item.id)) {
+        if (saved.unsold && saved.item && !registry.unsold.has(saved.item.id)) {
+          registerUnsoldItem(saved.item, saved.sale);
+          loaded++;
+        } else if (saved.item && !registry.items.has(saved.item.id)) {
           registerItem(saved.item, saved.sale);
           loaded++;
         }
