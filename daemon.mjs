@@ -172,7 +172,32 @@ const registry = {
   maisons: new Map(),     // orgSlug -> { name, city, id, items: [], sales: Set }
 };
 
+// ─── Smart re-categorization rules ──────────────────────────────────────────
+const RECAT_RULES = [
+  { pattern: /\b(moto|scooter|cyclo|quad|trottinette|harley.davidson|yamaha.*moto|honda.*moto|kawasaki|suzuki.*moto|ducati|triumph|bmw.*moto|ktm|aprilia|vespa)\b/i, category: "Motos, cyclos, quads, véhicules sans permis" },
+  { pattern: /\b(vélo|bicyclette|vtt|vtc|e-bike|ebike|bike)\b/i, category: "Vélos" },
+  { pattern: /\b(bateau|voilier|catamaran|jet.ski|zodiac|semi-rigide|hors.bord)\b/i, category: "Bateaux, nautisme" },
+  { pattern: /\b(tracteur|moissonneuse|engin.*chantier|pelleteuse|chargeuse|manitou|fendt|john.deere|case.*ih)\b/i, category: "Matériel agricole" },
+];
+
+function smartCategory(item) {
+  const desc = (item.description || item.title_translations?.["fr-FR"] || "").toLowerCase();
+  const currentCat = item.category?.name || "";
+  for (const rule of RECAT_RULES) {
+    if (rule.pattern.test(desc) && slugify(currentCat) !== slugify(rule.category)) {
+      return rule.category;
+    }
+  }
+  return currentCat;
+}
+
 function registerItem(item, sale) {
+  // Apply smart re-categorization
+  const correctedCat = smartCategory(item);
+  if (correctedCat && correctedCat !== item.category?.name) {
+    item.category = { ...item.category, name: correctedCat };
+  }
+
   registry.items.set(item.id, { item, sale });
 
   // Register sale
