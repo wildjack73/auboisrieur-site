@@ -770,6 +770,7 @@ function generateLotPage(item, sale) {
             ${adSlot("inArticle", "margin-top:0.8rem;")}
           </div>
           ${carouselHtml}
+          ${adSlot("betweenLots", "padding:0.8rem 1.5rem;")}
           <div class="card-body">
             ${amazonButton(shortTitle)}
 
