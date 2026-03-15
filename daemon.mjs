@@ -1619,10 +1619,26 @@ function rebuildAllPages(dateStr) {
   // Index pages
   fs.writeFileSync(path.join(SITE_DIR, "categories.html"), generateCategoriesIndex(), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "index.html"), generateHomePage(dateStr), "utf-8");
-  fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "top-ventes.html"), generateTopVentesPage(), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "invendus.html"), generateInvendusIndex(), "utf-8");
-  pageCount += 5;
+  pageCount += 4;
+
+  // Generate a page per day (group lots by sale date)
+  const dayMap = new Map();
+  for (const [, { item, sale }] of registry.items) {
+    const d = sale?.datetime ? sale.datetime.substring(0, 10) : dateStr;
+    if (!dayMap.has(d)) dayMap.set(d, []);
+    dayMap.get(d).push({ item, sale });
+  }
+  for (const [day] of dayMap) {
+    fs.writeFileSync(path.join(SITE_DIR, "jour", `${day}.html`), generateHomePage(day), "utf-8");
+    pageCount++;
+  }
+  // Always generate today's page too
+  if (!dayMap.has(dateStr)) {
+    fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
+    pageCount++;
+  }
 
   // Unsold lot pages
   for (const [itemId, { item, sale }] of registry.unsold) {
@@ -2241,53 +2257,22 @@ async function runOnce(dateStr) {
   console.log(`   Amazon tag: ${config.amazonTag}`);
   console.log(`   FTP: ${config.ftp?.enabled ? config.ftp.host : "désactivé"}\n`);
 
-  // Load existing cached lots first (so we never lose data between runs)
+  // Load ALL cached lots (so we keep every day's pages)
   let cachedCount = 0;
-  const stateFile = path.join(dataDir, "state.json");
-  if (fs.existsSync(stateFile)) {
+  const files = fs.readdirSync(dataDir).filter(f => f.endsWith(".json") && f !== "state.json" && f !== "ai-cache.json");
+  for (const f of files) {
     try {
-      const state = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
-      for (const itemId of state.knownSold || []) {
-        const itemFile = path.join(dataDir, `${itemId}.json`);
-        if (fs.existsSync(itemFile)) {
-          try {
-            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
-            registerItem(saved.item, saved.sale);
-            cachedCount++;
-          } catch {}
-        }
-      }
-      for (const itemId of state.knownUnsold || []) {
-        const itemFile = path.join(dataDir, `unsold_${itemId}.json`);
-        if (fs.existsSync(itemFile)) {
-          try {
-            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
-            if (saved.item && !registry.unsold.has(saved.item.id)) {
-              registerUnsoldItem(saved.item, saved.sale);
-              cachedCount++;
-            }
-          } catch {}
-        }
+      const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
+      if (saved.unsold && saved.item && !registry.unsold.has(saved.item.id)) {
+        registerUnsoldItem(saved.item, saved.sale);
+        cachedCount++;
+      } else if (saved.item && !registry.items.has(saved.item.id)) {
+        registerItem(saved.item, saved.sale);
+        cachedCount++;
       }
     } catch {}
   }
-  // Fallback: scan json files directly
-  if (cachedCount === 0) {
-    const files = fs.readdirSync(dataDir).filter(f => f.endsWith(".json") && f !== "state.json" && f !== "ai-cache.json");
-    for (const f of files) {
-      try {
-        const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
-        if (saved.unsold && saved.item && !registry.unsold.has(saved.item.id)) {
-          registerUnsoldItem(saved.item, saved.sale);
-          cachedCount++;
-        } else if (saved.item && !registry.items.has(saved.item.id)) {
-          registerItem(saved.item, saved.sale);
-          cachedCount++;
-        }
-      } catch {}
-    }
-  }
-  if (cachedCount > 0) console.log(`  📦 ${cachedCount} lots restaurés depuis le cache`);
+  if (cachedCount > 0) console.log(`  📦 ${cachedCount} lots restaurés depuis le cache (total cumulé)`);
 
   // Scrape yesterday + today to catch late evening sales
   const yesterday = yesterdayStr(dateStr);
@@ -2336,53 +2321,20 @@ async function runRebuild(dateStr) {
   console.log(`\n🔄 Interenchères — Rebuild depuis le cache`);
   console.log(`   FTP: ${config.ftp?.enabled ? config.ftp.host : "désactivé"}\n`);
 
-  // Load all cached item JSON files
-  const stateFile = path.join(dataDir, "state.json");
+  // Load ALL cached item JSON files (every day cumulated)
   let loaded = 0;
-
-  if (fs.existsSync(stateFile)) {
+  const files = fs.readdirSync(dataDir).filter(f => f.endsWith(".json") && f !== "state.json" && f !== "ai-cache.json");
+  for (const f of files) {
     try {
-      const state = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
-      for (const itemId of state.knownSold || []) {
-        const itemFile = path.join(dataDir, `${itemId}.json`);
-        if (fs.existsSync(itemFile)) {
-          try {
-            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
-            registerItem(saved.item, saved.sale);
-            loaded++;
-          } catch {}
-        }
-      }
-      for (const itemId of state.knownUnsold || []) {
-        const itemFile = path.join(dataDir, `unsold_${itemId}.json`);
-        if (fs.existsSync(itemFile)) {
-          try {
-            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
-            if (saved.item && !registry.unsold.has(saved.item.id)) {
-              registerUnsoldItem(saved.item, saved.sale);
-              loaded++;
-            }
-          } catch {}
-        }
+      const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
+      if (saved.unsold && saved.item && !registry.unsold.has(saved.item.id)) {
+        registerUnsoldItem(saved.item, saved.sale);
+        loaded++;
+      } else if (saved.item && !registry.items.has(saved.item.id)) {
+        registerItem(saved.item, saved.sale);
+        loaded++;
       }
     } catch {}
-  }
-
-  // Also scan for any .json files that aren't in state (fallback)
-  if (loaded === 0) {
-    const files = fs.readdirSync(dataDir).filter(f => f.endsWith(".json") && f !== "state.json" && f !== "ai-cache.json");
-    for (const f of files) {
-      try {
-        const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
-        if (saved.unsold && saved.item && !registry.unsold.has(saved.item.id)) {
-          registerUnsoldItem(saved.item, saved.sale);
-          loaded++;
-        } else if (saved.item && !registry.items.has(saved.item.id)) {
-          registerItem(saved.item, saved.sale);
-          loaded++;
-        }
-      } catch {}
-    }
   }
 
   console.log(`  📦 ${loaded} lots chargés depuis le cache`);
