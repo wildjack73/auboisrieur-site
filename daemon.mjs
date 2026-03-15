@@ -616,6 +616,7 @@ function footerHtml() {
   <div style="font-weight:600;color:var(--text2);margin-bottom:0.3rem;">${esc(config.siteName)}</div>
   Résultats de ventes aux enchères en France · Photos · Prix · Estimations<br>
   <span style="color:var(--text3);font-size:0.72rem;">Les liens marchands sont des liens affiliés.</span>
+  <div style="margin-top:0.5rem;font-size:0.75rem;"><a href="/mentions-legales.html" style="color:var(--text3);">Mentions légales</a> · <a href="/confidentialite.html" style="color:var(--text3);">Confidentialité</a></div>
 </footer>`;
 }
 
@@ -1630,6 +1631,140 @@ function generateHomePage(dateStr) {
 </html>`;
 }
 
+// ─── Static pages ───────────────────────────────────────────────────────────
+
+function generateMentionsLegalesPage() {
+  return `${htmlHead("Mentions légales", "Mentions légales du site Adjugé ! — Informations légales et éditeur", "", "/mentions-legales.html")}
+<body>
+  ${navHtml()}
+  <div class="container" style="padding-top:1.5rem;">
+    <div class="breadcrumb"><a href="/index.html">Accueil</a> › Mentions légales</div>
+    <div class="grid-2">
+      <main>
+        <div class="card">
+          <div class="card-body" style="line-height:1.8;">
+            <h1 style="font-size:1.5rem;margin-bottom:1rem;">Mentions légales</h1>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">Éditeur du site</h2>
+            <p>
+              <strong>${esc(config.siteName)}</strong><br>
+              Entreprise individuelle — SAUVAGE Laurent<br>
+              SIREN : 447 716 218<br>
+              Adresse : France<br>
+              Site web : <a href="${config.siteUrl}">${config.siteUrl}</a>
+            </p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">Hébergement</h2>
+            <p>
+              Hostinger International Ltd.<br>
+              61 Lordou Vironos Street, 6023 Larnaca, Chypre<br>
+              <a href="https://www.hostinger.fr" rel="noopener">www.hostinger.fr</a>
+            </p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">Propriété intellectuelle</h2>
+            <p>
+              Le contenu du site (textes, images, graphismes, logo) est la propriété de l'éditeur ou de ses partenaires.
+              Toute reproduction, représentation ou diffusion, en tout ou partie, du contenu de ce site sans autorisation est interdite.
+            </p>
+            <p>
+              Les photographies et descriptions des lots proviennent des maisons de ventes aux enchères partenaires et sont reproduites à titre informatif.
+            </p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">Liens affiliés</h2>
+            <p>
+              Ce site participe à des programmes d'affiliation (Amazon, eBay). Les liens marchands peuvent générer une commission pour l'éditeur,
+              sans surcoût pour l'utilisateur.
+            </p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">Responsabilité</h2>
+            <p>
+              Les informations présentes sur ce site sont fournies à titre indicatif. L'éditeur ne saurait être tenu responsable
+              des erreurs, omissions ou résultats obtenus suite à l'utilisation de ces informations.
+              Les prix affichés sont les prix d'adjudication hors frais.
+            </p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">Contact</h2>
+            <p>
+              Pour toute question relative au site, vous pouvez nous contacter via le formulaire ou par e-mail à l'adresse indiquée sur le site.
+            </p>
+          </div>
+        </div>
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+</body>
+</html>`;
+}
+
+function generateConfidentialitePage() {
+  return `${htmlHead("Politique de confidentialité", "Politique de confidentialité et protection des données personnelles — Adjugé !", "", "/confidentialite.html")}
+<body>
+  ${navHtml()}
+  <div class="container" style="padding-top:1.5rem;">
+    <div class="breadcrumb"><a href="/index.html">Accueil</a> › Confidentialité</div>
+    <div class="grid-2">
+      <main>
+        <div class="card">
+          <div class="card-body" style="line-height:1.8;">
+            <h1 style="font-size:1.5rem;margin-bottom:1rem;">Politique de confidentialité</h1>
+            <p style="color:var(--text3);font-size:0.85rem;">Dernière mise à jour : mars 2026</p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">1. Responsable du traitement</h2>
+            <p>
+              SAUVAGE Laurent — Entreprise individuelle<br>
+              SIREN : 447 716 218
+            </p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">2. Données collectées</h2>
+            <p>Le site <strong>${esc(config.siteName)}</strong> ne collecte aucune donnée personnelle directement. Aucun formulaire d'inscription, de connexion ou de commentaire n'est proposé.</p>
+            <p>Cependant, des services tiers peuvent collecter des données de navigation :</p>
+            <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+              <li><strong>Google Analytics</strong> — statistiques de fréquentation (pages vues, durée de visite, origine géographique)</li>
+              <li><strong>Google AdSense</strong> — affichage de publicités personnalisées ou non</li>
+              <li><strong>GoatCounter</strong> — statistiques de fréquentation respectueuses de la vie privée</li>
+            </ul>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">3. Cookies</h2>
+            <p>Le site utilise des cookies pour :</p>
+            <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+              <li><strong>Préférence de thème</strong> (clair/sombre) — cookie fonctionnel, stocké localement</li>
+              <li><strong>Google Analytics</strong> — cookies d'analyse (<code>_ga</code>, <code>_gid</code>)</li>
+              <li><strong>Google AdSense</strong> — cookies publicitaires</li>
+            </ul>
+            <p>Vous pouvez désactiver les cookies dans les paramètres de votre navigateur.</p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">4. Finalité du traitement</h2>
+            <p>Les données collectées via les services tiers sont utilisées pour :</p>
+            <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+              <li>Mesurer l'audience du site et améliorer son contenu</li>
+              <li>Afficher des publicités pertinentes via Google AdSense</li>
+            </ul>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">5. Durée de conservation</h2>
+            <p>Les cookies Google Analytics expirent après 13 mois maximum. Les cookies publicitaires ont une durée variable selon le fournisseur.</p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">6. Vos droits</h2>
+            <p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition concernant vos données personnelles.</p>
+            <p>Pour exercer ces droits, contactez-nous par e-mail.</p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">7. Liens externes</h2>
+            <p>Le site contient des liens vers des sites tiers (maisons de ventes, Amazon, eBay). L'éditeur n'est pas responsable de la politique de confidentialité de ces sites.</p>
+
+            <h2 style="font-size:1.1rem;margin-top:1.5rem;">8. Modifications</h2>
+            <p>Cette politique de confidentialité peut être mise à jour à tout moment. La date de dernière mise à jour est indiquée en haut de cette page.</p>
+          </div>
+        </div>
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+</body>
+</html>`;
+}
+
 // ─── Full site rebuild ──────────────────────────────────────────────────────
 
 function rebuildAllPages(dateStr) {
@@ -1662,7 +1797,9 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "index.html"), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "top-ventes.html"), generateTopVentesPage(), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "invendus.html"), generateInvendusIndex(), "utf-8");
-  pageCount += 4;
+  fs.writeFileSync(path.join(SITE_DIR, "mentions-legales.html"), generateMentionsLegalesPage(), "utf-8");
+  fs.writeFileSync(path.join(SITE_DIR, "confidentialite.html"), generateConfidentialitePage(), "utf-8");
+  pageCount += 6;
 
   // Generate a page per day (group lots by sale date)
   const dayMap = new Map();
@@ -1712,6 +1849,8 @@ function rebuildAllPages(dateStr) {
   sitemap += `  <url><loc>${siteUrl}/categories.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/top-ventes.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/invendus.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/mentions-legales.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/confidentialite.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>\n`;
   for (const [slug] of registry.categories) {
     sitemap += `  <url><loc>${siteUrl}/categorie/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   }
