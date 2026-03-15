@@ -2257,6 +2257,18 @@ async function runOnce(dateStr) {
           } catch {}
         }
       }
+      for (const itemId of state.knownUnsold || []) {
+        const itemFile = path.join(dataDir, `unsold_${itemId}.json`);
+        if (fs.existsSync(itemFile)) {
+          try {
+            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
+            if (saved.item && !registry.unsold.has(saved.item.id)) {
+              registerUnsoldItem(saved.item, saved.sale);
+              cachedCount++;
+            }
+          } catch {}
+        }
+      }
     } catch {}
   }
   // Fallback: scan json files directly
@@ -2338,6 +2350,18 @@ async function runRebuild(dateStr) {
             const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
             registerItem(saved.item, saved.sale);
             loaded++;
+          } catch {}
+        }
+      }
+      for (const itemId of state.knownUnsold || []) {
+        const itemFile = path.join(dataDir, `unsold_${itemId}.json`);
+        if (fs.existsSync(itemFile)) {
+          try {
+            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
+            if (saved.item && !registry.unsold.has(saved.item.id)) {
+              registerUnsoldItem(saved.item, saved.sale);
+              loaded++;
+            }
           } catch {}
         }
       }
