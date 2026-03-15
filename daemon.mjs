@@ -499,7 +499,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
 function navHtml() {
   return `<nav class="topnav">
-  <a href="/index.html" class="brand"><img src="/logo-dark.jpg" alt="${esc(config.siteName)}" class="brand-logo brand-logo-dark" height="36"><img src="/logo-light.jpg" alt="${esc(config.siteName)}" class="brand-logo brand-logo-light" height="36"></a>
+  <a href="/index.html" class="brand"><span class="brand-text">Adjugé !</span></a>
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
   <a href="/top-ventes.html">🏆 Top</a>
