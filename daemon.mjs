@@ -1939,17 +1939,83 @@ async function runOnce(dateStr) {
   console.log("\n✅ Terminé.");
 }
 
+// ─── Rebuild from cached data (no scraping) ────────────────────────────────
+
+async function runRebuild(dateStr) {
+  ensureDir(SITE_DIR);
+  const dataDir = path.join(SITE_DIR, "data");
+  ensureDir(dataDir);
+
+  console.log(`\n🔄 Interenchères — Rebuild depuis le cache`);
+  console.log(`   FTP: ${config.ftp?.enabled ? config.ftp.host : "désactivé"}\n`);
+
+  // Load all cached item JSON files
+  const stateFile = path.join(dataDir, "state.json");
+  let loaded = 0;
+
+  if (fs.existsSync(stateFile)) {
+    try {
+      const state = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
+      for (const itemId of state.knownSold || []) {
+        const itemFile = path.join(dataDir, `${itemId}.json`);
+        if (fs.existsSync(itemFile)) {
+          try {
+            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
+            registerItem(saved.item, saved.sale);
+            loaded++;
+          } catch {}
+        }
+      }
+    } catch {}
+  }
+
+  // Also scan for any .json files that aren't in state (fallback)
+  if (loaded === 0) {
+    const files = fs.readdirSync(dataDir).filter(f => f.endsWith(".json") && f !== "state.json" && f !== "ai-cache.json");
+    for (const f of files) {
+      try {
+        const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
+        if (saved.item && !registry.items.has(saved.item.id)) {
+          registerItem(saved.item, saved.sale);
+          loaded++;
+        }
+      } catch {}
+    }
+  }
+
+  console.log(`  📦 ${loaded} lots chargés depuis le cache`);
+
+  if (loaded === 0) {
+    console.log("  ❌ Aucune donnée en cache. Lancez d'abord --once pour scraper.");
+    process.exit(1);
+  }
+
+  // Apply AI enrichment from cache (no new API calls if already enriched)
+  await aiEnrichLots();
+
+  // Rebuild all pages with new design
+  const pageCount = rebuildAllPages(dateStr);
+  console.log(`  📄 ${pageCount} pages régénérées`);
+
+  // Upload via FTP
+  await ftpUpload();
+
+  console.log("\n✅ Rebuild terminé.");
+}
+
 // ─── main ───────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
 let interval = 60;
 let date = todayStr();
 let once = false;
+let rebuild = false;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--interval" && args[i + 1]) { interval = parseInt(args[i + 1]); i++; }
   else if (args[i] === "--date" && args[i + 1]) { date = args[i + 1]; i++; }
   else if (args[i] === "--once") { once = true; }
+  else if (args[i] === "--rebuild") { rebuild = true; }
   else if (args[i] === "--help") {
     console.log(`
 Interencheres Site Generator
@@ -1957,6 +2023,7 @@ Interencheres Site Generator
 Usage:
   node daemon.mjs                    Lance en boucle (poll 60s)
   node daemon.mjs --once             Exécution unique (pour CI/GitHub Actions)
+  node daemon.mjs --rebuild          Rebuild depuis le cache (pas de scraping)
   node daemon.mjs --interval 30      Poll 30s
   node daemon.mjs --date 2026-03-14  Date spécifique
 
@@ -1966,7 +2033,9 @@ Config: config.mjs (tag Amazon, AdSense, FTP, etc.)
   }
 }
 
-if (once) {
+if (rebuild) {
+  runRebuild(date).catch(err => { console.error(err); process.exit(1); });
+} else if (once) {
   runOnce(date).catch(err => { console.error(err); process.exit(1); });
 } else {
   runDaemon(date, interval);
