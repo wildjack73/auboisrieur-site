@@ -2114,7 +2114,7 @@ Tu dois retourner un JSON avec exactement 5 champs :
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
-async function aiEnrichLots() {
+async function aiEnrichLots(maxPerRun = 0) {
   if (!config.openaiKey) {
     console.log("  ⏭️  Pas de clé OpenAI — enrichissement AI désactivé");
     return;
@@ -2122,13 +2122,20 @@ async function aiEnrichLots() {
 
   const cache = loadAiCache();
   const items = [...registry.items.values()];
-  // Re-enrich items with old FAQ format (2 questions instead of 3, or generic questions)
-  const toEnrich = items.filter(({ item }) => {
+
+  // Apply existing cache first (so pages already enriched keep their AI content)
+  for (const { item } of items) {
+    if (cache[item.id]) {
+      item._aiTitle = cache[item.id].t;
+      item._aiDesc = cache[item.id].d;
+    }
+  }
+
+  // Find items that still need enrichment
+  let toEnrich = items.filter(({ item }) => {
     if (!cache[item.id]) return true;
-    // Force re-enrich if FAQ has less than 3 questions (old format)
     const faq = cache[item.id].faq || [];
     if (faq.length < 3) return true;
-    // Force re-enrich if FAQ doesn't contain price/valeur/coût keywords (generic)
     const hasGeoQ = faq.some(f => /prix|valeur|co[uû]t|combien/i.test(f.q || ""));
     if (!hasGeoQ) return true;
     return false;
@@ -2136,17 +2143,16 @@ async function aiEnrichLots() {
 
   if (toEnrich.length === 0) {
     console.log("  ✨ Tous les lots sont déjà enrichis par l'IA");
-    // Apply cache to items
-    for (const { item } of items) {
-      if (cache[item.id]) {
-        item._aiTitle = cache[item.id].t;
-        item._aiDesc = cache[item.id].d;
-      }
-    }
     return;
   }
 
-  console.log(`  🤖 Enrichissement IA: ${toEnrich.length} lots à traiter...`);
+  // Limit per run to avoid timeout (200 lots ≈ 15-20 min max)
+  if (maxPerRun > 0 && toEnrich.length > maxPerRun) {
+    console.log(`  🤖 Enrichissement IA: ${toEnrich.length} lots à traiter, limité à ${maxPerRun} ce run`);
+    toEnrich = toEnrich.slice(0, maxPerRun);
+  } else {
+    console.log(`  🤖 Enrichissement IA: ${toEnrich.length} lots à traiter...`);
+  }
 
   const CONCURRENCY = 10;
   let done = 0;
@@ -2370,10 +2376,21 @@ async function runOnce(dateStr) {
   console.log(`\n  Total: ${totalSold} nouveaux lots scrapés, ${totalItems} lots au total (cache + scrape)`);
 
   if (totalItems > 0) {
-    await aiEnrichLots();
+    // 1) Build pages FIRST (so site updates immediately, even without AI)
     const pageCount = rebuildAllPages(dateStr);
-    console.log(`  ${pageCount} pages générées`);
+    console.log(`  📄 ${pageCount} pages générées`);
     await ftpUpload();
+
+    // 2) AI enrichment AFTER first deploy (max 200 per run to avoid timeout)
+    const MAX_AI_PER_RUN = 200;
+    await aiEnrichLots(MAX_AI_PER_RUN);
+
+    // 3) Rebuild only the AI-enriched pages + index pages, then re-upload
+    const enrichedCount = rebuildAllPages(dateStr);
+    if (enrichedCount > 0) {
+      console.log(`  🔄 ${enrichedCount} pages mises à jour avec IA`);
+      await ftpUpload();
+    }
   } else {
     console.log("  Aucun lot — rien à générer.");
   }
