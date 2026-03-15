@@ -687,7 +687,6 @@ function generateLotPage(item, sale) {
     .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; width: 100%; max-width: 100%; box-sizing: border-box; }
     .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 280px; max-height: 450px; padding: 1rem 50px; overflow: hidden; box-sizing: border-box; }
     .carousel-main img { max-width: 100%; max-height: 430px; object-fit: contain; cursor: zoom-in; display: block; }
-    .carousel-main a { display: flex; align-items: center; justify-content: center; max-width: 100%; overflow: hidden; }
     .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .carousel-btn:hover { background: #fff; }
     .carousel-prev { left: 10px; }
@@ -699,6 +698,17 @@ function generateLotPage(item, sale) {
     .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; flex-shrink: 0; }
     .carousel-thumbs img.active { opacity: 1; border-color: #fff; }
     .carousel-counter { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; z-index: 2; }
+    /* Lightbox */
+    .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; backdrop-filter: blur(8px); }
+    .lightbox.active { display: flex; }
+    .lightbox img { max-width: 92vw; max-height: 85vh; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    .lightbox-close { position: absolute; top: 16px; right: 20px; background: rgba(255,255,255,0.15); border: none; color: #fff; width: 44px; height: 44px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 10000; }
+    .lightbox-close:hover { background: rgba(255,255,255,0.3); }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.15); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .lightbox-nav:hover { background: rgba(255,255,255,0.3); }
+    .lightbox-prev { left: 16px; }
+    .lightbox-next { right: 16px; }
+    .lightbox-counter { position: absolute; bottom: 20px; color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 500; }
     @media (max-width: 800px) {
       .carousel-main { min-height: 200px; max-height: 320px; padding: 0.5rem 36px; }
       .carousel-main img { max-height: 300px; }
@@ -709,14 +719,22 @@ function generateLotPage(item, sale) {
       .carousel-thumbs img { width: 48px; height: 36px; }
       .carousel-dots { gap: 4px; padding: 6px; }
       .carousel-dot { width: 6px; height: 6px; }
+      .lightbox img { max-width: 96vw; max-height: 80vh; }
+      .lightbox-nav { width: 38px; height: 38px; font-size: 1.2rem; }
+      .lightbox-prev { left: 8px; }
+      .lightbox-next { right: 8px; }
     }
   `;
 
-  const carouselJS = carouselImages.length > 1 ? `
+  const lightboxJS = `
     <script>
     (function(){
       const imgs = ${JSON.stringify(carouselImages.map(i => ({ src: i.src, original: i.original })))};
       let cur = 0;
+      const lb = document.getElementById('lightbox');
+      const lbImg = document.getElementById('lbImg');
+      const lbCounter = document.getElementById('lbCounter');
+      ${carouselImages.length > 1 ? `
       const main = document.getElementById('carouselMain');
       const counter = document.getElementById('carouselCounter');
       const dots = document.querySelectorAll('.carousel-dot');
@@ -724,7 +742,6 @@ function generateLotPage(item, sale) {
       function show(i) {
         cur = (i + imgs.length) % imgs.length;
         main.querySelector('img').src = imgs[cur].src;
-        main.querySelector('a').href = imgs[cur].original;
         counter.textContent = (cur+1) + ' / ' + imgs.length;
         dots.forEach((d,j) => d.classList.toggle('active', j===cur));
         thumbs.forEach((t,j) => t.classList.toggle('active', j===cur));
@@ -733,18 +750,69 @@ function generateLotPage(item, sale) {
       document.querySelector('.carousel-next').onclick = () => show(cur+1);
       dots.forEach((d,j) => d.onclick = () => show(j));
       thumbs.forEach((t,j) => t.onclick = () => show(j));
-      // Swipe support
+      // Swipe on carousel
       let sx=0;
       main.addEventListener('touchstart', e => sx=e.touches[0].clientX);
       main.addEventListener('touchend', e => { const dx=e.changedTouches[0].clientX-sx; if(Math.abs(dx)>40){dx<0?show(cur+1):show(cur-1);} });
+      ` : ''}
+
+      // Lightbox
+      function openLb(i) {
+        cur = (i + imgs.length) % imgs.length;
+        lbImg.src = imgs[cur].original || imgs[cur].src;
+        lbCounter.textContent = (cur+1) + ' / ' + imgs.length;
+        lb.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeLb() {
+        lb.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+      function lbNav(dir) {
+        cur = (cur + dir + imgs.length) % imgs.length;
+        lbImg.src = imgs[cur].original || imgs[cur].src;
+        lbCounter.textContent = (cur+1) + ' / ' + imgs.length;
+      }
+
+      // Click on carousel main image → open lightbox
+      document.getElementById('carouselMain').querySelector('img').onclick = function() { openLb(cur); };
+      // Lightbox controls
+      document.getElementById('lbClose').onclick = closeLb;
+      ${carouselImages.length > 1 ? `
+      document.getElementById('lbPrev').onclick = function() { lbNav(-1); };
+      document.getElementById('lbNext').onclick = function() { lbNav(1); };
+      ` : ''}
+      // Close on backdrop click
+      lb.onclick = function(e) { if (e.target === lb) closeLb(); };
+      // Close on Escape
+      document.addEventListener('keydown', function(e) {
+        if (!lb.classList.contains('active')) return;
+        if (e.key === 'Escape') closeLb();
+        ${carouselImages.length > 1 ? `
+        if (e.key === 'ArrowLeft') lbNav(-1);
+        if (e.key === 'ArrowRight') lbNav(1);
+        ` : ''}
+      });
+      // Swipe on lightbox
+      let lsx=0;
+      lbImg.addEventListener('touchstart', function(e) { lsx=e.touches[0].clientX; });
+      lbImg.addEventListener('touchend', function(e) { const dx=e.changedTouches[0].clientX-lsx; if(Math.abs(dx)>40){dx<0?lbNav(1):lbNav(-1);} });
     })();
-    </script>` : "";
+    </script>`;
+
+  const lightboxHtml = carouselImages.length > 0 ? `
+    <div class="lightbox" id="lightbox">
+      <button class="lightbox-close" id="lbClose" aria-label="Fermer">✕</button>
+      ${carouselImages.length > 1 ? `<button class="lightbox-nav lightbox-prev" id="lbPrev">‹</button><button class="lightbox-nav lightbox-next" id="lbNext">›</button>` : ""}
+      <img id="lbImg" src="" alt="Zoom">
+      <span class="lightbox-counter" id="lbCounter"></span>
+    </div>` : "";
 
   const carouselHtml = carouselImages.length === 0
     ? `<div class="carousel"><div class="carousel-main" style="min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:1.5rem;">📦 Pas de photo</div></div>`
     : `<div class="carousel">
         <div class="carousel-main" id="carouselMain">
-          <a href="${esc(carouselImages[0].original)}" target="_blank"><img src="${esc(carouselImages[0].src)}" alt="${esc(carouselImages[0].alt)}"></a>
+          <img src="${esc(carouselImages[0].src)}" alt="${esc(carouselImages[0].alt)}" style="cursor:zoom-in;">
         </div>
         ${carouselImages.length > 1 ? `<button class="carousel-btn carousel-prev">‹</button><button class="carousel-btn carousel-next">›</button>` : ""}
         <span class="carousel-counter" id="carouselCounter">1 / ${carouselImages.length}</span>
@@ -850,7 +918,8 @@ function generateLotPage(item, sale) {
       ${sidebarHtml()}
     </div>
   </div>
-  ${carouselJS}
+  ${lightboxHtml}
+  ${lightboxJS}
   ${footerHtml()}
 </body>
 </html>`;
@@ -863,13 +932,10 @@ function generateCategoryPage(slug, data) {
   const avgPrice = data.items.length ? Math.round(totalPrice / data.items.length) : 0;
   const desc = `${data.items.length} lots vendus en catégorie ${catName}. Prix moyen : ${avgPrice}€. ${catDesc}`;
 
-  // Group by maison
-  const byMaison = {};
-  for (const item of data.items) {
-    const org = item.organization?.names?.voluntary || item.organization?.names?.judicial || "Autre";
-    if (!byMaison[org]) byMaison[org] = [];
-    byMaison[org].push(item);
-  }
+  // Top 10 most expensive in this category
+  const top10Cat = [...data.items]
+    .sort((a, b) => (b.pricing?.auctioned?.price || 0) - (a.pricing?.auctioned?.price || 0))
+    .slice(0, 10);
 
   return `${htmlHead(catName, desc, "", `/categorie/${slug}.html`)}
 <body>
@@ -894,6 +960,28 @@ function generateCategoryPage(slug, data) {
             </div>
           </div>
         </div>
+
+        ${top10Cat.length > 0 ? `<div class="card">
+          <div class="card-header"><h3 style="font-size:1rem;">🏆 Top 10 — ${esc(catName)}</h3></div>
+          <div class="card-body" style="padding:0;">
+            ${top10Cat.map((item, i) => {
+              const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+              const lns = rawD.split("\\n").map(l => l.trim()).filter(Boolean);
+              const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 50) || "Objet");
+              const price = item.pricing?.auctioned?.price || 0;
+              const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+              return `<a href="/lot/${lotSlug(item)}.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background 0.15s;">
+                <span style="font-weight:800;font-size:${i < 3 ? '1.2rem' : '0.95rem'};min-width:28px;text-align:center;">${medal}</span>
+                ${thumb ? `<img src="${esc(thumb)}" alt="" style="width:50px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ""}
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(title)}</div>
+                  <div style="font-size:0.88rem;font-weight:700;color:var(--green);">${formatPrice(price)} €</div>
+                </div>
+              </a>`;
+            }).join("")}
+          </div>
+        </div>` : ""}
 
         ${adSlot("betweenLots")}
 
