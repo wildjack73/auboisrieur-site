@@ -1421,11 +1421,29 @@ function generateInvendusIndex() {
 }
 
 function generateHomePage(dateStr) {
-  const totalItems = registry.items.size;
-  const totalPrice = [...registry.items.values()].reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+  const allValues = [...registry.items.values()];
+  const totalItems = allValues.length;
+  const totalPrice = allValues.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+
+  // Stats du jour spécifique
+  const dayItems = allValues.filter(({ sale }) => {
+    const d = sale?.datetime ? sale.datetime.substring(0, 10) : dateStr;
+    return d === dateStr;
+  });
+  const dayCount = dayItems.length;
+  const dayPrice = dayItems.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+  const dayAvg = dayCount ? Math.round(dayPrice / dayCount) : 0;
+  const dayMax = dayCount ? Math.max(...dayItems.map(({ item }) => item.pricing?.auctioned?.price || 0)) : 0;
+
+  // Stats globales
+  const globalAvg = totalItems ? Math.round(totalPrice / totalItems) : 0;
+  const globalMax = totalItems ? Math.max(...allValues.map(({ item }) => item.pricing?.auctioned?.price || 0)) : 0;
+
+  // Nombre de jours distincts
+  const uniqueDays = new Set(allValues.map(({ sale }) => sale?.datetime ? sale.datetime.substring(0, 10) : dateStr));
 
   // All items sorted by recent, as JSON for infinite scroll
-  const allItems = [...registry.items.values()]
+  const allItems = allValues
     .sort((a, b) => (b.item.last_updated || "").localeCompare(a.item.last_updated || ""))
     .map(({ item }) => {
       const rawD = item.description || item.title_translations?.["fr-FR"] || "";
@@ -1442,36 +1460,56 @@ function generateHomePage(dateStr) {
   const adSlotId = config.adSlots?.betweenLots || "";
 
   // Top 10 most expensive
-  const top10 = [...registry.items.values()]
+  const top10 = allValues
     .sort((a, b) => (b.item.pricing?.auctioned?.price || 0) - (a.item.pricing?.auctioned?.price || 0))
     .slice(0, 10);
 
-  // Average price
-  const avgPrice = totalItems ? Math.round(totalPrice / totalItems) : 0;
-  // Max price
-  const maxPrice = top10[0]?.item.pricing?.auctioned?.price || 0;
+  // Format date lisible
+  const dateParts = dateStr.split("-");
+  const dateLabel = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
 
-  return `${htmlHead(`Enchères du ${dateStr}`, `${totalItems} lots vendus aux enchères le ${dateStr}. Photos, prix, estimations.`, "", `/index.html`)}
+  return `${htmlHead(`Enchères du ${dateStr}`, `${totalItems} lots vendus aux enchères. Photos, prix, estimations.`, "", `/index.html`)}
 <body>
   ${navHtml()}
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
+    <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📅 Enchères du ${dateLabel}</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🔨</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalItems)}</div><div class="stat-label">objets vendus</div></div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayCount)}</div><div class="stat-label">objets vendus</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💰</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayPrice)} €</div><div class="stat-label">total adjugé</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:rgba(251,191,36,0.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📊</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(avgPrice)} €</div><div class="stat-label">prix moyen</div></div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayAvg)} €</div><div class="stat-label">prix moyen</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🏆</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(maxPrice)} €</div><div class="stat-label">record du jour</div></div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayMax)} €</div><div class="stat-label">record du jour</div></div>
+      </div></div>
+    </div>
+
+    <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📈 Statistiques globales <span style="font-size:0.8rem;font-weight:400;">(${uniqueDays.size} jour${uniqueDays.size > 1 ? "s" : ""} de ventes)</span></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent-glow),rgba(139,92,246,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🌐</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalItems)}</div><div class="stat-label">lots au total</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--green-bg),rgba(16,185,129,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💎</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalPrice)} €</div><div class="stat-label">total cumulé</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚖️</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(globalAvg)} €</div><div class="stat-label">prix moyen global</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--red-bg),rgba(239,68,68,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👑</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(globalMax)} €</div><div class="stat-label">record absolu</div></div>
       </div></div>
     </div>
 
