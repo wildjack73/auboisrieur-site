@@ -1889,10 +1889,28 @@ async function ftpUpload() {
       return files;
     }
 
-    const files = collectFiles(SITE_DIR, remote);
-    console.log(`  📤 ${files.length} fichiers à uploader vers ${remote}`);
+    const allFiles = collectFiles(SITE_DIR, remote);
 
-    // Use ensureDir for each unique directory (basic-ftp handles nested creation)
+    // Incremental upload: track which files were already uploaded
+    const uploadedTracker = path.join(dataDir, "ftp-uploaded.json");
+    let alreadyUploaded = {};
+    try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
+
+    // Always re-upload these pages (they change every run): index, categories, top-ventes, invendus, sitemap, ads.txt, robots
+    const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json"]);
+
+    const files = allFiles.filter(f => {
+      const basename = path.basename(f.local);
+      if (alwaysUpload.has(basename)) return true; // toujours re-uploader
+      if (basename.startsWith("categorie-")) return true; // pages catégories changent
+      const mtime = fs.statSync(f.local).mtimeMs;
+      if (alreadyUploaded[f.remote] && alreadyUploaded[f.remote] >= mtime) return false; // déjà uploadé, pas modifié
+      return true;
+    });
+
+    console.log(`  📤 ${files.length} fichiers à uploader (${allFiles.length - files.length} déjà à jour)`);
+
+    // Use ensureDir for each unique directory
     const dirs = new Set();
     for (const f of files) {
       const dir = f.remote.substring(0, f.remote.lastIndexOf("/"));
@@ -1905,7 +1923,7 @@ async function ftpUpload() {
         console.warn(`  ⚠ Dossier ${dir}: ${err.message}`);
       }
     }
-    console.log(`  📁 ${dirs.size} dossiers vérifiés`);
+    if (dirs.size > 0) console.log(`  📁 ${dirs.size} dossiers vérifiés`);
 
     // Upload files one by one
     const start = Date.now();
@@ -1915,6 +1933,7 @@ async function ftpUpload() {
       try {
         await client.uploadFrom(f.local, f.remote);
         uploadCount++;
+        alreadyUploaded[f.remote] = Date.now();
         if (uploadCount % 100 === 0) console.log(`    ${uploadCount}/${files.length} uploadés...`);
       } catch (err) {
         errorCount++;
@@ -1923,6 +1942,9 @@ async function ftpUpload() {
     }
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     console.log(`  📤 FTP terminé: ${uploadCount}/${files.length} fichiers en ${elapsed}s${errorCount ? ` (${errorCount} erreurs)` : ""}`);
+
+    // Save upload tracker
+    try { fs.writeFileSync(uploadedTracker, JSON.stringify(alreadyUploaded), "utf-8"); } catch {}
   } catch (err) {
     console.warn(`  ⚠ FTP erreur: ${err.message}`);
   } finally {
