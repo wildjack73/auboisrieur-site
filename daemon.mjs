@@ -326,8 +326,9 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .breadcrumb a:hover { color: var(--accent2); }
 
     /* Layout */
-    .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; }
+    .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; overflow: hidden; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; overflow: hidden; }
+    .grid-2 > main { min-width: 0; overflow: hidden; }
     @media (max-width: 800px) {
       .grid-2 { grid-template-columns: 1fr; }
       .topnav { padding: 0 0.3rem; }
@@ -642,14 +643,15 @@ function generateLotPage(item, sale) {
   const estHtml = est.min != null ? `Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
 
   const carouselCSS = `
-    .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; }
-    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 300px; max-height: 500px; padding: 1rem 50px; }
-    .carousel-main img { max-width: 100%; max-height: 480px; object-fit: contain; cursor: zoom-in; }
+    .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; width: 100%; }
+    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 300px; max-height: 500px; padding: 1rem 50px; overflow: hidden; }
+    .carousel-main img { max-width: 100%; max-height: 480px; object-fit: contain; cursor: zoom-in; display: block; }
+    .carousel-main a { display: flex; align-items: center; justify-content: center; max-width: 100%; overflow: hidden; }
     .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .carousel-btn:hover { background: #fff; }
     .carousel-prev { left: 10px; }
     .carousel-next { right: 10px; }
-    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; flex-wrap: wrap; }
+    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; flex-wrap: wrap; max-width: 100%; overflow: hidden; }
     .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; border: none; cursor: pointer; padding: 0; }
     .carousel-dot.active { background: #fff; }
     .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; }
@@ -703,7 +705,7 @@ function generateLotPage(item, sale) {
         </div>
         ${carouselImages.length > 1 ? `<button class="carousel-btn carousel-prev">‹</button><button class="carousel-btn carousel-next">›</button>` : ""}
         <span class="carousel-counter" id="carouselCounter">1 / ${carouselImages.length}</span>
-        ${carouselImages.length > 1 ? `<div class="carousel-dots">${carouselImages.map((_, i) => `<button class="carousel-dot${i === 0 ? " active" : ""}"></button>`).join("")}</div>` : ""}
+        ${carouselImages.length > 1 && carouselImages.length <= 20 ? `<div class="carousel-dots">${carouselImages.map((_, i) => `<button class="carousel-dot${i === 0 ? " active" : ""}"></button>`).join("")}</div>` : ""}
         ${carouselImages.length > 1 ? `<div class="carousel-thumbs">${carouselImages.map((img, i) => `<img src="${esc(imgUrl(medias[i], "sm"))}" alt="Thumb ${i + 1}" class="${i === 0 ? "active" : ""}">`).join("")}</div>` : ""}
       </div>`;
 
@@ -744,7 +746,7 @@ function generateLotPage(item, sale) {
         <div class="card">
           <div class="card-body">
             <h1 style="font-size:1.4rem;margin-bottom:0.3rem;line-height:1.4;">${esc(lotTitle)}</h1>
-            ${lotDesc ? `<p style="color:#555;font-size:0.95rem;line-height:1.5;margin-bottom:0.8rem;">${esc(lotDesc)}</p>` : ""}
+            ${lotDesc ? `<p style="color:var(--text2);font-size:0.95rem;line-height:1.5;margin-bottom:0.8rem;">${esc(lotDesc)}</p>` : ""}
             <div style="margin:0.5rem 0 1rem;">
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
