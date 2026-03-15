@@ -994,9 +994,22 @@ function generateMaisonsIndex() {
 function generateHomePage(dateStr) {
   const totalItems = registry.items.size;
   const totalPrice = [...registry.items.values()].reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
-  const recentItems = [...registry.items.values()]
+
+  // All items sorted by recent, as JSON for infinite scroll
+  const allItems = [...registry.items.values()]
     .sort((a, b) => (b.item.last_updated || "").localeCompare(a.item.last_updated || ""))
-    .slice(0, 24);
+    .map(({ item }) => {
+      const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+      const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+      const title = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
+      const price = item.pricing?.auctioned?.price || 0;
+      const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+      const cat = item.category?.name || "";
+      return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+    });
+
+  const adsenseId = config.adsenseId || "";
+  const adSlotId = config.adSlots?.betweenLots || "";
 
   return `${htmlHead(`Enchères du ${dateStr}`, `${totalItems} lots vendus aux enchères le ${dateStr}. Photos, prix, estimations.`, "", `/index.html`)}
 <body>
@@ -1016,18 +1029,114 @@ function generateHomePage(dateStr) {
         <div class="card">
           <div class="card-header"><h2 style="font-size:1.1rem;">Derniers lots vendus</h2></div>
           <div class="card-body">
-            <div class="lot-grid">
-              ${recentItems.map(({ item }) => lotCard(item)).join("\n              ")}
+            <div class="lot-grid" id="lotGrid"></div>
+            <div id="adContainer"></div>
+            <div id="loadingMore" style="text-align:center;padding:2rem;display:none;">
+              <div style="display:inline-block;width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+              <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+            </div>
+            <div id="endMessage" style="text-align:center;padding:1.5rem;color:var(--text3);font-size:0.9rem;display:none;">
+              ✨ Tous les lots ont été chargés
             </div>
           </div>
         </div>
-
-        ${adSlot("betweenLots")}
       </main>
       ${sidebarHtml()}
     </div>
   </div>
   ${footerHtml()}
+
+  <script>
+  (function(){
+    const BATCH = 24;
+    const AD_EVERY = 24; // insert ad every 24 lots
+    const allLots = ${JSON.stringify(allItems)};
+    const grid = document.getElementById('lotGrid');
+    const adContainer = document.getElementById('adContainer');
+    const loading = document.getElementById('loadingMore');
+    const endMsg = document.getElementById('endMessage');
+    const adsenseId = "${adsenseId}";
+    const adSlotId = "${adSlotId}";
+    let offset = 0;
+    let isLoading = false;
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function formatPrice(n) { return Math.round(n).toLocaleString('fr-FR'); }
+
+    function renderLots(start, count) {
+      const end = Math.min(start + count, allLots.length);
+      let html = '';
+      for (let i = start; i < end; i++) {
+        const lot = allLots[i];
+        html += '<a href="/lot/' + lot.s + '.html" class="lot-card">';
+        if (lot.i) {
+          html += '<img src="' + esc(lot.i) + '" alt="' + esc(lot.t) + '" loading="lazy">';
+        } else {
+          html += '<div class="no-img">📦</div>';
+        }
+        html += '<div class="lot-info">';
+        html += '<div class="lot-title">' + esc(lot.t) + '</div>';
+        html += '<div class="lot-price">' + formatPrice(lot.p) + ' €</div>';
+        if (lot.c) html += '<div class="lot-cat">' + esc(lot.c) + '</div>';
+        html += '</div></a>';
+      }
+      return { html, rendered: end - start };
+    }
+
+    function insertAd() {
+      if (!adsenseId || !adSlotId) return;
+      const adDiv = document.createElement('div');
+      adDiv.className = 'ad-slot';
+      adDiv.style.cssText = 'margin:1.5rem 0;min-height:100px;';
+      adDiv.innerHTML = '<ins class="adsbygoogle" style="display:block" data-ad-client="' + adsenseId + '" data-ad-slot="' + adSlotId + '" data-ad-format="auto" data-full-width-responsive="true"></ins>';
+      grid.insertAdjacentElement('afterend', adDiv);
+      // Re-insert grid after ad for next batch
+      try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
+    }
+
+    function loadMore() {
+      if (isLoading || offset >= allLots.length) return;
+      isLoading = true;
+      loading.style.display = 'block';
+
+      setTimeout(function() {
+        const { html, rendered } = renderLots(offset, BATCH);
+        grid.insertAdjacentHTML('beforeend', html);
+        offset += rendered;
+
+        // Insert ad after every AD_EVERY lots (but not the first batch)
+        if (offset > BATCH && offset % AD_EVERY === 0 && adsenseId && adSlotId) {
+          const adHtml = '<div class="ad-slot" style="grid-column:1/-1;margin:0.5rem 0;min-height:100px;"><ins class="adsbygoogle" style="display:block" data-ad-client="' + adsenseId + '" data-ad-slot="' + adSlotId + '" data-ad-format="auto" data-full-width-responsive="true"></ins></div>';
+          grid.insertAdjacentHTML('beforeend', adHtml);
+          try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
+        }
+
+        loading.style.display = 'none';
+        isLoading = false;
+
+        if (offset >= allLots.length) {
+          endMsg.style.display = 'block';
+        }
+      }, 150);
+    }
+
+    // Initial load
+    loadMore();
+
+    // Infinite scroll with IntersectionObserver
+    const sentinel = document.createElement('div');
+    sentinel.id = 'scrollSentinel';
+    sentinel.style.height = '1px';
+    loading.parentNode.insertBefore(sentinel, loading);
+
+    const observer = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting && !isLoading && offset < allLots.length) {
+        loadMore();
+      }
+    }, { rootMargin: '400px' });
+    observer.observe(sentinel);
+  })();
+  </script>
 </body>
 </html>`;
 }
