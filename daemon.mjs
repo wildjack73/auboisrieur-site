@@ -456,6 +456,12 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     [data-theme="light"] .carousel-dots { background: #222; }
     [data-theme="light"] .carousel-thumbs { background: #222; }
 
+    /* Brand logos */
+    .brand-logo { display: block; height: 36px; width: auto; }
+    .brand-logo-light { display: none; }
+    [data-theme="light"] .brand-logo-dark { display: none; }
+    [data-theme="light"] .brand-logo-light { display: block; }
+
     /* Theme toggle */
     .theme-toggle { background: var(--surface3); border: 1px solid var(--border2); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s; margin-right: 0.5rem; }
     .theme-toggle:hover { background: var(--accent-glow); border-color: var(--accent); transform: scale(1.1); }
@@ -492,7 +498,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
 function navHtml() {
   return `<nav class="topnav">
-  <a href="/index.html" class="brand"><svg viewBox="0 0 28 28" width="24" height="24"><defs><linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient><linearGradient id="ng2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient></defs><rect x="5" y="1" width="14" height="6" rx="2" transform="rotate(-40 12 4)" fill="url(#ng)"/><rect x="10" y="6" width="3" height="12" rx="1.5" transform="rotate(-40 11.5 12)" fill="#7c5cfc"/><rect x="3" y="21" width="22" height="4" rx="2" fill="url(#ng2)"/><rect x="6" y="18.5" width="16" height="3.5" rx="1.5" fill="url(#ng2)" opacity="0.6"/></svg><span class="brand-text">${esc(config.siteName)}</span></a>
+  <a href="/index.html" class="brand"><img src="/logo-dark.jpg" alt="${esc(config.siteName)}" class="brand-logo brand-logo-dark" height="36"><img src="/logo-light.jpg" alt="${esc(config.siteName)}" class="brand-logo brand-logo-light" height="36"></a>
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
   <span style="flex:1;"></span>
@@ -1365,6 +1371,12 @@ AddType application/json .json
   <text x="32" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="9" fill="#fff" opacity="0.9">!</text>
 </svg>`, "utf-8");
 
+  // Copy logo files if they exist
+  const logoDark = path.join(__dirname, "logo-dark.jpg");
+  const logoLight = path.join(__dirname, "logo-light.jpg");
+  if (fs.existsSync(logoDark)) { fs.copyFileSync(logoDark, path.join(SITE_DIR, "logo-dark.jpg")); pageCount++; }
+  if (fs.existsSync(logoLight)) { fs.copyFileSync(logoLight, path.join(SITE_DIR, "logo-light.jpg")); pageCount++; }
+
   return pageCount;
 }
 
@@ -1399,7 +1411,7 @@ async function ftpUpload() {
     const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");
 
     // Upload extensions: html, xml, txt, json, svg, htaccess
-    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".js", ".svg"]);
+    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".js", ".svg", ".jpg", ".png", ".ico", ".webp"]);
     function collectFiles(localDir, remoteDir, files = []) {
       const entries = fs.readdirSync(localDir, { withFileTypes: true });
       for (const entry of entries) {
