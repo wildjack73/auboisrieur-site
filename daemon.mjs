@@ -350,9 +350,9 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .topnav .brand { padding: 0.9rem 1.2rem 0.9rem 1.5rem; border-bottom: none !important; display: flex; align-items: center; gap: 8px; }
     .topnav .brand:hover { background: none; }
     .topnav .brand svg { flex-shrink: 0; }
-    .brand-text { font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .brand-text { font-weight: 800; font-size: 1.5rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .topnav .brand:hover .brand-text { background: linear-gradient(135deg, #a78bfa, #c4b5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .topnav a { color: var(--text2); font-size: 1rem; padding: 0.9rem 1.2rem; font-weight: 600; transition: all 0.2s; border-bottom: 2px solid transparent; }
+    .topnav a { color: var(--text2); font-size: 1.15rem; padding: 0.9rem 1.3rem; font-weight: 600; transition: all 0.2s; border-bottom: 2px solid transparent; }
     .topnav a:hover { color: #fff; background: var(--accent-glow); border-bottom-color: var(--accent); }
 
     /* Breadcrumb */
