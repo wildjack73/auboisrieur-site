@@ -38,11 +38,19 @@ jobs:
 
       - name: Restore data cache
         uses: actions/cache@v4
+        id: data-cache
         with:
           path: site/data
           key: site-data-${{ github.run_number }}
           restore-keys: |
             site-data-
+
+      - name: Bootstrap data from repo archive (first time only)
+        if: steps.data-cache.outputs.cache-hit != 'true' && hashFiles('data-cache.tar.gz') != ''
+        run: |
+          mkdir -p site/data
+          tar -xzf data-cache.tar.gz -C site/data
+          echo "📦 Bootstrapped $(ls site/data/*.json 2>/dev/null | wc -l) cached lot files"
 
       - name: Run scraper or rebuild
         env:

@@ -1919,21 +1919,65 @@ async function runOnce(dateStr) {
   console.log(`   Amazon tag: ${config.amazonTag}`);
   console.log(`   FTP: ${config.ftp?.enabled ? config.ftp.host : "désactivé"}\n`);
 
+  // Load existing cached lots first (so we never lose data between runs)
+  let cachedCount = 0;
+  const stateFile = path.join(dataDir, "state.json");
+  if (fs.existsSync(stateFile)) {
+    try {
+      const state = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
+      for (const itemId of state.knownSold || []) {
+        const itemFile = path.join(dataDir, `${itemId}.json`);
+        if (fs.existsSync(itemFile)) {
+          try {
+            const saved = JSON.parse(fs.readFileSync(itemFile, "utf-8"));
+            registerItem(saved.item, saved.sale);
+            cachedCount++;
+          } catch {}
+        }
+      }
+    } catch {}
+  }
+  // Fallback: scan json files directly
+  if (cachedCount === 0) {
+    const files = fs.readdirSync(dataDir).filter(f => f.endsWith(".json") && f !== "state.json" && f !== "ai-cache.json");
+    for (const f of files) {
+      try {
+        const saved = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
+        if (saved.item && !registry.items.has(saved.item.id)) {
+          registerItem(saved.item, saved.sale);
+          cachedCount++;
+        }
+      } catch {}
+    }
+  }
+  if (cachedCount > 0) console.log(`  📦 ${cachedCount} lots restaurés depuis le cache`);
+
   // Scrape yesterday + today to catch late evening sales
   const yesterday = yesterdayStr(dateStr);
   let totalSold = 0;
   totalSold += scrapDate(yesterday);
   totalSold += scrapDate(dateStr);
 
-  console.log(`\n  Total: ${totalSold} lots vendus collectés (${yesterday} + ${dateStr})`);
+  // Save new items to data dir
+  for (const [itemId, { item, sale }] of registry.items) {
+    const itemFile = path.join(dataDir, `${itemId}.json`);
+    if (!fs.existsSync(itemFile)) {
+      fs.writeFileSync(itemFile, JSON.stringify({ item, sale: { id: sale?.id, name: sale?.name, datetime: sale?.datetime, address: sale?.address, organization: sale?.organization } }, null, 2), "utf-8");
+    }
+  }
+  // Save state
+  fs.writeFileSync(stateFile, JSON.stringify({ knownSold: [...registry.items.keys()], lastPoll: new Date().toISOString() }, null, 2), "utf-8");
 
-  if (totalSold > 0) {
+  const totalItems = registry.items.size;
+  console.log(`\n  Total: ${totalSold} nouveaux lots scrapés, ${totalItems} lots au total (cache + scrape)`);
+
+  if (totalItems > 0) {
     await aiEnrichLots();
     const pageCount = rebuildAllPages(dateStr);
     console.log(`  ${pageCount} pages générées`);
     await ftpUpload();
   } else {
-    console.log("  Aucun lot vendu — rien à générer.");
+    console.log("  Aucun lot — rien à générer.");
   }
 
   console.log("\n✅ Terminé.");
