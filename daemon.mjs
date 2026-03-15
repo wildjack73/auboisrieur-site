@@ -237,7 +237,7 @@ function adSlot(slot, style = "") {
 
 function ebaySearchUrl(title) {
   const q = String(title || "").substring(0, 120).trim();
-  return `https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(q)}&mkcid=1&mkrid=709-53476-19255-0&campid=5339108912&toolid=10001`;
+  return `https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(q)}&mkcid=1&mkrid=709-53476-19255-0&campid=5339145264&toolid=10001`;
 }
 
 function amazonButton(title) {
