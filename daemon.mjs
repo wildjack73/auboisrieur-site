@@ -577,7 +577,8 @@ function sidebarHtml() {
 function lotCard(item) {
   const rawD = item.description || item.title_translations?.["fr-FR"] || "";
   const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-  const title = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
+  const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
+  const title = item._aiTitle || fallback;
   const price = item.pricing?.auctioned?.price || 0;
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
   const catName = item.category?.name || "";
@@ -612,8 +613,11 @@ function generateLotPage(item, sale) {
   const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
   // If first line is short (<60 chars) and there are more lines → it's a title
   const hasShortTitle = lines.length > 1 && lines[0].length < 60;
-  const lotTitle = hasShortTitle ? lines[0] : lines[0]?.substring(0, 70) || "Objet de collection";
-  const lotDesc = hasShortTitle ? lines.slice(1).join(" ") : (lines.length > 1 ? lines.slice(1).join(" ") : "");
+  const fallbackTitle = hasShortTitle ? lines[0] : lines[0]?.substring(0, 70) || "Objet de collection";
+  const fallbackDesc = hasShortTitle ? lines.slice(1).join(" ") : (lines.length > 1 ? lines.slice(1).join(" ") : "");
+  // Use AI-enriched title/desc if available
+  const lotTitle = item._aiTitle || fallbackTitle;
+  const lotDesc = item._aiDesc || fallbackDesc;
   const title = rawDesc;
   const shortTitle = lotTitle;
   const auc = item.pricing?.auctioned || {};
@@ -777,9 +781,11 @@ function generateLotPage(item, sale) {
 }
 
 function generateCategoryPage(slug, data) {
+  const catName = data._aiName || data.name;
+  const catDesc = data._aiDesc || data.description || "";
   const totalPrice = data.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
   const avgPrice = data.items.length ? Math.round(totalPrice / data.items.length) : 0;
-  const desc = `${data.items.length} lots vendus en catégorie ${data.name}. Prix moyen : ${avgPrice}€.`;
+  const desc = `${data.items.length} lots vendus en catégorie ${catName}. Prix moyen : ${avgPrice}€. ${catDesc}`;
 
   // Group by maison
   const byMaison = {};
@@ -789,13 +795,13 @@ function generateCategoryPage(slug, data) {
     byMaison[org].push(item);
   }
 
-  return `${htmlHead(data.name, desc, "", `/categorie/${slug}.html`)}
+  return `${htmlHead(catName, desc, "", `/categorie/${slug}.html`)}
 <body>
   ${navHtml()}
   <div class="breadcrumb">
     <a href="/index.html">Accueil</a> ›
     <a href="/categories.html">Catégories</a> ›
-    ${esc(data.name)}
+    ${esc(catName)}
   </div>
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
@@ -803,8 +809,8 @@ function generateCategoryPage(slug, data) {
       <main>
         <div class="card">
           <div class="card-body">
-            <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(data.name)}</h1>
-            ${data.description ? `<p style="color:#666;margin-bottom:1rem;font-size:0.9rem;">${esc(data.description)}</p>` : ""}
+            <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(catName)}</h1>
+            ${catDesc ? `<p style="color:var(--text2);margin-bottom:1rem;font-size:0.9rem;">${esc(catDesc)}</p>` : ""}
             <div style="display:flex;gap:2rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${data.items.length}</div><div class="stat-label">lots vendus</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
@@ -956,12 +962,15 @@ function generateCategoriesIndex() {
     <h1 style="font-size:1.5rem;margin-bottom:1.5rem;">${cats.length} catégories</h1>
     <div class="lot-grid">
       ${cats.map(([slug, c]) => {
+        const catName = c._aiName || c.name;
+        const catDesc = c._aiDesc || "";
         const top = c.items[0];
         const thumb = top?.medias?.[0] ? imgUrl(top.medias[0], "md") : "";
         return `<a href="/categorie/${slug}.html" class="lot-card">
-          ${thumb ? `<img src="${esc(thumb)}" alt="${esc(c.name)}" loading="lazy">` : `<div class="no-img">📁</div>`}
+          ${thumb ? `<img src="${esc(thumb)}" alt="${esc(catName)}" loading="lazy">` : `<div class="no-img">📁</div>`}
           <div class="lot-info">
-            <div class="lot-title" style="font-weight:600;">${esc(c.name)}</div>
+            <div class="lot-title" style="font-weight:600;">${esc(catName)}</div>
+            ${catDesc ? `<div style="font-size:0.75rem;color:var(--text3);margin:2px 0;line-height:1.3;">${esc(catDesc.substring(0, 100))}</div>` : ""}
             <div class="lot-cat">${c.items.length} lots</div>
           </div>
         </a>`;
@@ -1003,7 +1012,8 @@ function generateHomePage(dateStr) {
     .map(({ item }) => {
       const rawD = item.description || item.title_translations?.["fr-FR"] || "";
       const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-      const title = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
+      const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
+      const title = item._aiTitle || fallback;
       const price = item.pricing?.auctioned?.price || 0;
       const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
       const cat = item.category?.name || "";
@@ -1177,7 +1187,8 @@ function rebuildAllPages(dateStr) {
   const searchIndex = [...registry.items.values()].map(({ item }) => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-    const title = (lns.length > 1 && lns[0].length < 60) ? lns[0] + " " + lns.slice(1).join(" ") : lns.join(" ");
+    const fallbackTitle = (lns.length > 1 && lns[0].length < 60) ? lns[0] + " " + lns.slice(1).join(" ") : lns.join(" ");
+    const title = item._aiTitle || fallbackTitle;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
     const price = formatPrice(item.pricing?.auctioned?.price || 0);
     return { id: lotSlug(item), t: title.substring(0, 150), p: price, img: thumb };
@@ -1458,6 +1469,202 @@ function runDaemon(dateStr, intervalSec) {
 
 // ─── main ───────────────────────────────────────────────────────────────────
 
+// ─── AI Enrichment (GPT-4o-mini) ──────────────────────────────────────────────
+
+const AI_CACHE_FILE = path.join(SITE_DIR, "data", "ai-cache.json");
+
+function loadAiCache() {
+  try {
+    if (fs.existsSync(AI_CACHE_FILE)) return JSON.parse(fs.readFileSync(AI_CACHE_FILE, "utf-8"));
+  } catch {}
+  return {};
+}
+
+function saveAiCache(cache) {
+  ensureDir(path.join(SITE_DIR, "data"));
+  fs.writeFileSync(AI_CACHE_FILE, JSON.stringify(cache), "utf-8");
+}
+
+async function callGpt(messages, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const body = JSON.stringify({
+        model: "gpt-4o-mini",
+        messages,
+        temperature: 0.7,
+        max_tokens: 300,
+      });
+      const result = execFileSync("curl", [
+        "-s", "--max-time", "30",
+        "https://api.openai.com/v1/chat/completions",
+        "-H", "Content-Type: application/json",
+        "-H", `Authorization: Bearer ${config.openaiKey}`,
+        "-d", body,
+      ], { maxBuffer: 1024 * 1024, timeout: 35000 });
+      const json = JSON.parse(result.toString("utf-8"));
+      if (json.error) throw new Error(json.error.message);
+      return json.choices?.[0]?.message?.content || "";
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+const AI_SYSTEM_PROMPT = `Tu es un expert en objets d'art, antiquités et enchères. On te donne la description brute d'un lot vendu aux enchères en France.
+
+Tu dois retourner un JSON avec exactement 2 champs :
+- "title": un titre accrocheur, clair et SEO-friendly (max 70 caractères). Pas de numéro de lot, pas de "Lot N°". Juste l'objet.
+- "desc": une description enrichie de 2-3 phrases (max 300 caractères) qui décrit l'objet, son intérêt, son époque, sa rareté. Ton qui donne envie. Pas de prix. Pas de mention de la maison de vente.
+
+Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
+
+async function aiEnrichLots() {
+  if (!config.openaiKey) {
+    console.log("  ⏭️  Pas de clé OpenAI — enrichissement AI désactivé");
+    return;
+  }
+
+  const cache = loadAiCache();
+  const items = [...registry.items.values()];
+  const toEnrich = items.filter(({ item }) => !cache[item.id]);
+
+  if (toEnrich.length === 0) {
+    console.log("  ✨ Tous les lots sont déjà enrichis par l'IA");
+    // Apply cache to items
+    for (const { item } of items) {
+      if (cache[item.id]) {
+        item._aiTitle = cache[item.id].t;
+        item._aiDesc = cache[item.id].d;
+      }
+    }
+    return;
+  }
+
+  console.log(`  🤖 Enrichissement IA: ${toEnrich.length} lots à traiter...`);
+
+  const CONCURRENCY = 10;
+  let done = 0;
+  let errors = 0;
+
+  async function processItem({ item }) {
+    const rawDesc = item.description || item.title_translations?.["fr-FR"] || "";
+    const catName = item.category?.name || "";
+    const price = item.pricing?.auctioned?.price || 0;
+
+    const userMsg = `Catégorie: ${catName}\nPrix adjugé: ${price}€\nDescription brute:\n${rawDesc.substring(0, 500)}`;
+
+    try {
+      const response = await callGpt([
+        { role: "system", content: AI_SYSTEM_PROMPT },
+        { role: "user", content: userMsg },
+      ]);
+
+      // Parse JSON response
+      const cleaned = response.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (parsed.title && parsed.desc) {
+        cache[item.id] = { t: parsed.title, d: parsed.desc };
+        item._aiTitle = parsed.title;
+        item._aiDesc = parsed.desc;
+      }
+    } catch (err) {
+      errors++;
+      // Keep original description if AI fails
+    }
+
+    done++;
+    if (done % 100 === 0 || done === toEnrich.length) {
+      console.log(`    ${done}/${toEnrich.length} enrichis${errors ? ` (${errors} erreurs)` : ""}...`);
+      // Save cache periodically
+      saveAiCache(cache);
+    }
+  }
+
+  // Process in batches of CONCURRENCY
+  for (let i = 0; i < toEnrich.length; i += CONCURRENCY) {
+    const batch = toEnrich.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(processItem));
+  }
+
+  saveAiCache(cache);
+  console.log(`  ✅ Enrichissement terminé: ${done - errors} réussis, ${errors} erreurs`);
+
+  // Apply cache to all items (including previously cached ones)
+  for (const { item } of items) {
+    if (cache[item.id]) {
+      item._aiTitle = cache[item.id].t;
+      item._aiDesc = cache[item.id].d;
+    }
+  }
+
+  // Enrich categories (one-shot, all at once)
+  await aiEnrichCategories(cache);
+  saveAiCache(cache);
+}
+
+async function aiEnrichCategories(cache) {
+  if (!config.openaiKey) return;
+
+  const cats = [...registry.categories.entries()];
+  const needEnrich = cats.filter(([slug]) => !cache[`cat_${slug}`]);
+
+  if (needEnrich.length === 0) {
+    // Apply cached data
+    for (const [slug, data] of cats) {
+      if (cache[`cat_${slug}`]) {
+        data._aiName = cache[`cat_${slug}`].n;
+        data._aiDesc = cache[`cat_${slug}`].d;
+      }
+    }
+    console.log("  ✨ Catégories déjà enrichies");
+    return;
+  }
+
+  console.log(`  🤖 Enrichissement catégories: ${needEnrich.length}...`);
+
+  const catList = needEnrich.map(([slug, data]) => `- ${slug}: "${data.name}" (${data.items.length} lots)`).join("\n");
+
+  try {
+    const response = await callGpt([
+      { role: "system", content: `Tu es un expert en enchères et objets d'art. On te donne une liste de catégories d'un site de résultats d'enchères françaises.
+
+Pour chaque catégorie, retourne un JSON array avec :
+- "slug": le slug original (identique à l'input)
+- "name": un nom de catégorie plus court, accrocheur et SEO (max 50 caractères). En français.
+- "desc": une description de la catégorie en 2 phrases (max 200 caractères) qui explique ce qu'on y trouve et donne envie d'explorer. Ton expert et enthousiaste.
+
+Réponds UNIQUEMENT en JSON array valide, sans markdown, sans backticks.` },
+      { role: "user", content: catList },
+    ]);
+
+    const cleaned = response.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+
+    for (const cat of parsed) {
+      if (cat.slug && cat.name && cat.desc) {
+        cache[`cat_${cat.slug}`] = { n: cat.name, d: cat.desc };
+      }
+    }
+
+    console.log(`  ✅ ${parsed.length} catégories enrichies`);
+  } catch (err) {
+    console.warn(`  ⚠ Enrichissement catégories échoué: ${err.message}`);
+  }
+
+  // Apply to registry
+  for (const [slug, data] of cats) {
+    if (cache[`cat_${slug}`]) {
+      data._aiName = cache[`cat_${slug}`].n;
+      data._aiDesc = cache[`cat_${slug}`].d;
+    }
+  }
+}
+
 // ─── Single run (for GitHub Actions / CI) ────────────────────────────────────
 
 function yesterdayStr(dateStr) {
@@ -1507,6 +1714,7 @@ async function runOnce(dateStr) {
   console.log(`\n  Total: ${totalSold} lots vendus collectés (${yesterday} + ${dateStr})`);
 
   if (totalSold > 0) {
+    await aiEnrichLots();
     const pageCount = rebuildAllPages(dateStr);
     console.log(`  ${pageCount} pages générées`);
     await ftpUpload();

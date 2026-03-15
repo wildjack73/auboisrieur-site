@@ -35,6 +35,9 @@ export default {
     secure: env("FTP_SECURE") === "true",
   },
 
+  // OpenAI (GPT-4o-mini for AI enrichment)
+  openaiKey: env("OPENAI_API_KEY"),
+
   // Limites
   similarLotsCount: 6,
   lotsPerCategoryPage: 50,
