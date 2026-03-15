@@ -326,9 +326,9 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .breadcrumb a:hover { color: var(--accent2); }
 
     /* Layout */
-    .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; overflow: hidden; }
+    .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; overflow: hidden; word-break: break-word; }
     .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; overflow: hidden; }
-    .grid-2 > main { min-width: 0; overflow: hidden; }
+    .grid-2 > main { min-width: 0; overflow: hidden; max-width: 100%; }
     @media (max-width: 800px) {
       .grid-2 { grid-template-columns: 1fr; }
       .topnav { padding: 0 0.3rem; }
@@ -355,14 +355,14 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     }
 
     /* Cards */
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; transition: border-color 0.3s; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; transition: border-color 0.3s; max-width: 100%; box-sizing: border-box; }
     .card:hover { border-color: var(--border2); }
     .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
     .card-header h2, .card-header h3 { color: var(--text); font-weight: 700; }
-    .card-body { padding: 1.5rem; }
+    .card-body { padding: 1.5rem; overflow: hidden; word-break: break-word; overflow-wrap: break-word; }
 
     /* Images */
-    .gallery { display: flex; flex-wrap: wrap; gap: 8px; padding: 1.5rem; background: var(--bg); justify-content: center; }
+    .gallery { display: flex; flex-wrap: wrap; gap: 8px; padding: 1.5rem; background: var(--bg); justify-content: center; max-width: 100%; box-sizing: border-box; }
     .gallery img { max-height: 300px; max-width: 100%; border-radius: var(--radius-sm); cursor: pointer; transition: transform 0.2s; }
     .gallery img:hover { transform: scale(1.03); }
 
@@ -383,7 +383,8 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .meta-table { width: 100%; margin-top: 1rem; }
     .meta-table td { padding: 0.5rem 0; vertical-align: top; border-bottom: 1px solid var(--border); }
     .meta-table tr:last-child td { border: 0; }
-    .meta-table td:first-child { font-weight: 600; color: var(--text3); width: 120px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .meta-table td { color: var(--text); }
+    .meta-table td:first-child { font-weight: 600; color: var(--text2); width: 120px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
     /* Lot grid */
     .lot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1.2rem; }
@@ -683,28 +684,30 @@ function generateLotPage(item, sale) {
   const estHtml = est.min != null ? `Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
 
   const carouselCSS = `
-    .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; width: 100%; }
-    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 300px; max-height: 500px; padding: 1rem 50px; overflow: hidden; }
-    .carousel-main img { max-width: 100%; max-height: 480px; object-fit: contain; cursor: zoom-in; display: block; }
+    .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; width: 100%; max-width: 100%; box-sizing: border-box; }
+    .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 280px; max-height: 450px; padding: 1rem 50px; overflow: hidden; box-sizing: border-box; }
+    .carousel-main img { max-width: 100%; max-height: 430px; object-fit: contain; cursor: zoom-in; display: block; }
     .carousel-main a { display: flex; align-items: center; justify-content: center; max-width: 100%; overflow: hidden; }
     .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .carousel-btn:hover { background: #fff; }
     .carousel-prev { left: 10px; }
     .carousel-next { right: 10px; }
-    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; flex-wrap: wrap; max-width: 100%; overflow: hidden; }
-    .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; border: none; cursor: pointer; padding: 0; }
+    .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px; background: #111; flex-wrap: wrap; max-width: 100%; overflow: hidden; box-sizing: border-box; }
+    .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; border: none; cursor: pointer; padding: 0; flex-shrink: 0; }
     .carousel-dot.active { background: #fff; }
-    .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; }
+    .carousel-thumbs { display: flex; gap: 6px; padding: 8px 12px; background: #111; overflow-x: auto; max-width: 100%; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
     .carousel-thumbs img { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; border: 2px solid transparent; flex-shrink: 0; }
     .carousel-thumbs img.active { opacity: 1; border-color: #fff; }
     .carousel-counter { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; z-index: 2; }
     @media (max-width: 800px) {
-      .carousel-main { min-height: 220px; padding: 0.5rem 36px; }
+      .carousel-main { min-height: 200px; max-height: 320px; padding: 0.5rem 36px; }
+      .carousel-main img { max-height: 300px; }
       .carousel-btn { width: 32px; height: 32px; font-size: 1rem; }
       .carousel-prev { left: 4px; }
       .carousel-next { right: 4px; }
+      .carousel-thumbs { padding: 6px 8px; gap: 4px; }
       .carousel-thumbs img { width: 48px; height: 36px; }
-      .carousel-dots { gap: 4px; padding: 8px; }
+      .carousel-dots { gap: 4px; padding: 6px; }
       .carousel-dot { width: 6px; height: 6px; }
     }
   `;
@@ -738,7 +741,7 @@ function generateLotPage(item, sale) {
     </script>` : "";
 
   const carouselHtml = carouselImages.length === 0
-    ? `<div class="carousel"><div class="carousel-main" style="min-height:200px;display:flex;align-items:center;justify-content:center;color:#666;font-size:1.5rem;">📦 Pas de photo</div></div>`
+    ? `<div class="carousel"><div class="carousel-main" style="min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:1.5rem;">📦 Pas de photo</div></div>`
     : `<div class="carousel">
         <div class="carousel-main" id="carouselMain">
           <a href="${esc(carouselImages[0].original)}" target="_blank"><img src="${esc(carouselImages[0].src)}" alt="${esc(carouselImages[0].alt)}"></a>
@@ -797,8 +800,8 @@ function generateLotPage(item, sale) {
       <main>
         <div class="card">
           <div class="card-body">
-            <h1 style="font-size:1.4rem;margin-bottom:0.3rem;line-height:1.4;">${esc(lotTitle)}</h1>
-            ${lotDesc ? `<p style="color:var(--text2);font-size:0.95rem;line-height:1.5;margin-bottom:0.8rem;">${esc(lotDesc)}</p>` : ""}
+            <h1 style="font-size:1.4rem;margin-bottom:0.3rem;line-height:1.4;overflow-wrap:break-word;word-break:break-word;">${esc(lotTitle)}</h1>
+            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:0.8rem;overflow-wrap:break-word;">${esc(lotDesc)}</p>` : ""}
             <div style="margin:0.5rem 0 1rem;">
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
@@ -826,7 +829,7 @@ function generateLotPage(item, sale) {
         ${item._aiPriceAnalysis ? `<div class="card">
           <div class="card-header"><h3 style="font-size:1rem;">💰 Analyse du prix</h3></div>
           <div class="card-body">
-            <p style="color:var(--text2);line-height:1.7;font-size:0.92rem;">${esc(item._aiPriceAnalysis)}</p>
+            <p style="color:var(--text);line-height:1.7;font-size:0.92rem;">${esc(item._aiPriceAnalysis)}</p>
           </div>
         </div>` : ""}
 
@@ -835,7 +838,7 @@ function generateLotPage(item, sale) {
           <div class="card-body">
             ${item._aiFaq.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;">
               <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q || "")}</summary>
-              <p style="color:var(--text2);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a || "")}</p>
+              <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a || "")}</p>
             </details>`).join("")}
           </div>
         </div>` : ""}
@@ -939,7 +942,7 @@ function generateMaisonPage(slug, data) {
         <div class="card">
           <div class="card-body">
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(data.name)}</h1>
-            <p style="color:#666;">${esc(data.city)} ${data.address?.street ? "· " + esc(data.address.street) : ""}</p>
+            <p style="color:var(--text2);">${esc(data.city)} ${data.address?.street ? "· " + esc(data.address.street) : ""}</p>
             <div style="display:flex;gap:2rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${data.items.length}</div><div class="stat-label">lots vendus</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
@@ -997,7 +1000,7 @@ function generateSalePage(saleId, data) {
         <div class="card">
           <div class="card-body">
             <h1 style="font-size:1.3rem;margin-bottom:0.5rem;">${esc(data.saleName)}</h1>
-            <p style="color:#666;"><a href="/maison/${slugify(data.org)}.html">${esc(data.org)}</a> · ${esc(data.city)} · ${saleDate}</p>
+            <p style="color:var(--text2);"><a href="/maison/${slugify(data.org)}.html">${esc(data.org)}</a> · ${esc(data.city)} · ${saleDate}</p>
             <div style="display:flex;gap:2rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${data.items.length}</div><div class="stat-label">lots vendus</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
