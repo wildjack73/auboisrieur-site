@@ -2312,11 +2312,14 @@ async function runOnce(dateStr) {
   }
   if (cachedCount > 0) console.log(`  📦 ${cachedCount} lots restaurés depuis le cache (total cumulé)`);
 
-  // Scrape yesterday + today to catch late evening sales
-  const yesterday = yesterdayStr(dateStr);
+  // Scrape last 7 days to accumulate as much data as possible
   let totalSold = 0;
-  totalSold += scrapDate(yesterday);
-  totalSold += scrapDate(dateStr);
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(dateStr + "T12:00:00Z");
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().slice(0, 10);
+    totalSold += scrapDate(dayStr);
+  }
 
   // Save new items to data dir (sold + unsold)
   for (const [itemId, { item, sale }] of registry.items) {
