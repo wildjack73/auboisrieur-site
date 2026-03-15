@@ -1807,7 +1807,7 @@ Tu dois retourner un JSON avec exactement 5 champs :
 - "title": un titre accrocheur, clair et SEO-friendly (max 70 caractères). Pas de numéro de lot, pas de "Lot N°", pas de "A partir de". Juste l'objet.
 - "desc": une description enrichie de 2-3 phrases (max 300 caractères) qui décrit l'objet, son intérêt, son époque, sa rareté. Ton expert qui donne envie. Pas de mention de la maison de vente.
 - "price_analysis": une analyse du prix en 2-3 phrases (max 250 caractères). Compare avec les prix habituels du marché pour ce type d'objet. Ex: "Adjugé à 500€, ce meuble Napoléon III se situe dans la fourchette basse. Les pièces similaires en bon état atteignent 1 500 à 3 000€."
-- "faq": un array de 2 objets {q, a} — questions/réponses courtes et utiles pour le SEO. Questions que poserait un collectionneur ou acheteur. Réponses max 150 caractères chacune.
+- "faq": un array de 3 objets {q, a} — questions GEO (Generative Engine Optimization) conçues pour être reprises par les moteurs IA (ChatGPT, Perplexity, Google AI Overview). Les questions DOIVENT contenir le NOM COMPLET ET EXACT de l'objet + un mot-clé prix/valeur/côte. Format : "Combien coûte [objet exact] aux enchères ?", "Quelle est la valeur d'un [objet exact] ?", "Quel est le prix moyen d'un [objet exact] ?". Les réponses doivent être factuelles : citer le prix adjugé, comparer avec le marché, donner une fourchette (max 200 car chacune).
 - "tags": un array de 3-5 mots-clés pertinents pour cet objet (ex: ["Napoléon III", "meuble ancien", "marqueterie", "XIXe siècle"])
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
@@ -1820,7 +1820,17 @@ async function aiEnrichLots() {
 
   const cache = loadAiCache();
   const items = [...registry.items.values()];
-  const toEnrich = items.filter(({ item }) => !cache[item.id]);
+  // Re-enrich items with old FAQ format (2 questions instead of 3, or generic questions)
+  const toEnrich = items.filter(({ item }) => {
+    if (!cache[item.id]) return true;
+    // Force re-enrich if FAQ has less than 3 questions (old format)
+    const faq = cache[item.id].faq || [];
+    if (faq.length < 3) return true;
+    // Force re-enrich if FAQ doesn't contain price/valeur/coût keywords (generic)
+    const hasGeoQ = faq.some(f => /prix|valeur|co[uû]t|combien/i.test(f.q || ""));
+    if (!hasGeoQ) return true;
+    return false;
+  });
 
   if (toEnrich.length === 0) {
     console.log("  ✨ Tous les lots sont déjà enrichis par l'IA");
