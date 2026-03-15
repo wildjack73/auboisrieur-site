@@ -1640,21 +1640,24 @@ function rebuildAllPages(dateStr) {
   ensureDir(path.join(SITE_DIR, "data"));
 
   let pageCount = 0;
+  let skipped = 0;
 
-  // Lot pages
+  // Lot pages — only generate if file doesn't exist yet (incremental)
   for (const [itemId, { item, sale }] of registry.items) {
     const slug = lotSlug(item);
-    fs.writeFileSync(path.join(SITE_DIR, "lot", `${slug}.html`), generateLotPage(item, sale), "utf-8");
+    const filePath = path.join(SITE_DIR, "lot", `${slug}.html`);
+    if (fs.existsSync(filePath)) { skipped++; continue; }
+    fs.writeFileSync(filePath, generateLotPage(item, sale), "utf-8");
     pageCount++;
   }
 
-  // Category pages
+  // Category pages — always regenerate (content changes with new lots)
   for (const [slug, data] of registry.categories) {
     fs.writeFileSync(path.join(SITE_DIR, "categorie", `${slug}.html`), generateCategoryPage(slug, data), "utf-8");
     pageCount++;
   }
 
-  // Index pages
+  // Index pages — always regenerate
   fs.writeFileSync(path.join(SITE_DIR, "categories.html"), generateCategoriesIndex(), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "index.html"), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "top-ventes.html"), generateTopVentesPage(), "utf-8");
@@ -1672,18 +1675,21 @@ function rebuildAllPages(dateStr) {
     fs.writeFileSync(path.join(SITE_DIR, "jour", `${day}.html`), generateHomePage(day), "utf-8");
     pageCount++;
   }
-  // Always generate today's page too
   if (!dayMap.has(dateStr)) {
     fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
     pageCount++;
   }
 
-  // Unsold lot pages
+  // Unsold lot pages — only generate if file doesn't exist yet
   for (const [itemId, { item, sale }] of registry.unsold) {
     const slug = lotSlug(item);
-    fs.writeFileSync(path.join(SITE_DIR, "lot", `${slug}.html`), generateUnsoldPage(item, sale), "utf-8");
+    const filePath = path.join(SITE_DIR, "lot", `${slug}.html`);
+    if (fs.existsSync(filePath)) { skipped++; continue; }
+    fs.writeFileSync(filePath, generateUnsoldPage(item, sale), "utf-8");
     pageCount++;
   }
+
+  if (skipped > 0) console.log(`  ⏩ ${skipped} pages lot déjà existantes (ignorées)`);
 
   // Search index as JS (more reliable than JSON fetch on shared hosting)
   const searchIndex = [...registry.items.values()].map(({ item }) => {
