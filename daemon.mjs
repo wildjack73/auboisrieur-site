@@ -717,7 +717,7 @@ function generateLotPage(item, sale) {
   const canonicalPath = `/lot/${slug}.html`;
   const ogImage = medias[0] ? imgUrl(medias[0], "lg") : "";
 
-  const jsonLd = JSON.stringify({
+  const jsonLdProduct = {
     "@context": "https://schema.org",
     "@type": "Product",
     "name": lotTitle,
@@ -731,11 +731,23 @@ function generateLotPage(item, sale) {
       "availability": "https://schema.org/SoldOut",
       "itemCondition": "https://schema.org/UsedCondition"
     }
-  });
+  };
+
+  // FAQ Schema for GEO
+  const faqSchema = item._aiFaq?.length ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": item._aiFaq.map(({ q, a }) => ({
+      "@type": "Question",
+      "name": q,
+      "acceptedAnswer": { "@type": "Answer", "text": a }
+    }))
+  } : null;
 
   return `${htmlHead(`${shortTitle} — ${auc.sold ? auc.price + "€" : "Non vendu"}`, desc, `<style>${carouselCSS}</style>
   ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ""}
-  <script type="application/ld+json">${jsonLd}<\/script>`, canonicalPath)}
+  <script type="application/ld+json">${JSON.stringify(jsonLdProduct)}<\/script>
+  ${faqSchema ? `<script type="application/ld+json">${JSON.stringify(faqSchema)}<\/script>` : ""}`, canonicalPath)}
 <body>
   ${navHtml()}
   <div class="breadcrumb">
@@ -766,8 +778,31 @@ function generateLotPage(item, sale) {
               ${catSlug ? `<tr><td>Catégorie</td><td><a href="/categorie/${catSlug}.html">${esc(catName)}</a></td></tr>` : ""}
               <tr><td>Date</td><td>${saleDate}</td></tr>
             </table>
+
+            ${item._aiTags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:1rem;">
+              ${item._aiTags.map(tag => `<span style="background:var(--accent-glow);color:var(--accent2);padding:4px 12px;border-radius:20px;font-size:0.78rem;font-weight:500;border:1px solid var(--border2);">${esc(tag)}</span>`).join("")}
+            </div>` : ""}
           </div>
         </div>
+
+        ${item._aiPriceAnalysis ? `<div class="card">
+          <div class="card-header"><h3 style="font-size:1rem;">💰 Analyse du prix</h3></div>
+          <div class="card-body">
+            <p style="color:var(--text2);line-height:1.7;font-size:0.92rem;">${esc(item._aiPriceAnalysis)}</p>
+          </div>
+        </div>` : ""}
+
+        ${item._aiFaq?.length ? `<div class="card">
+          <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
+          <div class="card-body">
+            ${item._aiFaq.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;">
+              <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q || "")}</summary>
+              <p style="color:var(--text2);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a || "")}</p>
+            </details>`).join("")}
+          </div>
+        </div>` : ""}
+
+        ${adSlot("betweenLots")}
 
         ${similarLots(item)}
       </main>
@@ -1492,7 +1527,7 @@ async function callGpt(messages, retries = 2) {
         model: "gpt-4o-mini",
         messages,
         temperature: 0.7,
-        max_tokens: 300,
+        max_tokens: 800,
       });
       const result = execFileSync("curl", [
         "-s", "--max-time", "30",
@@ -1514,11 +1549,14 @@ async function callGpt(messages, retries = 2) {
   }
 }
 
-const AI_SYSTEM_PROMPT = `Tu es un expert en objets d'art, antiquités et enchères. On te donne la description brute d'un lot vendu aux enchères en France.
+const AI_SYSTEM_PROMPT = `Tu es un expert en objets d'art, antiquités et enchères. On te donne la description brute d'un lot vendu aux enchères en France avec son prix d'adjudication.
 
-Tu dois retourner un JSON avec exactement 2 champs :
-- "title": un titre accrocheur, clair et SEO-friendly (max 70 caractères). Pas de numéro de lot, pas de "Lot N°". Juste l'objet.
-- "desc": une description enrichie de 2-3 phrases (max 300 caractères) qui décrit l'objet, son intérêt, son époque, sa rareté. Ton qui donne envie. Pas de prix. Pas de mention de la maison de vente.
+Tu dois retourner un JSON avec exactement 5 champs :
+- "title": un titre accrocheur, clair et SEO-friendly (max 70 caractères). Pas de numéro de lot, pas de "Lot N°", pas de "A partir de". Juste l'objet.
+- "desc": une description enrichie de 2-3 phrases (max 300 caractères) qui décrit l'objet, son intérêt, son époque, sa rareté. Ton expert qui donne envie. Pas de mention de la maison de vente.
+- "price_analysis": une analyse du prix en 2-3 phrases (max 250 caractères). Compare avec les prix habituels du marché pour ce type d'objet. Ex: "Adjugé à 500€, ce meuble Napoléon III se situe dans la fourchette basse. Les pièces similaires en bon état atteignent 1 500 à 3 000€."
+- "faq": un array de 2 objets {q, a} — questions/réponses courtes et utiles pour le SEO. Questions que poserait un collectionneur ou acheteur. Réponses max 150 caractères chacune.
+- "tags": un array de 3-5 mots-clés pertinents pour cet objet (ex: ["Napoléon III", "meuble ancien", "marqueterie", "XIXe siècle"])
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
@@ -1568,9 +1606,18 @@ async function aiEnrichLots() {
       const parsed = JSON.parse(cleaned);
 
       if (parsed.title && parsed.desc) {
-        cache[item.id] = { t: parsed.title, d: parsed.desc };
+        cache[item.id] = {
+          t: parsed.title,
+          d: parsed.desc,
+          pa: parsed.price_analysis || "",
+          faq: parsed.faq || [],
+          tags: parsed.tags || [],
+        };
         item._aiTitle = parsed.title;
         item._aiDesc = parsed.desc;
+        item._aiPriceAnalysis = parsed.price_analysis || "";
+        item._aiFaq = parsed.faq || [];
+        item._aiTags = parsed.tags || [];
       }
     } catch (err) {
       errors++;
@@ -1599,6 +1646,9 @@ async function aiEnrichLots() {
     if (cache[item.id]) {
       item._aiTitle = cache[item.id].t;
       item._aiDesc = cache[item.id].d;
+      item._aiPriceAnalysis = cache[item.id].pa || "";
+      item._aiFaq = cache[item.id].faq || [];
+      item._aiTags = cache[item.id].tags || [];
     }
   }
 
