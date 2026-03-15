@@ -364,13 +364,23 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; overflow: hidden; word-break: break-word; }
     .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; overflow: hidden; }
     .grid-2 > main { min-width: 0; overflow: hidden; max-width: 100%; }
+    /* Hamburger button */
+    .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; padding: 0.6rem 0.8rem; cursor: pointer; line-height: 1; }
+    .nav-links { display: none; }
+    .cat-desc-toggle { display: none; }
+
     @media (max-width: 800px) {
       .grid-2 { grid-template-columns: 1fr; }
-      .topnav { padding: 0 0.3rem; }
+      .topnav { padding: 0 0.3rem; flex-wrap: wrap; }
       .topnav .brand { padding: 0.6rem 0.4rem 0.6rem 0.6rem; font-size: 0.9rem; gap: 5px; }
       .topnav .brand svg { width: 20px; height: 20px; }
-      .topnav a { padding: 0.6rem 0.5rem; font-size: 0.85rem; }
       .brand-text { font-size: 1.05rem; }
+      .hamburger { display: block; }
+      .nav-links { display: none; flex-direction: column; width: 100%; order: 10; background: var(--surface); border-top: 1px solid var(--border); }
+      .nav-links.open { display: flex; }
+      .nav-links a { padding: 0.9rem 1.2rem; font-size: 1.05rem; border-bottom: 1px solid var(--border); width: 100%; box-sizing: border-box; }
+      .topnav > .search-wrap { order: 5; flex: 1; margin: 0 0.3rem; }
+      .desk-link { display: none !important; }
       .container { margin: 0.8rem auto; padding: 0 0.6rem; }
       .breadcrumb { padding: 0.5rem 0.8rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .card-body { padding: 1rem; }
@@ -384,9 +394,12 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       .amazon-btn, .ebay-btn { padding: 10px 16px; font-size: 0.82rem; }
       .stat-number { font-size: 1.4rem; }
       .stat-label { font-size: 0.7rem; }
-      .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+      .hero-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
       .stat-box { padding: 0.8rem 0.3rem; }
       h1 { font-size: 1.15rem !important; }
+      .cat-desc { max-height: 120px; overflow: hidden; position: relative; }
+      .cat-desc.expanded { max-height: none; }
+      .cat-desc-toggle { display: block; text-align: center; color: var(--accent); font-size: 0.85rem; padding: 0.5rem; cursor: pointer; }
     }
 
     /* Cards */
@@ -517,8 +530,8 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .search-result .sr-price { color: var(--green); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
     .search-no-result { padding: 1rem; text-align: center; color: var(--text3); font-size: 0.85rem; }
     @media (max-width: 800px) {
-      .search-wrap { flex: 1; margin: 0 0.3rem; }
-      .search-input { width: 100%; }
+      .search-wrap { flex: 1; margin: 0 0.3rem; max-width: 50%; }
+      .search-input { width: 100%; font-size: 0.8rem; padding: 6px 10px 6px 30px; }
       .search-input:focus { width: 100%; }
       .search-results { min-width: 0; left: -40px; right: -40px; }
     }
@@ -535,10 +548,10 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 function navHtml() {
   return `<nav class="topnav">
   <a href="/index.html" class="brand"><span class="brand-text">Adjugé !</span></a>
-  <a href="/index.html">Accueil</a>
-  <a href="/categories.html">Catégories</a>
-  <a href="/top-ventes.html">🏆 Top</a>
-  <a href="/invendus.html">Invendus</a>
+  <a href="/index.html" class="desk-link">Accueil</a>
+  <a href="/categories.html" class="desk-link">Catégories</a>
+  <a href="/top-ventes.html" class="desk-link">🏆 Top</a>
+  <a href="/invendus.html" class="desk-link">Invendus</a>
   <span style="flex:1;"></span>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -548,6 +561,13 @@ function navHtml() {
   <button class="theme-toggle" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">
     <span class="theme-icon">🌙</span>
   </button>
+  <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')" aria-label="Menu">☰</button>
+  <div class="nav-links" id="navLinks">
+    <a href="/index.html">🏠 Accueil</a>
+    <a href="/categories.html">📂 Catégories</a>
+    <a href="/top-ventes.html">🏆 Top Ventes</a>
+    <a href="/invendus.html">📦 Invendus</a>
+  </div>
 </nav>
 <script>
 function toggleTheme(){
@@ -988,8 +1008,8 @@ function generateCategoryPage(slug, data) {
         <div class="card">
           <div class="card-body">
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(catName)}</h1>
-            ${catDesc ? `<p style="color:var(--text2);margin-bottom:1rem;font-size:0.9rem;">${esc(catDesc)}</p>` : ""}
-            <div style="display:flex;gap:2rem;margin:1rem 0;">
+            ${catDesc ? `<div class="cat-desc"><p style="color:var(--text2);margin-bottom:1rem;font-size:0.9rem;">${esc(catDesc)}</p></div><span class="cat-desc-toggle" onclick="this.previousElementSibling.classList.toggle('expanded');this.textContent=this.previousElementSibling.classList.contains('expanded')?'▲ Voir moins':'▼ Voir plus'">▼ Voir plus</span>` : ""}
+            <div class="hero-stats" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${data.items.length}</div><div class="stat-label">lots vendus</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(avgPrice)} €</div><div class="stat-label">prix moyen</div></div>
