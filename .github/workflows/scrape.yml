@@ -41,6 +41,7 @@ jobs:
           AD_SLOT_INARTICLE: ${{ secrets.AD_SLOT_INARTICLE }}
           AD_SLOT_BETWEENLOTS: ${{ secrets.AD_SLOT_BETWEENLOTS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
         run: |
           if [ -n "${{ github.event.inputs.date }}" ]; then
             node daemon.mjs --once --date "${{ github.event.inputs.date }}"

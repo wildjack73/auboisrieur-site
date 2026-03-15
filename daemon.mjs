@@ -1257,8 +1257,155 @@ User-agent: Googlebot
 Allow: /
 
 Disallow: /data/
+Disallow: /stats.html
 `;
   fs.writeFileSync(path.join(SITE_DIR, "robots.txt"), robots, "utf-8");
+
+  // stats.html — non-indexed real-time visitor stats (GoatCounter API)
+  const gcToken = process.env.GOATCOUNTER_TOKEN || "";
+  fs.writeFileSync(path.join(SITE_DIR, "stats.html"), `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Stats — Adjugé !</title>
+  <style>
+    :root { --bg: #0f0f13; --surface: #1a1a24; --text: #e8e8ed; --text2: #9999ab; --accent: #7c5cfc; --green: #34d399; --border: rgba(255,255,255,0.06); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; text-align: center; }
+    .stat-value { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { color: var(--text2); font-size: 0.85rem; margin-top: 0.3rem; }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .chart-wrap h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 200px; padding-bottom: 24px; }
+    .bar { background: linear-gradient(to top, var(--accent), var(--green)); border-radius: 6px 6px 0 0; flex: 1; min-width: 30px; position: relative; transition: height 0.5s ease; }
+    .bar:hover { filter: brightness(1.2); }
+    .bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; color: var(--text2); white-space: nowrap; }
+    .bar-value { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 0.75rem; color: var(--text); font-weight: 700; }
+    .pages-list { list-style: none; }
+    .pages-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .pages-list .page-path { color: var(--text2); max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pages-list .page-count { color: var(--green); font-weight: 700; font-size: 0.95rem; }
+    .refresh-info { color: var(--text2); font-size: 0.8rem; margin-bottom: 1.5rem; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    a { color: var(--accent); text-decoration: none; }
+    .error { color: #f87171; font-size: 0.85rem; padding: 1rem; }
+  </style>
+</head>
+<body>
+  <a href="/index.html">← Retour au site</a>
+  <h1>📊 Statistiques en temps réel</h1>
+  <p class="refresh-info"><span class="dot"></span>Actualisation toutes les 30s · <span id="lastUpdate"></span></p>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-value" id="todayViews">–</div><div class="stat-label">Visiteurs aujourd'hui</div></div>
+    <div class="stat-card"><div class="stat-value" id="weekViews">–</div><div class="stat-label">Cette semaine</div></div>
+    <div class="stat-card"><div class="stat-value" id="monthViews">–</div><div class="stat-label">Ce mois</div></div>
+    <div class="stat-card"><div class="stat-value" id="totalPages">–</div><div class="stat-label">Pages vues (24h)</div></div>
+  </div>
+
+  <div class="chart-wrap">
+    <h2>📈 Visiteurs par jour (14 derniers jours)</h2>
+    <div class="bar-chart" id="dailyChart"></div>
+  </div>
+
+  <div class="chart-wrap">
+    <h2>🔥 Pages les plus vues (aujourd'hui)</h2>
+    <ul class="pages-list" id="topPagesList"></ul>
+  </div>
+
+  <script>
+  const API = 'https://wildjack.goatcounter.com/api/v0';
+  const TOKEN = '${gcToken}';
+  const HEADERS = { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' };
+
+  function fmtDate(d) { return d.toISOString().slice(0, 10); }
+  function fmtNum(n) { return Number(n).toLocaleString('fr-FR'); }
+
+  async function fetchStats() {
+    try {
+      const now = new Date();
+      const today = fmtDate(now);
+      const weekAgo = fmtDate(new Date(now - 7 * 86400000));
+      const twoWeeksAgo = fmtDate(new Date(now - 14 * 86400000));
+      const monthAgo = fmtDate(new Date(now - 30 * 86400000));
+
+      // Fetch total stats for different periods
+      const [todayR, weekR, monthR] = await Promise.all([
+        fetch(API + '/stats/total?start=' + today + '&end=' + today, { headers: HEADERS }).then(r => r.json()),
+        fetch(API + '/stats/total?start=' + weekAgo + '&end=' + today, { headers: HEADERS }).then(r => r.json()),
+        fetch(API + '/stats/total?start=' + monthAgo + '&end=' + today, { headers: HEADERS }).then(r => r.json()),
+      ]);
+
+      document.getElementById('todayViews').textContent = fmtNum(todayR.total || todayR.total_unique || 0);
+      document.getElementById('weekViews').textContent = fmtNum(weekR.total || weekR.total_unique || 0);
+      document.getElementById('monthViews').textContent = fmtNum(monthR.total || monthR.total_unique || 0);
+
+      // Fetch daily hits for chart (14 days)
+      const hitsR = await fetch(API + '/stats/hits?start=' + twoWeeksAgo + '&end=' + today + '&daily=true&limit=1', { headers: HEADERS }).then(r => r.json());
+
+      // Build daily chart
+      const days = {};
+      if (hitsR.stats) {
+        for (const path of hitsR.stats) {
+          if (path.count_unique) {
+            for (let i = 0; i < path.count_unique.length; i++) {
+              const d = new Date(new Date(twoWeeksAgo).getTime() + i * 86400000);
+              const key = fmtDate(d);
+              days[key] = (days[key] || 0) + path.count_unique[i];
+            }
+          }
+        }
+      }
+
+      const chartEl = document.getElementById('dailyChart');
+      const dayKeys = Object.keys(days).sort();
+      if (dayKeys.length > 0) {
+        const maxVal = Math.max(...dayKeys.map(k => days[k]), 1);
+        chartEl.innerHTML = dayKeys.map(k => {
+          const pct = Math.max((days[k] / maxVal) * 100, 2);
+          const label = k.slice(5); // MM-DD
+          return '<div class="bar" style="height:' + pct + '%"><span class="bar-value">' + days[k] + '</span><span class="bar-label">' + label + '</span></div>';
+        }).join('');
+      } else {
+        chartEl.innerHTML = '<p style="color:var(--text2);text-align:center;width:100%;padding:2rem;">Pas encore de données</p>';
+      }
+
+      // Top pages
+      const pagesR = await fetch(API + '/stats/hits?start=' + today + '&end=' + today + '&limit=20', { headers: HEADERS }).then(r => r.json());
+      const listEl = document.getElementById('topPagesList');
+      let totalPageViews = 0;
+
+      if (pagesR.stats && pagesR.stats.length) {
+        const sorted = pagesR.stats.sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, 15);
+        sorted.forEach(p => totalPageViews += (p.count || 0));
+        listEl.innerHTML = sorted.map(p =>
+          '<li><span class="page-path">' + (p.path || '?') + '</span><span class="page-count">' + fmtNum(p.count || 0) + '</span></li>'
+        ).join('');
+      } else {
+        listEl.innerHTML = '<li><span class="page-path">Pas encore de données</span><span class="page-count">0</span></li>';
+      }
+
+      document.getElementById('totalPages').textContent = fmtNum(totalPageViews);
+      document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('fr-FR');
+
+    } catch(e) {
+      console.error('Stats error:', e);
+      document.getElementById('dailyChart').innerHTML = '<p class="error">Erreur: ' + e.message + '</p>';
+    }
+  }
+
+  fetchStats();
+  setInterval(fetchStats, 30000);
+  </script>
+</body>
+</html>`, "utf-8");
+  pageCount++;
 
   // ads.txt — required by Google AdSense
   if (config.adsenseId) {
