@@ -767,6 +767,7 @@ function generateLotPage(item, sale) {
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
             </div>
+            ${adSlot("inArticle", "margin-top:0.8rem;")}
           </div>
           ${carouselHtml}
           <div class="card-body">
