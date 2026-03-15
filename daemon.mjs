@@ -2335,6 +2335,7 @@ async function runOnce(dateStr) {
     }
   }
   // Save state
+  const stateFile = path.join(dataDir, "state.json");
   fs.writeFileSync(stateFile, JSON.stringify({ knownSold: [...registry.items.keys()], knownUnsold: [...registry.unsold.keys()], lastPoll: new Date().toISOString() }, null, 2), "utf-8");
 
   const totalItems = registry.items.size;
