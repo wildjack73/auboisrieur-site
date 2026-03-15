@@ -501,6 +501,7 @@ function navHtml() {
   <a href="/index.html" class="brand"><img src="/logo-dark.jpg" alt="${esc(config.siteName)}" class="brand-logo brand-logo-dark" height="36"><img src="/logo-light.jpg" alt="${esc(config.siteName)}" class="brand-logo brand-logo-light" height="36"></a>
   <a href="/index.html">Accueil</a>
   <a href="/categories.html">Catégories</a>
+  <a href="/top-ventes.html">🏆 Top</a>
   <span style="flex:1;"></span>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -567,12 +568,41 @@ function sidebarHtml() {
     .sort((a, b) => b[1].items.length - a[1].items.length)
     .slice(0, 15);
 
+  // Top 10 most expensive
+  const topExpensive = [...registry.items.values()]
+    .sort((a, b) => (b.item.pricing?.auctioned?.price || 0) - (a.item.pricing?.auctioned?.price || 0))
+    .slice(0, 10);
+
   return `<aside class="sidebar">
     ${adSlot("sidebar")}
     <div class="card">
+      <div class="card-header"><h3>🏆 Top 10 ventes</h3></div>
+      <div class="card-body" style="padding:0;">
+        ${topExpensive.map(({ item }, i) => {
+          const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+          const lns = rawD.split("\\n").map(l => l.trim()).filter(Boolean);
+          const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 50) || "Objet");
+          const price = item.pricing?.auctioned?.price || 0;
+          const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
+          return `<a href="/lot/${lotSlug(item)}.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background 0.15s;">
+            <span style="font-weight:800;font-size:1.1rem;color:var(--accent);min-width:22px;">${i + 1}</span>
+            ${thumb ? `<img src="${esc(thumb)}" alt="" style="width:44px;height:33px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ""}
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(title)}</div>
+              <div style="font-size:0.82rem;font-weight:700;color:var(--green);">${formatPrice(price)} €</div>
+            </div>
+          </a>`;
+        }).join("")}
+        <a href="/top-ventes.html" style="display:block;text-align:center;padding:12px;font-weight:600;font-size:0.85rem;color:var(--accent2);border-top:1px solid var(--border);">Voir le classement complet →</a>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-header"><h3>Catégories</h3></div>
       <div class="card-body cat-list">
-        ${cats.map(([slug, c]) => `<a href="/categorie/${slug}.html">${esc(c.name)} <span class="cat-count">(${c.items.length})</span></a>`).join("\n        ")}
+        ${cats.map(([slug, c]) => {
+          const catName = c._aiName || c.name;
+          return `<a href="/categorie/${slug}.html">${esc(catName)} <span class="cat-count">(${c.items.length})</span></a>`;
+        }).join("\n        ")}
         <a href="/categories.html" style="margin-top:0.5rem;font-weight:600;">Toutes les catégories →</a>
       </div>
     </div>
@@ -1045,6 +1075,52 @@ function generateMaisonsIndex() {
 </html>`;
 }
 
+function generateTopVentesPage() {
+  const sorted = [...registry.items.values()]
+    .sort((a, b) => (b.item.pricing?.auctioned?.price || 0) - (a.item.pricing?.auctioned?.price || 0))
+    .slice(0, 100);
+
+  return `${htmlHead("Top ventes — Les adjudications les plus chères", "Classement des lots les plus chers vendus aux enchères. Records, prix, photos.", "", `/top-ventes.html`)}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › Top ventes</div>
+  ${adSlot("header", "padding: 0.5rem 2rem;")}
+  <div class="container">
+    <h1 style="font-size:1.5rem;margin-bottom:1.5rem;">🏆 Top 100 — Ventes les plus chères</h1>
+    <div class="grid-2">
+      <main>
+        ${sorted.map(({ item }, i) => {
+          const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+          const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+          const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+          const desc = item._aiDesc || (lns.length > 1 ? lns.slice(1).join(" ").substring(0, 100) : "");
+          const price = item.pricing?.auctioned?.price || 0;
+          const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+          const catName = item.category?.name || "";
+          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+          return `<a href="/lot/${lotSlug(item)}.html" class="card" style="margin-bottom:1rem;text-decoration:none;color:var(--text);display:flex;flex-direction:row;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;${i < 3 ? 'border-color:var(--accent);' : ''}" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" style="width:140px;height:auto;object-fit:cover;flex-shrink:0;" loading="lazy">` : ""}
+            <div style="padding:1rem 1.2rem;flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.4rem;">
+                <span style="font-size:${i < 3 ? '1.5rem' : '1rem'};font-weight:800;${i < 3 ? '' : 'color:var(--text3);'}">${medal}</span>
+                <span style="font-size:1.5rem;font-weight:800;color:var(--green);">${formatPrice(price)} €</span>
+              </div>
+              <div style="font-weight:600;font-size:0.95rem;margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(title)}</div>
+              ${desc ? `<div style="color:var(--text2);font-size:0.82rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(desc)}</div>` : ""}
+              ${catName ? `<div style="margin-top:0.4rem;font-size:0.75rem;color:var(--text3);">${esc(catName)}</div>` : ""}
+            </div>
+          </a>`;
+        }).join("\n        ")}
+        ${adSlot("betweenLots")}
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+</body>
+</html>`;
+}
+
 function generateHomePage(dateStr) {
   const totalItems = registry.items.size;
   const totalPrice = [...registry.items.values()].reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
@@ -1066,17 +1142,38 @@ function generateHomePage(dateStr) {
   const adsenseId = config.adsenseId || "";
   const adSlotId = config.adSlots?.betweenLots || "";
 
+  // Top 10 most expensive
+  const top10 = [...registry.items.values()]
+    .sort((a, b) => (b.item.pricing?.auctioned?.price || 0) - (a.item.pricing?.auctioned?.price || 0))
+    .slice(0, 10);
+
+  // Average price
+  const avgPrice = totalItems ? Math.round(totalPrice / totalItems) : 0;
+  // Max price
+  const maxPrice = top10[0]?.item.pricing?.auctioned?.price || 0;
+
   return `${htmlHead(`Enchères du ${dateStr}`, `${totalItems} lots vendus aux enchères le ${dateStr}. Photos, prix, estimations.`, "", `/index.html`)}
 <body>
   ${navHtml()}
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
-    <div class="hero-stats">
-      <div style="display:flex;gap:0;justify-content:center;flex-wrap:wrap;">
-        <div class="stat-box"><div class="stat-number">${totalItems}</div><div class="stat-label">objets vendus</div></div>
-        <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
-        <div class="stat-box"><div class="stat-number">${registry.categories.size}</div><div class="stat-label">catégories</div></div>
-      </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🔨</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalItems)}</div><div class="stat-label">objets vendus</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💰</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(251,191,36,0.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📊</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(avgPrice)} €</div><div class="stat-label">prix moyen</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🏆</div>
+        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(maxPrice)} €</div><div class="stat-label">record du jour</div></div>
+      </div></div>
     </div>
 
     <div class="grid-2">
@@ -1224,7 +1321,8 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "categories.html"), generateCategoriesIndex(), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "index.html"), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "jour", `${dateStr}.html`), generateHomePage(dateStr), "utf-8");
-  pageCount += 3;
+  fs.writeFileSync(path.join(SITE_DIR, "top-ventes.html"), generateTopVentesPage(), "utf-8");
+  pageCount += 4;
 
   // Search index as JS (more reliable than JSON fetch on shared hosting)
   const searchIndex = [...registry.items.values()].map(({ item }) => {
@@ -1245,6 +1343,7 @@ function rebuildAllPages(dateStr) {
   let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
   sitemap += `  <url><loc>${siteUrl}/index.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/categories.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/top-ventes.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
   for (const [slug] of registry.categories) {
     sitemap += `  <url><loc>${siteUrl}/categorie/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   }
