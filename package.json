@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "basic-ftp": "^5.2.0"
+    "basic-ftp": "^5.2.0",
+    "ssh2-sftp-client": "^12.1.0"
   }
 }

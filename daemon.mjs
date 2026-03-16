@@ -2125,93 +2125,154 @@ AddType application/json .json
 async function ftpUpload() {
   if (!config.ftp?.enabled || !config.ftp.host) return;
 
-  const { Client } = await import("basic-ftp");
-  const client = new Client(600000); // 10 min timeout
-  client.ftp.verbose = false;
+  const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");
 
-  // Retry connection up to 3 times
-  const maxRetries = 3;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      await client.access({
-        host: config.ftp.host,
-        user: config.ftp.user,
-        password: config.ftp.password,
-        secure: config.ftp.secure || false,
-      });
-      break; // connected
-    } catch (err) {
-      console.warn(`  ⚠ FTP connexion tentative ${attempt}/${maxRetries}: ${err.message}`);
-      if (attempt === maxRetries) { client.close(); return; }
-      await new Promise(r => setTimeout(r, 10000)); // wait 10s
+  // Collect files to upload
+  const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".js", ".svg", ".jpg", ".png", ".ico", ".webp"]);
+  function collectFiles(localDir, remoteDir, files = []) {
+    const entries = fs.readdirSync(localDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (entry.name === "data") continue;
+        collectFiles(path.join(localDir, entry.name), `${remoteDir}/${entry.name}`, files);
+      } else if (UPLOAD_EXT.has(path.extname(entry.name)) || entry.name === ".htaccess") {
+        files.push({ local: path.join(localDir, entry.name), remote: `${remoteDir}/${entry.name}` });
+      }
     }
+    return files;
   }
 
+  const allFiles = collectFiles(SITE_DIR, remote);
+
+  // Incremental upload tracker
+  const uploadedTracker = path.join(DATA_DIR, "ftp-uploaded.json");
+  let alreadyUploaded = {};
+  try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
+
+  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html"]);
+
+  const files = allFiles.filter(f => {
+    const basename = path.basename(f.local);
+    if (alwaysUpload.has(basename)) return true;
+    if (basename.startsWith("categorie-")) return true;
+    const mtime = fs.statSync(f.local).mtimeMs;
+    if (alreadyUploaded[f.remote] && alreadyUploaded[f.remote] >= mtime) return false;
+    return true;
+  });
+
+  // Prioritize index pages
+  const priorityFiles = files.filter(f => !f.remote.includes("/lot/"));
+  const lotFiles = files.filter(f => f.remote.includes("/lot/"));
+  const sortedFiles = [...priorityFiles, ...lotFiles];
+
+  console.log(`  📤 ${sortedFiles.length} fichiers à uploader (${allFiles.length - files.length} déjà à jour)`);
+  if (sortedFiles.length === 0) return;
+
+  const saveTracker = () => { try { fs.writeFileSync(uploadedTracker, JSON.stringify(alreadyUploaded), "utf-8"); } catch {} };
+
+  // Try SFTP first (port 22), then FTP (port 21) as fallback
+  let connected = false;
+
+  // === SFTP attempt ===
   try {
-    const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");
-
-    // Upload extensions: html, xml, txt, json, svg, htaccess
-    const UPLOAD_EXT = new Set([".html", ".xml", ".txt", ".json", ".js", ".svg", ".jpg", ".png", ".ico", ".webp"]);
-    function collectFiles(localDir, remoteDir, files = []) {
-      const entries = fs.readdirSync(localDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          if (entry.name === "data") continue;
-          collectFiles(path.join(localDir, entry.name), `${remoteDir}/${entry.name}`, files);
-        } else if (UPLOAD_EXT.has(path.extname(entry.name)) || entry.name === ".htaccess") {
-          files.push({ local: path.join(localDir, entry.name), remote: `${remoteDir}/${entry.name}` });
-        }
-      }
-      return files;
-    }
-
-    const allFiles = collectFiles(SITE_DIR, remote);
-
-    // Incremental upload: track which files were already uploaded
-    const uploadedTracker = path.join(DATA_DIR, "ftp-uploaded.json");
-    let alreadyUploaded = {};
-    try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
-
-    // Always re-upload these pages (they change every run): index, categories, top-ventes, invendus, sitemap, ads.txt, robots
-    const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html"]);
-
-    const files = allFiles.filter(f => {
-      const basename = path.basename(f.local);
-      if (alwaysUpload.has(basename)) return true; // toujours re-uploader
-      if (basename.startsWith("categorie-")) return true; // pages catégories changent
-      const mtime = fs.statSync(f.local).mtimeMs;
-      if (alreadyUploaded[f.remote] && alreadyUploaded[f.remote] >= mtime) return false; // déjà uploadé, pas modifié
-      return true;
+    const SftpClient = (await import("ssh2-sftp-client")).default;
+    const sftp = new SftpClient();
+    console.log("  🔐 Tentative SFTP (port 22)...");
+    await sftp.connect({
+      host: config.ftp.host,
+      port: 22,
+      username: config.ftp.user,
+      password: config.ftp.password,
+      readyTimeout: 30000,
+      retries: 2,
+      retry_minTimeout: 5000,
     });
+    connected = true;
+    console.log("  ✅ SFTP connecté !");
 
-    console.log(`  📤 ${files.length} fichiers à uploader (${allFiles.length - files.length} déjà à jour)`);
-
-    // Use ensureDir for each unique directory
+    // Ensure directories exist
     const dirs = new Set();
-    for (const f of files) {
+    for (const f of sortedFiles) {
       const dir = f.remote.substring(0, f.remote.lastIndexOf("/"));
       dirs.add(dir);
     }
     for (const dir of [...dirs].sort()) {
-      try {
-        await client.ensureDir(dir);
-      } catch (err) {
-        console.warn(`  ⚠ Dossier ${dir}: ${err.message}`);
-      }
+      try { await sftp.mkdir(dir, true); } catch {}
     }
     if (dirs.size > 0) console.log(`  📁 ${dirs.size} dossiers vérifiés`);
-
-    // Upload files — prioritize index pages first, then lot pages
-    const priorityFiles = files.filter(f => !f.remote.includes("/lot/") && !f.remote.includes("/invendu/"));
-    const lotFiles = files.filter(f => f.remote.includes("/lot/") || f.remote.includes("/invendu/"));
-    const sortedFiles = [...priorityFiles, ...lotFiles];
 
     const start = Date.now();
     let uploadCount = 0;
     let errorCount = 0;
 
-    // Save tracker every 200 files so progress isn't lost on timeout
-    const saveTracker = () => { try { fs.writeFileSync(uploadedTracker, JSON.stringify(alreadyUploaded), "utf-8"); } catch {} };
+    for (const f of sortedFiles) {
+      try {
+        await sftp.put(f.local, f.remote);
+        uploadCount++;
+        alreadyUploaded[f.remote] = Date.now();
+        if (uploadCount % 200 === 0) {
+          console.log(`    ${uploadCount}/${sortedFiles.length} uploadés...`);
+          saveTracker();
+        }
+      } catch (err) {
+        errorCount++;
+        if (errorCount <= 5) console.warn(`  ⚠ Upload ${f.remote}: ${err.message}`);
+        if (errorCount > 20) {
+          console.warn(`  ⛔ Trop d'erreurs SFTP (${errorCount}), arrêt`);
+          break;
+        }
+      }
+    }
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    console.log(`  📤 SFTP terminé: ${uploadCount}/${sortedFiles.length} fichiers en ${elapsed}s${errorCount ? ` (${errorCount} erreurs)` : ""}`);
+    saveTracker();
+    await sftp.end();
+    return;
+  } catch (err) {
+    console.warn(`  ⚠ SFTP échoué: ${err.message}`);
+  }
+
+  // === FTP fallback ===
+  try {
+    const { Client } = await import("basic-ftp");
+    const client = new Client(600000);
+    client.ftp.verbose = false;
+
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`  📡 Tentative FTP (port 21) ${attempt}/${maxRetries}...`);
+        await client.access({
+          host: config.ftp.host,
+          user: config.ftp.user,
+          password: config.ftp.password,
+          secure: config.ftp.secure || false,
+        });
+        connected = true;
+        console.log("  ✅ FTP connecté !");
+        break;
+      } catch (err) {
+        console.warn(`  ⚠ FTP connexion tentative ${attempt}/${maxRetries}: ${err.message}`);
+        if (attempt === maxRetries) { client.close(); return; }
+        await new Promise(r => setTimeout(r, 10000));
+      }
+    }
+
+    if (!connected) return;
+
+    const dirs = new Set();
+    for (const f of sortedFiles) {
+      const dir = f.remote.substring(0, f.remote.lastIndexOf("/"));
+      dirs.add(dir);
+    }
+    for (const dir of [...dirs].sort()) {
+      try { await client.ensureDir(dir); } catch {}
+    }
+    if (dirs.size > 0) console.log(`  📁 ${dirs.size} dossiers vérifiés`);
+
+    const start = Date.now();
+    let uploadCount = 0;
+    let errorCount = 0;
 
     for (const f of sortedFiles) {
       try {
@@ -2225,22 +2286,18 @@ async function ftpUpload() {
       } catch (err) {
         errorCount++;
         if (errorCount <= 5) console.warn(`  ⚠ Upload ${f.remote}: ${err.message}`);
-        // If too many errors, likely connection lost — save progress and stop
         if (errorCount > 20) {
-          console.warn(`  ⛔ Trop d'erreurs FTP (${errorCount}), arrêt — reprise au prochain run`);
+          console.warn(`  ⛔ Trop d'erreurs FTP (${errorCount}), arrêt`);
           break;
         }
       }
     }
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     console.log(`  📤 FTP terminé: ${uploadCount}/${sortedFiles.length} fichiers en ${elapsed}s${errorCount ? ` (${errorCount} erreurs)` : ""}`);
-
-    // Save upload tracker
     saveTracker();
+    client.close();
   } catch (err) {
     console.warn(`  ⚠ FTP erreur: ${err.message}`);
-  } finally {
-    client.close();
   }
 }
 
