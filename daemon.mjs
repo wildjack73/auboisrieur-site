@@ -2123,6 +2123,7 @@ AddType application/json .json
 // ─── FTP upload ─────────────────────────────────────────────────────────────
 
 async function ftpUpload() {
+  if (process.env.SKIP_FTP === "true") { console.log("  ⏭️  FTP skip (lftp dans le workflow)"); return; }
   if (!config.ftp?.enabled || !config.ftp.host) return;
 
   const remote = (config.ftp.remotePath || "/public_html").replace(/\/+$/, "");

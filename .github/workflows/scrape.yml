@@ -19,10 +19,14 @@ on:
           - scrape
           - rebuild
 
+concurrency:
+  group: scrape-deploy
+  cancel-in-progress: false
+
 jobs:
   scrape-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -52,12 +56,8 @@ jobs:
           tar -xzf data-cache.tar.gz -C site/data
           echo "📦 Bootstrapped $(ls site/data/*.json 2>/dev/null | wc -l) cached lot files"
 
-      - name: Run scraper or rebuild
+      - name: Run scraper (no FTP)
         env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USER: ${{ secrets.FTP_USER }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_REMOTE_PATH: ${{ secrets.FTP_REMOTE_PATH }}
           SITE_URL: ${{ secrets.SITE_URL }}
           GA_ID: ${{ secrets.GA_ID }}
           AD_SLOT_HEADER: ${{ secrets.AD_SLOT_HEADER }}
@@ -66,6 +66,7 @@ jobs:
           AD_SLOT_BETWEENLOTS: ${{ secrets.AD_SLOT_BETWEENLOTS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+          SKIP_FTP: "true"
         run: |
           MODE="${{ github.event.inputs.mode || 'scrape' }}"
           DATE_ARG=""
@@ -80,3 +81,30 @@ jobs:
             echo "🔍 Mode scrape — scraping + génération"
             node daemon.mjs --once $DATE_ARG
           fi
+
+      - name: Deploy via lftp (parallel mirror)
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_REMOTE_PATH: ${{ secrets.FTP_REMOTE_PATH }}
+        run: |
+          sudo apt-get install -y -qq lftp > /dev/null 2>&1
+
+          REMOTE="${FTP_REMOTE_PATH:-/public_html}"
+          FILE_COUNT=$(find site -not -path "site/data/*" -type f | wc -l)
+          echo "📤 $FILE_COUNT fichiers à synchroniser vers $REMOTE"
+
+          # lftp mirror: upload only new/modified files, 10 parallel connections
+          lftp -c "
+            set ftp:ssl-allow no;
+            set net:timeout 30;
+            set net:max-retries 5;
+            set net:reconnect-interval-base 5;
+            set mirror:parallel-transfer-count 10;
+            set mirror:use-pget-n 5;
+            open -u $FTP_USER,$FTP_PASSWORD $FTP_HOST;
+            mirror --reverse --only-newer --parallel=10 --exclude data/ --verbose=1 site/ $REMOTE/;
+            quit;
+          "
+          echo "✅ Déploiement terminé"
