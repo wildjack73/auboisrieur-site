@@ -953,9 +953,9 @@ function generateLotPage(item, sale) {
           ${carouselHtml}
           ${adSlot("betweenLots", "padding:0.8rem 1.5rem;")}
           <div class="card-body">
-            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;overflow-wrap:break-word;">${esc(lotDesc)}</p>` : ""}
-
             ${amazonButton(shortTitle)}
+
+            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;overflow-wrap:break-word;">${esc(lotDesc)}</p>` : ""}
 
             ${adSlot("inArticle")}
 
