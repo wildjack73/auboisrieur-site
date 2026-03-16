@@ -1004,7 +1004,6 @@ function generateLotPage(item, sale) {
               <tr><td>Date</td><td>${saleDate}</td></tr>
               ${org ? `<tr><td>Maison de vente</td><td>${esc(org)}${city ? ` — ${esc(city)}` : ""}</td></tr>` : ""}
               ${saleName ? `<tr><td>Vente</td><td>${esc(saleName)}</td></tr>` : ""}
-              <tr><td>Source</td><td><a href="https://www.interencheres.com/lots/${item.id}" target="_blank" rel="nofollow" style="color:var(--accent);">🔗 Voir sur Interenchères</a></td></tr>
             </table>
 
             ${item._aiTags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:1rem;">
