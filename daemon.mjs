@@ -1347,11 +1347,14 @@ function generateUnsoldPage(item, sale) {
   const desc = `${lotTitle} — Invendu aux enchères. ${est.min ? `Estimation ${est.min}-${est.max}€.` : ""} Contactez la maison de vente.`;
   const slug = lotSlug(item);
 
-  // Contact info
-  const orgAddress = item.organization?.address || sale?.address || {};
-  const orgPhone = item.organization?.phone || sale?.organization?.phone || "";
-  const orgEmail = item.organization?.email || sale?.organization?.email || "";
+  // Contact info — coordinates from organization.address or sale.address
+  const orgAddress = item.organization?.address || sale?.organization?.address || sale?.address || {};
+  const orgPhone = orgAddress.telephone || item.organization?.address?.telephone || sale?.address?.telephone || sale?.contact?.contacts?.phone_number || "";
+  const orgEmail = orgAddress.email || item.organization?.address?.email || sale?.address?.email || sale?.contact?.contacts?.email || "";
   const orgWebsite = item.organization?.website || sale?.organization?.website || "";
+  const orgPostcode = orgAddress.postcode || sale?.address?.postcode || "";
+  const orgStreet = orgAddress.street || sale?.address?.street || "";
+  const orgCity = orgAddress.city || sale?.address?.city || city;
 
   return `${htmlHead(`${lotTitle} — Invendu`, desc, `${thumb ? `<meta property="og:image" content="${thumb}">` : ""}`, `/lot/${slug}.html`)}
 <body>
@@ -1392,7 +1395,7 @@ function generateUnsoldPage(item, sale) {
             <div style="display:flex;flex-direction:column;gap:0.8rem;">
               ${org ? `<div style="display:flex;align-items:center;gap:10px;">
                 <span style="font-size:1.2rem;">🏛️</span>
-                <div><strong>${esc(org)}</strong>${city ? `<br><span style="color:var(--text2);font-size:0.88rem;">${esc(city)}${orgAddress.street ? ` · ${esc(orgAddress.street)}` : ""}</span>` : ""}</div>
+                <div><strong>${esc(org)}</strong>${orgStreet || orgCity ? `<br><span style="color:var(--text2);font-size:0.88rem;">${orgStreet ? esc(orgStreet) + ", " : ""}${orgPostcode ? esc(orgPostcode) + " " : ""}${esc(orgCity)}</span>` : ""}</div>
               </div>` : ""}
               ${orgPhone ? `<a href="tel:${esc(orgPhone)}" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--green-bg);border:1px solid var(--green);border-radius:10px;color:var(--green);font-weight:700;font-size:1rem;text-decoration:none;">
                 <span style="font-size:1.2rem;">📞</span> ${esc(orgPhone)}
