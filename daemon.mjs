@@ -2839,7 +2839,7 @@ async function aiEnrichLots(maxPerRun = 0) {
     console.log(`  🤖 Enrichissement IA: ${toEnrich.length} lots à traiter...`);
   }
 
-  const CONCURRENCY = 10;
+  const CONCURRENCY = 20;
   let done = 0;
   let errors = 0;
 
@@ -3069,7 +3069,7 @@ async function runOnce(dateStr) {
     await ftpUpload();
 
     // 2) AI enrichment AFTER first deploy (max 200 per run to avoid timeout)
-    const MAX_AI_PER_RUN = 200;
+    const MAX_AI_PER_RUN = 500;
     await aiEnrichLots(MAX_AI_PER_RUN);
 
     // 3) Rebuild only the AI-enriched pages + index pages, then re-upload
