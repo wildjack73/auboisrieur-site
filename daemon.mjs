@@ -1703,11 +1703,15 @@ function generateHomePage(dateStr) {
   const dayCount = dayItems.length;
   const dayPrice = dayItems.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
   const dayAvg = dayCount ? Math.round(dayPrice / dayCount) : 0;
-  const dayMax = dayCount ? Math.max(...dayItems.map(({ item }) => item.pricing?.auctioned?.price || 0)) : 0;
+  const dayMaxItem = dayCount ? dayItems.reduce((best, cur) => (cur.item.pricing?.auctioned?.price || 0) > (best.item.pricing?.auctioned?.price || 0) ? cur : best) : null;
+  const dayMax = dayMaxItem?.item.pricing?.auctioned?.price || 0;
+  const dayMaxSlug = dayMaxItem ? lotSlug(dayMaxItem.item) : "";
 
   // Stats globales
   const globalAvg = totalItems ? Math.round(totalPrice / totalItems) : 0;
-  const globalMax = totalItems ? Math.max(...allValues.map(({ item }) => item.pricing?.auctioned?.price || 0)) : 0;
+  const globalMaxItem = totalItems ? allValues.reduce((best, cur) => (cur.item.pricing?.auctioned?.price || 0) > (best.item.pricing?.auctioned?.price || 0) ? cur : best) : null;
+  const globalMax = globalMaxItem?.item.pricing?.auctioned?.price || 0;
+  const globalMaxSlug = globalMaxItem ? lotSlug(globalMaxItem.item) : "";
 
   // Nombre de jours distincts
   const uniqueDays = new Set(allValues.map(({ sale }) => sale?.datetime ? sale.datetime.substring(0, 10) : dateStr));
@@ -1763,10 +1767,10 @@ function generateHomePage(dateStr) {
         <div style="width:48px;height:48px;border-radius:12px;background:rgba(251,191,36,0.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📊</div>
         <div><div class="stat-number" style="font-size:${statFontSize(dayAvg)}">${formatPrice(dayAvg)} €</div><div class="stat-label">prix moyen</div></div>
       </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+      ${dayMaxSlug ? `<a href="/lot/${dayMaxSlug}.html" class="card" style="margin:0;text-decoration:none;color:inherit;transition:transform 0.15s;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">` : `<div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">`}
         <div style="width:48px;height:48px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🏆</div>
         <div><div class="stat-number" style="font-size:${statFontSize(dayMax)}">${formatPrice(dayMax)} €</div><div class="stat-label">record du jour</div></div>
-      </div></div>
+      </div>${dayMaxSlug ? `</a>` : `</div>`}
     </div>
 
     <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📈 Statistiques globales <span style="font-size:0.8rem;font-weight:400;">(${uniqueDays.size} jour${uniqueDays.size > 1 ? "s" : ""} de ventes)</span></h2>
@@ -1783,10 +1787,10 @@ function generateHomePage(dateStr) {
         <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚖️</div>
         <div><div class="stat-number" style="font-size:${statFontSize(globalAvg)}">${formatPrice(globalAvg)} €</div><div class="stat-label">prix moyen global</div></div>
       </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+      ${globalMaxSlug ? `<a href="/lot/${globalMaxSlug}.html" class="card" style="margin:0;text-decoration:none;color:inherit;transition:transform 0.15s;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">` : `<div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">`}
         <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--red-bg),rgba(239,68,68,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👑</div>
         <div><div class="stat-number" style="font-size:${statFontSize(globalMax)}">${formatPrice(globalMax)} €</div><div class="stat-label">record absolu</div></div>
-      </div></div>
+      </div>${globalMaxSlug ? `</a>` : `</div>`}
     </div>
 
     <div class="grid-2">
