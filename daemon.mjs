@@ -9,8 +9,12 @@
  *   ├── lot/<id>.html                 Pages lots
  *   ├── categorie/<slug>.html         Pages catégories
  *   ├── maison/<slug>.html            Pages maisons de vente
+ *   ├── ville/<slug>.html             Pages villes (SEO programmatique)
+ *   ├── prix/<slug>.html              Pages marques/mots-clés (SEO programmatique)
  *   ├── vente/<id>.html               Pages ventes
- *   └── jour/<date>.html              Archives par jour
+ *   ├── jour/<date>.html              Archives par jour
+ *   ├── llms.txt                      LLM discovery file
+ *   └── llms-full.txt                 LLM full data file
  *
  * Usage:
  *   node daemon.mjs                    Lance (poll 60s)
@@ -312,7 +316,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%237c5cfc'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2334d399'/%3E%3Cstop offset='100%25' stop-color='%232dd4bf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='14' y='6' width='28' height='12' rx='4' transform='rotate(-40 28 12)' fill='url(%23g)'/%3E%3Crect x='24' y='16' width='5' height='24' rx='2.5' transform='rotate(-40 26.5 28)' fill='%237c5cfc'/%3E%3Crect x='10' y='49' width='44' height='7' rx='3.5' fill='url(%23g2)'/%3E%3Crect x='16' y='44' width='32' height='7' rx='2' fill='url(%23g2)' opacity='0.6'/%3E%3C/svg%3E">
   <title>${title.includes("Adjugé") ? esc(title) : esc(title) + " — " + esc(config.siteName)}</title>
   <meta name="description" content="${esc(description)}">
-  <meta name="robots" content="index, follow">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
   <meta name="google-site-verification" content="_Kyi4x31upT8Ey-EZ-TPUZoFOLBIqW4uLb7iY6MSJNo">
   ${canonical}
   <meta property="og:title" content="${esc(title)}">
@@ -559,6 +563,7 @@ function navHtml() {
   <a href="/index.html" class="brand"><svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><defs><linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient></defs><rect x="14" y="6" width="28" height="12" rx="4" transform="rotate(-40 28 12)" fill="url(#ng)"/><rect x="24" y="16" width="5" height="24" rx="2.5" transform="rotate(-40 26.5 28)" fill="#7c5cfc"/><rect x="10" y="49" width="44" height="7" rx="3.5" fill="#34d399"/><rect x="16" y="44" width="32" height="7" rx="2" fill="#34d399" opacity="0.6"/></svg><span class="brand-text">Adjugé !</span></a>
   <a href="/index.html" class="desk-link">Accueil</a>
   <a href="/categories.html" class="desk-link">Catégories</a>
+  <a href="/villes.html" class="desk-link">Villes</a>
   <a href="/top-ventes.html" class="desk-link">🏆 Top</a>
   <a href="/invendus.html" class="desk-link">Invendus</a>
   <a href="/statistiques.html" class="desk-link">Statistiques</a>
@@ -575,6 +580,7 @@ function navHtml() {
   <div class="nav-links" id="navLinks">
     <a href="/index.html">🏠 Accueil</a>
     <a href="/categories.html">📂 Catégories</a>
+    <a href="/villes.html">📍 Villes</a>
     <a href="/top-ventes.html">🏆 Top Ventes</a>
     <a href="/invendus.html">📦 Invendus</a>
     <a href="/statistiques.html">📊 Statistiques</a>
@@ -655,6 +661,18 @@ function sidebarHtml() {
     .sort((a, b) => (b.item.pricing?.auctioned?.price || 0) - (a.item.pricing?.auctioned?.price || 0))
     .slice(0, 10);
 
+  // Top cities
+  const cityMap = new Map();
+  for (const [, { item, sale }] of registry.items) {
+    const city = sale?.address?.city || item.sale?.address?.city || "";
+    if (city) {
+      const cs = slugify(city);
+      if (!cityMap.has(cs)) cityMap.set(cs, { name: city, count: 0 });
+      cityMap.get(cs).count++;
+    }
+  }
+  const topCities = [...cityMap.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 10);
+
   return `<aside class="sidebar">
     ${adSlot("sidebar")}
     <div class="card">
@@ -688,6 +706,13 @@ function sidebarHtml() {
         <a href="/categories.html" style="margin-top:0.5rem;font-weight:600;">Toutes les catégories →</a>
       </div>
     </div>
+    ${topCities.length > 0 ? `<div class="card">
+      <div class="card-header"><h3>📍 Villes</h3></div>
+      <div class="card-body cat-list">
+        ${topCities.map(([cs, c]) => `<a href="/ville/${cs}.html">${esc(c.name)} <span class="cat-count">(${c.count})</span></a>`).join("\n        ")}
+        <a href="/villes.html" style="margin-top:0.5rem;font-weight:600;">Toutes les villes →</a>
+      </div>
+    </div>` : ""}
     ${adSlot("sidebar")}
     <div style="padding:1rem 0.5rem;display:flex;flex-wrap:wrap;gap:0.3rem 1rem;justify-content:center;">
       <a href="/mentions-legales.html" style="color:var(--text3);text-decoration:none;font-size:0.72rem;">Mentions légales</a>
@@ -937,7 +962,11 @@ function generateLotPage(item, sale) {
     }))
   } : null;
 
-  return `${htmlHead(`${shortTitle} — ${auc.sold ? auc.price + "€" : "Non vendu"}`, desc, `<style>${carouselCSS}</style>
+  const lotPageTitle = auc.sold
+    ? `${shortTitle} — Adjugé ${formatPrice(auc.price)}€ aux enchères | Adjugé !`
+    : `${shortTitle} — Non vendu aux enchères | Adjugé !`;
+
+  return `${htmlHead(lotPageTitle, desc, `<style>${carouselCSS}</style>
   ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ""}
   <script type="application/ld+json">${JSON.stringify(jsonLdProduct)}<\/script>
   ${faqSchema ? `<script type="application/ld+json">${JSON.stringify(faqSchema)}<\/script>` : ""}`, canonicalPath)}
@@ -1229,7 +1258,10 @@ function generateCategoryPage(slug, data) {
 
 function generateMaisonPage(slug, data) {
   const totalPrice = data.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
-  const desc = `${data.name} (${data.city}) — ${data.items.length} lots vendus, ${formatPrice(totalPrice)}€ total.`;
+  const avgPrice = data.items.length ? Math.round(totalPrice / data.items.length) : 0;
+  const maxPrice = data.items.length ? Math.max(...data.items.map(i => i.pricing?.auctioned?.price || 0)) : 0;
+  const desc = `${data.name} (${data.city}) — ${data.items.length} lots vendus aux enchères pour ${formatPrice(totalPrice)}€. Résultats, prix et photos.`;
+  const pageTitle = `${data.name} — Résultats enchères | Adjugé !`;
 
   // Group by category
   const byCat = {};
@@ -1239,7 +1271,40 @@ function generateMaisonPage(slug, data) {
     byCat[catName].push(item);
   }
 
-  return `${htmlHead(data.name, desc)}
+  // Contact info
+  const addr = data.address || {};
+  const phone = addr.telephone || "";
+  const email = addr.email || "";
+  const street = addr.street || "";
+  const postcode = addr.postcode || "";
+
+  // Schema.org
+  const orgSchema = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": data.name,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": data.city,
+      "streetAddress": street || undefined,
+      "postalCode": postcode || undefined,
+      "addressCountry": "FR"
+    },
+    "telephone": phone || undefined,
+    "email": email || undefined,
+  };
+
+  const lotsData = data.items.map(item => {
+    const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+    const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const price = item.pricing?.auctioned?.price || 0;
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const cat = item.category?.name || "";
+    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+  });
+
+  return `${htmlHead(pageTitle, desc, `<script type="application/ld+json">${JSON.stringify(orgSchema)}<\/script>`, `/maison/${slug}.html`)}
 <body>
   ${navHtml()}
   <div class="breadcrumb">
@@ -1254,10 +1319,15 @@ function generateMaisonPage(slug, data) {
         <div class="card">
           <div class="card-body">
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(data.name)}</h1>
-            <p style="color:var(--text2);">${esc(data.city)} ${data.address?.street ? "· " + esc(data.address.street) : ""}</p>
-            <div style="display:flex;gap:2rem;margin:1rem 0;">
+            <p style="color:var(--text2);">${esc(data.city)} ${street ? "· " + esc(street) : ""} ${postcode ? "· " + esc(postcode) : ""}</p>
+            ${phone || email ? `<div style="display:flex;flex-wrap:wrap;gap:0.8rem;margin-top:0.8rem;">
+              ${phone ? `<a href="tel:${esc(phone)}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--green-bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-weight:600;font-size:0.85rem;text-decoration:none;">📞 ${esc(phone)}</a>` : ""}
+              ${email ? `<a href="mailto:${esc(email)}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:8px;color:var(--accent2);font-weight:600;font-size:0.85rem;text-decoration:none;">✉️ ${esc(email)}</a>` : ""}
+            </div>` : ""}
+            <div class="hero-stats" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${data.items.length}</div><div class="stat-label">lots vendus</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(avgPrice)} €</div><div class="stat-label">prix moyen</div></div>
               <div class="stat-box"><div class="stat-number">${data.saleIds.size}</div><div class="stat-label">ventes</div></div>
             </div>
           </div>
@@ -1287,6 +1357,34 @@ function generateMaisonPage(slug, data) {
     </div>
   </div>
   ${footerHtml()}
+  <script>
+  (function(){
+    var allLots = ${JSON.stringify(lotsData)};
+    var grid = document.getElementById('maisonGrid');
+    var loading = document.getElementById('maisonLoading');
+    var offset = 0, BATCH = 40, isLoading = false;
+    function loadMore() {
+      if (isLoading || offset >= allLots.length) return;
+      isLoading = true; loading.style.display = 'block';
+      setTimeout(function() {
+        var batch = allLots.slice(offset, offset + BATCH);
+        batch.forEach(function(d) {
+          grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
+            + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
+            + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
+            + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
+        });
+        offset += batch.length;
+        loading.style.display = 'none'; isLoading = false;
+      }, 100);
+    }
+    loadMore();
+    var sentinel = document.createElement('div'); sentinel.style.height = '1px';
+    loading.parentNode.insertBefore(sentinel, loading);
+    new IntersectionObserver(function(e) { if (e[0].isIntersecting) loadMore(); }, { rootMargin: '400px' }).observe(sentinel);
+  })();
+  </script>
 </body>
 </html>`;
 }
@@ -1394,7 +1492,7 @@ function generateTopVentesPage() {
     .sort((a, b) => (b.item.pricing?.auctioned?.price || 0) - (a.item.pricing?.auctioned?.price || 0))
     .slice(0, 100);
 
-  return `${htmlHead("Top ventes — Les adjudications les plus chères", "Classement des lots les plus chers vendus aux enchères. Records, prix, photos.", "", `/top-ventes.html`)}
+  return `${htmlHead("Top 100 des ventes aux enchères les plus chères | Adjugé !", "Classement des lots les plus chers vendus aux enchères. Records, prix, photos.", "", `/top-ventes.html`)}
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Top ventes</div>
@@ -1579,7 +1677,7 @@ function generateInvendusIndex() {
 
   const metaDesc = `${unsoldItems.length} lots invendus aux enchères. Filtrez par catégorie et contactez les maisons de vente pour négocier.`;
 
-  return `${htmlHead("Invendus — Objets non vendus aux enchères", metaDesc, "", "/invendus.html")}
+  return `${htmlHead("Lots invendus aux enchères — À négocier | Adjugé !", metaDesc, "", "/invendus.html")}
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Invendus</div>
@@ -1992,7 +2090,7 @@ function generateStatistiquesPage(dateStr) {
     .sort((a, b) => b.total - a.total)
     .slice(0, 20);
 
-  return `${htmlHead("Statistiques des enchères en France — Adjugé !", "Statistiques complètes des ventes aux enchères en France : lots vendus, prix moyens, records, top catégories et maisons de vente.", "", "/statistiques.html")}
+  return `${htmlHead("Statistiques des enchères en France — Chiffres clés | Adjugé !", "Statistiques complètes des ventes aux enchères en France : lots vendus, prix moyens, records, top catégories et maisons de vente.", "", "/statistiques.html")}
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Statistiques</div>
@@ -2071,19 +2169,537 @@ function generateStatistiquesPage(dateStr) {
 </body></html>`;
 }
 
+// ─── Programmatic SEO: City pages ────────────────────────────────────────────
+
+function buildCityRegistry() {
+  const cities = new Map();
+  for (const [, { item, sale }] of registry.items) {
+    const city = sale?.address?.city || item.sale?.address?.city || "";
+    if (!city) continue;
+    const cs = slugify(city);
+    if (!cities.has(cs)) cities.set(cs, { name: city, items: [], totalPrice: 0 });
+    const entry = cities.get(cs);
+    entry.items.push(item);
+    entry.totalPrice += item.pricing?.auctioned?.price || 0;
+  }
+  return cities;
+}
+
+function generateVillePage(slug, data) {
+  const { name, items, totalPrice } = data;
+  const avgPrice = items.length ? Math.round(totalPrice / items.length) : 0;
+  const maxPrice = items.length ? Math.max(...items.map(i => i.pricing?.auctioned?.price || 0)) : 0;
+
+  const desc = `${items.length} lots vendus aux enchères à ${name}. Prix moyen : ${formatPrice(avgPrice)}€. Record : ${formatPrice(maxPrice)}€. Photos et résultats sur Adjugé !`;
+  const pageTitle = `Enchères à ${name} — Résultats, prix adjugés et photos | Adjugé !`;
+
+  const top10 = [...items].sort((a, b) => (b.pricing?.auctioned?.price || 0) - (a.pricing?.auctioned?.price || 0)).slice(0, 10);
+
+  // Schema.org LocalBusiness-style
+  const localSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": `Enchères à ${name}`,
+    "description": desc,
+    "numberOfItems": items.length,
+    "itemListElement": top10.slice(0, 5).map((item, i) => ({
+      "@type": "ListItem",
+      "position": i + 1,
+      "name": item._aiTitle || (item.description || "").split("\n")[0]?.substring(0, 60) || "Lot",
+      "url": `${config.siteUrl || "https://auboisrieur.fr"}/lot/${lotSlug(item)}.html`
+    }))
+  };
+
+  const faqQuestions = [
+    { q: `Combien coûte un objet aux enchères à ${name} ?`, a: `En moyenne, un lot vendu aux enchères à ${name} coûte ${formatPrice(avgPrice)} €. Le record observé est de ${formatPrice(maxPrice)} €.` },
+    { q: `Où voir les résultats d'enchères à ${name} ?`, a: `Adjugé ! recense ${items.length} lots vendus aux enchères à ${name} avec photos, prix adjugés et estimations.` },
+  ];
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqQuestions.map(({ q, a }) => ({
+      "@type": "Question",
+      "name": q,
+      "acceptedAnswer": { "@type": "Answer", "text": a }
+    }))
+  };
+
+  // Group by category
+  const byCat = {};
+  for (const item of items) {
+    const catName = item.category?.name || "Autre";
+    if (!byCat[catName]) byCat[catName] = [];
+    byCat[catName].push(item);
+  }
+
+  const lotsData = items.map(item => {
+    const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+    const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const price = item.pricing?.auctioned?.price || 0;
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const cat = item.category?.name || "";
+    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+  });
+
+  return `${htmlHead(pageTitle, desc, `<script type="application/ld+json">${JSON.stringify(localSchema)}<\/script>
+  <script type="application/ld+json">${JSON.stringify(faqSchema)}<\/script>`, `/ville/${slug}.html`)}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb">
+    <a href="/index.html">Accueil</a> ›
+    <a href="/villes.html">Villes</a> ›
+    ${esc(name)}
+  </div>
+  ${adSlot("header", "padding: 0.5rem 2rem;")}
+  <div class="container">
+    <div class="grid-2">
+      <main>
+        <div class="card">
+          <div class="card-body">
+            <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">Enchères à ${esc(name)}</h1>
+            <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
+              Au ${todayStr()}, <strong>${formatPrice(items.length)}</strong> lots ont été vendus aux enchères à <strong>${esc(name)}</strong> pour un total de <strong>${formatPrice(totalPrice)} €</strong>, soit un prix moyen de <strong>${formatPrice(avgPrice)} €</strong>.
+            </p>
+            <div class="hero-stats" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
+              <div class="stat-box"><div class="stat-number">${items.length}</div><div class="stat-label">lots vendus</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(avgPrice)} €</div><div class="stat-label">prix moyen</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(maxPrice)} €</div><div class="stat-label">record</div></div>
+            </div>
+          </div>
+        </div>
+
+        ${Object.keys(byCat).length > 1 ? `<div class="card">
+          <div class="card-header"><h3 style="font-size:1rem;">Catégories à ${esc(name)}</h3></div>
+          <div class="card-body cat-list">
+            ${Object.entries(byCat).sort((a, b) => b[1].length - a[1].length).map(([cat, citems]) => {
+              return `<a href="/categorie/${slugify(cat)}.html">${esc(cat)} <span class="cat-count">(${citems.length})</span></a>`;
+            }).join("\n            ")}
+          </div>
+        </div>` : ""}
+
+        ${top10.length > 0 ? `<div class="card">
+          <div class="card-header"><h3 style="font-size:1rem;">🏆 Top 10 — ${esc(name)}</h3></div>
+          <div class="card-body" style="padding:0;">
+            ${top10.map((item, i) => {
+              const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+              const lns = rawD.split("\\n").map(l => l.trim()).filter(Boolean);
+              const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 50) || "Objet");
+              const price = item.pricing?.auctioned?.price || 0;
+              const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+              return `<a href="/lot/${lotSlug(item)}.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background 0.15s;">
+                <span style="font-weight:800;font-size:${i < 3 ? '1.2rem' : '0.95rem'};min-width:28px;text-align:center;">${medal}</span>
+                ${thumb ? `<img src="${esc(thumb)}" alt="" style="width:50px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ""}
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(title)}</div>
+                  <div style="font-size:0.88rem;font-weight:700;color:var(--green);">${formatPrice(price)} €</div>
+                </div>
+              </a>`;
+            }).join("")}
+          </div>
+        </div>` : ""}
+
+        <div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Questions fréquentes — ${esc(name)}</h2></div>
+          <div class="card-body">
+            ${faqQuestions.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;" open>
+              <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q)}</summary>
+              <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a)}</p>
+            </details>`).join("\n            ")}
+          </div>
+        </div>
+
+        ${adSlot("betweenLots")}
+
+        <div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Tous les lots à ${esc(name)} (${items.length})</h2></div>
+          <div class="card-body">
+            <div class="lot-grid" id="villeGrid"></div>
+            <div id="villeLoading" style="text-align:center;padding:1rem;display:none;color:var(--text3);">Chargement...</div>
+          </div>
+        </div>
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+  <script>
+  (function(){
+    var allLots = ${JSON.stringify(lotsData)};
+    var grid = document.getElementById('villeGrid');
+    var loading = document.getElementById('villeLoading');
+    var offset = 0, BATCH = 40, isLoading = false;
+    function loadMore() {
+      if (isLoading || offset >= allLots.length) return;
+      isLoading = true; loading.style.display = 'block';
+      setTimeout(function() {
+        var batch = allLots.slice(offset, offset + BATCH);
+        batch.forEach(function(d) {
+          grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
+            + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
+            + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
+            + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
+        });
+        offset += batch.length;
+        loading.style.display = 'none'; isLoading = false;
+      }, 100);
+    }
+    loadMore();
+    var sentinel = document.createElement('div'); sentinel.style.height = '1px';
+    loading.parentNode.insertBefore(sentinel, loading);
+    new IntersectionObserver(function(e) { if (e[0].isIntersecting) loadMore(); }, { rootMargin: '400px' }).observe(sentinel);
+  })();
+  </script>
+</body>
+</html>`;
+}
+
+function generateVillesIndex() {
+  const cities = buildCityRegistry();
+  const sorted = [...cities.entries()].filter(([, c]) => c.items.length >= 3).sort((a, b) => b[1].items.length - a[1].items.length);
+
+  return `${htmlHead("Enchères par ville en France — Résultats | Adjugé !", "Retrouvez les résultats de ventes aux enchères ville par ville en France. Prix adjugés, photos, statistiques.", "", "/villes.html")}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › Villes</div>
+  ${adSlot("header", "padding: 0.5rem 2rem;")}
+  <div class="container">
+    <h1 style="font-size:1.5rem;margin-bottom:1.5rem;">Enchères par ville (${sorted.length} villes)</h1>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+      ${sorted.map(([slug, c]) => {
+        const avg = c.items.length ? Math.round(c.totalPrice / c.items.length) : 0;
+        return `<a href="/ville/${slug}.html" class="card" style="margin:0;text-decoration:none;color:inherit;transition:transform 0.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+          <div class="card-body" style="padding:1rem 1.2rem;">
+            <div style="font-weight:700;font-size:1.05rem;margin-bottom:0.3rem;">${esc(c.name)}</div>
+            <div style="display:flex;gap:1.5rem;font-size:0.85rem;color:var(--text2);">
+              <span><strong style="color:var(--accent2);">${c.items.length}</strong> lots</span>
+              <span><strong style="color:var(--green);">${formatPrice(c.totalPrice)} €</strong> total</span>
+              <span>Moy. <strong>${formatPrice(avg)} €</strong></span>
+            </div>
+          </div>
+        </a>`;
+      }).join("\n      ")}
+    </div>
+  </div>
+  ${footerHtml()}
+</body>
+</html>`;
+}
+
+// ─── Programmatic SEO: Brand/Keyword pages ───────────────────────────────────
+
+const KNOWN_BRANDS = [
+  "Rolex", "Hermès", "Cartier", "Chanel", "Louis Vuitton", "Ferrari", "Porsche", "BMW", "Mercedes",
+  "Omega", "Patek Philippe", "Van Cleef", "Boucheron", "Bulgari", "Tiffany", "Lalique", "Daum",
+  "Gallé", "Sèvres", "Meissen", "Longines", "Breitling", "IWC", "Jaeger-LeCoultre", "Audemars Piguet",
+  "Dior", "Gucci", "Prada", "Yves Saint Laurent", "Givenchy", "Balenciaga", "Fendi", "Celine",
+  "Aston Martin", "Lamborghini", "Maserati", "Bentley", "Rolls-Royce", "Jaguar",
+  "Christofle", "Baccarat", "Saint-Louis", "Limoges", "Delft", "Murano",
+];
+
+const KNOWN_KEYWORDS = [
+  "tableau", "pendule", "commode", "fauteuil", "bureau", "armoire", "montre", "bague",
+  "collier", "bracelet", "sculpture", "bronze", "lithographie", "estampe", "tapis",
+  "lustre", "miroir", "vase", "horloge", "secrétaire", "console", "buffet", "vitrine",
+  "canapé", "chaise", "table", "lampe", "gravure", "aquarelle", "dessin", "affiche",
+];
+
+function buildKeywordRegistry() {
+  const keywords = new Map();
+
+  for (const [, { item }] of registry.items) {
+    const desc = (item.description || item.title_translations?.["fr-FR"] || "").toLowerCase();
+    const title = (item._aiTitle || "").toLowerCase();
+    const combined = desc + " " + title;
+
+    for (const brand of KNOWN_BRANDS) {
+      const lower = brand.toLowerCase();
+      if (combined.includes(lower)) {
+        const slug = slugify(brand);
+        if (!keywords.has(slug)) keywords.set(slug, { name: brand, items: [], isBrand: true });
+        keywords.get(slug).items.push(item);
+      }
+    }
+
+    for (const kw of KNOWN_KEYWORDS) {
+      const pattern = new RegExp(`\\b${kw}s?\\b`, "i");
+      if (pattern.test(combined)) {
+        const slug = slugify(kw);
+        if (!keywords.has(slug)) keywords.set(slug, { name: kw, items: [], isBrand: false });
+        keywords.get(slug).items.push(item);
+      }
+    }
+  }
+
+  return keywords;
+}
+
+function generatePrixPage(slug, data) {
+  const { name, items, isBrand } = data;
+  const totalPrice = items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
+  const avgPrice = items.length ? Math.round(totalPrice / items.length) : 0;
+  const maxPrice = items.length ? Math.max(...items.map(i => i.pricing?.auctioned?.price || 0)) : 0;
+  const minPrice = items.length ? Math.min(...items.filter(i => (i.pricing?.auctioned?.price || 0) > 0).map(i => i.pricing.auctioned.price)) : 0;
+
+  const label = isBrand ? name : name.charAt(0).toUpperCase() + name.slice(1);
+  const artDe = isBrand ? `d'un ${label}` : `d'un ${label}`;
+  const pageTitle = `Prix ${label} aux enchères en France — Résultats & Photos | Adjugé !`;
+  const desc = `${items.length} ${label} vendus aux enchères en France. Prix moyen : ${formatPrice(avgPrice)}€. De ${formatPrice(minPrice)}€ à ${formatPrice(maxPrice)}€. Photos et résultats.`;
+
+  const top10 = [...items].sort((a, b) => (b.pricing?.auctioned?.price || 0) - (a.pricing?.auctioned?.price || 0)).slice(0, 10);
+
+  const faqQuestions = [
+    { q: `Quel est le prix ${artDe} aux enchères ?`, a: `Le prix moyen ${artDe} aux enchères en France est de ${formatPrice(avgPrice)} €. Les prix vont de ${formatPrice(minPrice)} € à ${formatPrice(maxPrice)} € selon l'état, la rareté et la provenance.` },
+    { q: `Combien vaut un ${label} aux enchères ?`, a: `Sur ${items.length} lots ${label} vendus, la valeur moyenne est de ${formatPrice(avgPrice)} €. Le record observé est de ${formatPrice(maxPrice)} €.` },
+    { q: `Où acheter un ${label} aux enchères en France ?`, a: `Adjugé ! recense ${items.length} lots ${label} vendus aux enchères dans toute la France avec photos, prix adjugés et estimations.` },
+  ];
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqQuestions.map(({ q, a }) => ({
+      "@type": "Question",
+      "name": q,
+      "acceptedAnswer": { "@type": "Answer", "text": a }
+    }))
+  };
+
+  const lotsData = items.map(item => {
+    const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+    const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const price = item.pricing?.auctioned?.price || 0;
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const cat = item.category?.name || "";
+    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+  });
+
+  return `${htmlHead(pageTitle, desc, `<script type="application/ld+json">${JSON.stringify(faqSchema)}<\/script>`, `/prix/${slug}.html`)}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb">
+    <a href="/index.html">Accueil</a> ›
+    Prix ${esc(label)}
+  </div>
+  ${adSlot("header", "padding: 0.5rem 2rem;")}
+  <div class="container">
+    <div class="grid-2">
+      <main>
+        <div class="card">
+          <div class="card-body">
+            <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">Prix ${esc(label)} aux enchères</h1>
+            <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
+              Au ${todayStr()}, <strong>${formatPrice(items.length)}</strong> lots ${esc(label)} ont été vendus aux enchères en France.
+              Le prix moyen est de <strong>${formatPrice(avgPrice)} €</strong>, avec des adjudications allant de <strong>${formatPrice(minPrice)} €</strong> à <strong>${formatPrice(maxPrice)} €</strong>.
+            </p>
+            <div class="hero-stats" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
+              <div class="stat-box"><div class="stat-number">${items.length}</div><div class="stat-label">lots vendus</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(avgPrice)} €</div><div class="stat-label">prix moyen</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(maxPrice)} €</div><div class="stat-label">record</div></div>
+            </div>
+          </div>
+        </div>
+
+        ${top10.length > 0 ? `<div class="card">
+          <div class="card-header"><h3 style="font-size:1rem;">🏆 Top 10 — ${esc(label)}</h3></div>
+          <div class="card-body" style="padding:0;">
+            ${top10.map((item, i) => {
+              const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+              const lns = rawD.split("\\n").map(l => l.trim()).filter(Boolean);
+              const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 50) || "Objet");
+              const price = item.pricing?.auctioned?.price || 0;
+              const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+              return `<a href="/lot/${lotSlug(item)}.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background 0.15s;">
+                <span style="font-weight:800;font-size:${i < 3 ? '1.2rem' : '0.95rem'};min-width:28px;text-align:center;">${medal}</span>
+                ${thumb ? `<img src="${esc(thumb)}" alt="" style="width:50px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ""}
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(title)}</div>
+                  <div style="font-size:0.88rem;font-weight:700;color:var(--green);">${formatPrice(price)} €</div>
+                </div>
+              </a>`;
+            }).join("")}
+          </div>
+        </div>` : ""}
+
+        <div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Questions fréquentes — ${esc(label)}</h2></div>
+          <div class="card-body">
+            ${faqQuestions.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;" open>
+              <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q)}</summary>
+              <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a)}</p>
+            </details>`).join("\n            ")}
+          </div>
+        </div>
+
+        ${adSlot("betweenLots")}
+
+        <div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Tous les lots ${esc(label)} (${items.length})</h2></div>
+          <div class="card-body">
+            <div class="lot-grid" id="prixGrid"></div>
+            <div id="prixLoading" style="text-align:center;padding:1rem;display:none;color:var(--text3);">Chargement...</div>
+          </div>
+        </div>
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+  <script>
+  (function(){
+    var allLots = ${JSON.stringify(lotsData)};
+    var grid = document.getElementById('prixGrid');
+    var loading = document.getElementById('prixLoading');
+    var offset = 0, BATCH = 40, isLoading = false;
+    function loadMore() {
+      if (isLoading || offset >= allLots.length) return;
+      isLoading = true; loading.style.display = 'block';
+      setTimeout(function() {
+        var batch = allLots.slice(offset, offset + BATCH);
+        batch.forEach(function(d) {
+          grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
+            + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
+            + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
+            + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
+        });
+        offset += batch.length;
+        loading.style.display = 'none'; isLoading = false;
+      }, 100);
+    }
+    loadMore();
+    var sentinel = document.createElement('div'); sentinel.style.height = '1px';
+    loading.parentNode.insertBefore(sentinel, loading);
+    new IntersectionObserver(function(e) { if (e[0].isIntersecting) loadMore(); }, { rootMargin: '400px' }).observe(sentinel);
+  })();
+  </script>
+</body>
+</html>`;
+}
+
 // ─── llms.txt generator (TASK 12) ──────────────────────────────────────────
 
 function generateLlmsTxt() {
+  const totalItems = registry.items.size;
+  const totalUnsold = registry.unsold.size;
+  const totalCats = registry.categories.size;
+  const totalMaisons = registry.maisons.size;
+  const allValues = [...registry.items.values()];
+  const totalPrice = allValues.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+
   return `# Adjugé ! — auboisrieur.fr
-Description: Agrégateur de résultats de ventes aux enchères publiques françaises.
-Source: Interenchères (interencheres.com)
-Mise à jour: Quotidienne
-Données: Prix adjugés, photos, statistiques par catégorie
-Couverture: France entière, toutes maisons de vente
-Contact: contact@auboisrieur.fr
-Statistiques: https://auboisrieur.fr/statistiques.html
-A propos: https://auboisrieur.fr/a-propos.html
+
+> Agrégateur de résultats de ventes aux enchères publiques françaises.
+
+## Description
+Adjugé ! est un site indépendant qui recense les résultats de ventes aux enchères publiques en France.
+Source des données : Interenchères (interencheres.com).
+Mise à jour : quotidienne.
+Contact : contact@auboisrieur.fr
+
+## Données disponibles
+- ${formatPrice(totalItems)} lots vendus avec prix adjugés, photos et estimations
+- ${formatPrice(totalUnsold)} lots invendus
+- ${totalCats} catégories (art, mobilier, bijoux, véhicules, etc.)
+- ${totalMaisons} maisons de vente
+- ${formatPrice(totalPrice)} € de total adjugé
+
+## Pages et URL
+- Accueil : https://auboisrieur.fr/index.html
+- Catégories : https://auboisrieur.fr/categories.html
+- Page catégorie : https://auboisrieur.fr/categorie/{slug}.html
+- Page lot : https://auboisrieur.fr/lot/{slug}.html
+- Top ventes : https://auboisrieur.fr/top-ventes.html
+- Invendus : https://auboisrieur.fr/invendus.html
+- Statistiques : https://auboisrieur.fr/statistiques.html
+- Villes : https://auboisrieur.fr/villes.html
+- Page ville : https://auboisrieur.fr/ville/{slug}.html
+- Prix par marque/mot-clé : https://auboisrieur.fr/prix/{slug}.html
+- Maisons de vente : https://auboisrieur.fr/maisons.html
+- Page maison : https://auboisrieur.fr/maison/{slug}.html
+- API stats JSON : https://auboisrieur.fr/api/stats.json
+- Données complètes LLM : https://auboisrieur.fr/llms-full.txt
+- À propos : https://auboisrieur.fr/a-propos.html
+
+## Exemples de questions auxquelles ce site peut répondre
+- Quel est le prix moyen d'une Rolex aux enchères en France ?
+- Combien coûte un tableau aux enchères ?
+- Quels sont les résultats d'enchères à Paris / Lyon / Bordeaux ?
+- Quel est le record de vente aux enchères en France récemment ?
+- Quelles sont les catégories les plus populaires aux enchères ?
+- Combien de lots sont vendus par jour aux enchères en France ?
+
+## Fraîcheur des données
+Dernière mise à jour : ${todayStr()}
+Fréquence : quotidienne (scraping automatisé)
+Historique cumulé : 7+ jours glissants
 `;
+}
+
+function generateLlmsFullTxt() {
+  const allValues = [...registry.items.values()];
+  const totalItems = allValues.length;
+  const totalPrice = allValues.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+  const avgPrice = totalItems ? Math.round(totalPrice / totalItems) : 0;
+
+  // Top categories
+  const catStats = [...registry.categories.entries()]
+    .map(([slug, c]) => {
+      const catTotal = c.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
+      const catAvg = c.items.length ? Math.round(catTotal / c.items.length) : 0;
+      return { name: c._aiName || c.name, count: c.items.length, avg: catAvg };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15);
+
+  // Top sales
+  const top20 = allValues
+    .sort((a, b) => (b.item.pricing?.auctioned?.price || 0) - (a.item.pricing?.auctioned?.price || 0))
+    .slice(0, 20);
+
+  // Top cities
+  const cities = buildCityRegistry();
+  const topCities = [...cities.entries()].filter(([, c]) => c.items.length >= 3).sort((a, b) => b[1].items.length - a[1].items.length).slice(0, 20);
+
+  // Brands found
+  const kwReg = buildKeywordRegistry();
+  const topBrands = [...kwReg.entries()].filter(([, d]) => d.isBrand && d.items.length >= 3).sort((a, b) => b[1].items.length - a[1].items.length).slice(0, 20);
+
+  let txt = `# Adjugé ! — auboisrieur.fr — Données complètes
+
+## Résumé
+Adjugé ! est un agrégateur de résultats de ventes aux enchères publiques françaises.
+Au ${todayStr()}, le site recense ${formatPrice(totalItems)} lots vendus pour ${formatPrice(totalPrice)} €.
+Prix moyen par lot : ${formatPrice(avgPrice)} €.
+
+## Top catégories
+${catStats.map((c, i) => `${i + 1}. ${c.name} : ${c.count} lots, prix moyen ${formatPrice(c.avg)} €`).join("\n")}
+
+## Top ventes (les plus chères)
+${top20.map(({ item }, i) => {
+  const title = item._aiTitle || (item.description || "").split("\n")[0]?.substring(0, 60) || "Lot";
+  const price = item.pricing?.auctioned?.price || 0;
+  return `${i + 1}. ${title} : ${formatPrice(price)} €`;
+}).join("\n")}
+
+## Villes couvertes
+${topCities.map(([, c]) => `${c.name} (${c.items.length} lots)`).join(", ")}
+
+## Marques présentes
+${topBrands.map(([, d]) => `${d.name} (${d.items.length} lots)`).join(", ")}
+
+## Source
+Données collectées quotidiennement depuis Interenchères (interencheres.com).
+Descriptions enrichies par intelligence artificielle.
+Dernière mise à jour : ${todayStr()}.
+`;
+
+  return txt;
 }
 
 // ─── API stats.json generator (TASK 13) ────────────────────────────────────
@@ -2226,12 +2842,15 @@ function rebuildAllPages(dateStr) {
   ensureDir(path.join(SITE_DIR, "categorie"));
   ensureDir(path.join(SITE_DIR, "jour"));
   ensureDir(path.join(SITE_DIR, "data"));
+  ensureDir(path.join(SITE_DIR, "ville"));
+  ensureDir(path.join(SITE_DIR, "prix"));
+  ensureDir(path.join(SITE_DIR, "maison"));
 
   let pageCount = 0;
   let skipped = 0;
 
   // Template version — increment when lot page template changes to force regeneration
-  const TEMPLATE_VERSION = "v3";
+  const TEMPLATE_VERSION = "v4";
   const versionFile = path.join(DATA_DIR, "template-version.txt");
   let lastVersion = "";
   try { lastVersion = fs.readFileSync(versionFile, "utf-8").trim(); } catch {}
@@ -2301,8 +2920,47 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "statistiques.html"), generateStatistiquesPage(dateStr), "utf-8");
   pageCount++;
 
+  // Maison pages — always regenerate
+  for (const [slug, data] of registry.maisons) {
+    if (data.items.length >= 3) {
+      fs.writeFileSync(path.join(SITE_DIR, "maison", `${slug}.html`), generateMaisonPage(slug, data), "utf-8");
+      pageCount++;
+    }
+  }
+  fs.writeFileSync(path.join(SITE_DIR, "maisons.html"), generateMaisonsIndex(), "utf-8");
+  pageCount++;
+
+  // City pages (programmatic SEO)
+  const cityRegistry = buildCityRegistry();
+  let cityPageCount = 0;
+  for (const [slug, data] of cityRegistry) {
+    if (data.items.length >= 3) {
+      fs.writeFileSync(path.join(SITE_DIR, "ville", `${slug}.html`), generateVillePage(slug, data), "utf-8");
+      cityPageCount++;
+    }
+  }
+  fs.writeFileSync(path.join(SITE_DIR, "villes.html"), generateVillesIndex(), "utf-8");
+  pageCount += cityPageCount + 1;
+  if (cityPageCount > 0) console.log(`  📍 ${cityPageCount} pages ville générées`);
+
+  // Brand/keyword pages (programmatic SEO)
+  const kwRegistry = buildKeywordRegistry();
+  let kwPageCount = 0;
+  for (const [slug, data] of kwRegistry) {
+    if (data.items.length >= 3) {
+      fs.writeFileSync(path.join(SITE_DIR, "prix", `${slug}.html`), generatePrixPage(slug, data), "utf-8");
+      kwPageCount++;
+    }
+  }
+  pageCount += kwPageCount;
+  if (kwPageCount > 0) console.log(`  🏷️ ${kwPageCount} pages prix/marque générées`);
+
   // llms.txt (TASK 12)
   fs.writeFileSync(path.join(SITE_DIR, "llms.txt"), generateLlmsTxt(), "utf-8");
+  pageCount++;
+
+  // llms-full.txt
+  fs.writeFileSync(path.join(SITE_DIR, "llms-full.txt"), generateLlmsFullTxt(), "utf-8");
   pageCount++;
 
   // /api/stats.json (TASK 13)
@@ -2337,8 +2995,28 @@ function rebuildAllPages(dateStr) {
   sitemap += `  <url><loc>${siteUrl}/a-propos.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/statistiques.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/api/stats.json</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.3</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/villes.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/maisons.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   for (const [slug] of registry.categories) {
     sitemap += `  <url><loc>${siteUrl}/categorie/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
+  }
+  // City pages
+  for (const [slug, data] of cityRegistry) {
+    if (data.items.length >= 3) {
+      sitemap += `  <url><loc>${siteUrl}/ville/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>\n`;
+    }
+  }
+  // Brand/keyword pages
+  for (const [slug, data] of kwRegistry) {
+    if (data.items.length >= 3) {
+      sitemap += `  <url><loc>${siteUrl}/prix/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>\n`;
+    }
+  }
+  // Maison pages
+  for (const [slug, data] of registry.maisons) {
+    if (data.items.length >= 3) {
+      sitemap += `  <url><loc>${siteUrl}/maison/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>\n`;
+    }
   }
   for (const [, { item }] of registry.items) {
     sitemap += `  <url><loc>${siteUrl}/lot/${lotSlug(item)}.html</loc><lastmod>${today}</lastmod><priority>0.6</priority></url>\n`;
@@ -2355,6 +3033,12 @@ Allow: /
 Sitemap: ${siteUrl}/sitemap.xml
 
 User-agent: Googlebot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
 Allow: /
 
 Disallow: /data/
@@ -2505,7 +3189,7 @@ async function ftpUpload() {
   let alreadyUploaded = {};
   try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
 
-  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html", "a-propos.html", "statistiques.html", "llms.txt", "stats.json", "maisons.html"]);
+  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html", "a-propos.html", "statistiques.html", "llms.txt", "llms-full.txt", "stats.json", "maisons.html", "villes.html"]);
 
   const files = allFiles.filter(f => {
     const basename = path.basename(f.local);
@@ -2516,7 +3200,7 @@ async function ftpUpload() {
     return true;
   });
 
-  // Prioritize index pages
+  // Prioritize index pages (non-lot pages go first)
   const priorityFiles = files.filter(f => !f.remote.includes("/lot/"));
   const lotFiles = files.filter(f => f.remote.includes("/lot/"));
   const sortedFiles = [...priorityFiles, ...lotFiles];
