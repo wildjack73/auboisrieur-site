@@ -310,7 +310,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <title>${esc(title)} — ${esc(config.siteName)}</title>
+  <title>${title.includes("Adjugé") ? esc(title) : esc(title) + " — " + esc(config.siteName)}</title>
   <meta name="description" content="${esc(description)}">
   <meta name="robots" content="index, follow">
   <meta name="google-site-verification" content="_Kyi4x31upT8Ey-EZ-TPUZoFOLBIqW4uLb7iY6MSJNo">
@@ -561,6 +561,7 @@ function navHtml() {
   <a href="/categories.html" class="desk-link">Catégories</a>
   <a href="/top-ventes.html" class="desk-link">🏆 Top</a>
   <a href="/invendus.html" class="desk-link">Invendus</a>
+  <a href="/statistiques.html" class="desk-link">Statistiques</a>
   <span style="flex:1;"></span>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -576,6 +577,8 @@ function navHtml() {
     <a href="/categories.html">📂 Catégories</a>
     <a href="/top-ventes.html">🏆 Top Ventes</a>
     <a href="/invendus.html">📦 Invendus</a>
+    <a href="/statistiques.html">📊 Statistiques</a>
+    <a href="/a-propos.html">ℹ️ À propos</a>
   </div>
 </nav>
 <script>
@@ -633,7 +636,9 @@ function footerHtml() {
   Résultats de ventes aux enchères en France · Photos · Prix · Estimations<br>
   <div style="margin-top:0.5rem;">
     <a href="/mentions-legales.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Mentions légales</a>·
-    <a href="/politique-confidentialite.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Politique de confidentialité</a>
+    <a href="/politique-confidentialite.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Politique de confidentialité</a>·
+    <a href="/a-propos.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">À propos</a>·
+    <a href="/statistiques.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Statistiques</a>
   </div>
   <span style="color:var(--text3);font-size:0.72rem;">Les liens marchands sont des liens affiliés.</span>
 </footer>`;
@@ -749,7 +754,7 @@ function generateLotPage(item, sale) {
   const catSlug = slugify(catName);
   const medias = item.medias || [];
 
-  const desc = `${lotTitle} — ${lotDesc ? lotDesc.substring(0, 120) : ""} vendu ${auc.price || 0}€ aux enchères. ${catName}.`;
+  const desc = `${lotTitle} adjugé ${formatPrice(auc.price || 0)} € aux enchères. Voir photos, estimation et lots similaires sur Adjugé !`;
 
   const carouselImages = medias.map((m, i) => {
     const src = imgUrl(m, "lg");
@@ -959,7 +964,37 @@ function generateLotPage(item, sale) {
           <div class="card-body">
             ${amazonButton(shortTitle)}
 
-            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;overflow-wrap:break-word;">${esc(lotDesc)}</p>` : ""}
+            ${lotDesc ? (() => {
+              // Split long descriptions into readable paragraphs
+              const descText = esc(lotDesc);
+              // Split on double newlines, or create paragraphs every ~300 chars at sentence boundaries
+              let paragraphs = descText.split(/\n\n+/).filter(p => p.trim());
+              if (paragraphs.length === 1 && descText.length > 400) {
+                // Single block of text — split at sentence boundaries (. ! ?) every ~300 chars
+                const sentences = descText.split(/(?<=[.!?])\s+/);
+                paragraphs = [];
+                let current = "";
+                for (const s of sentences) {
+                  if (current.length + s.length > 300 && current.length > 0) {
+                    paragraphs.push(current.trim());
+                    current = s;
+                  } else {
+                    current += (current ? " " : "") + s;
+                  }
+                }
+                if (current.trim()) paragraphs.push(current.trim());
+              }
+              const isLong = descText.length > 800;
+              const visibleParas = isLong ? paragraphs.slice(0, 3) : paragraphs;
+              const hiddenParas = isLong ? paragraphs.slice(3) : [];
+              return `<div style="color:var(--text);font-size:0.92rem;line-height:1.8;margin-bottom:1rem;overflow-wrap:break-word;">
+                ${visibleParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
+                ${hiddenParas.length > 0 ? `<div id="descMore" style="display:none;">
+                  ${hiddenParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
+                </div>
+                <button onclick="document.getElementById('descMore').style.display='block';this.style.display='none';" style="background:none;border:1px solid var(--border2);color:var(--accent);padding:8px 20px;border-radius:20px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-top:0.3rem;">▼ Lire la suite</button>` : ""}
+              </div>`;
+            })() : ""}
 
             ${adSlot("inArticle")}
 
@@ -1010,14 +1045,43 @@ function generateCategoryPage(slug, data) {
   const catDesc = data._aiDesc || data.description || "";
   const totalPrice = data.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
   const avgPrice = data.items.length ? Math.round(totalPrice / data.items.length) : 0;
-  const desc = `${data.items.length} lots vendus en catégorie ${catName}. Prix moyen : ${avgPrice}€. ${catDesc}`;
+  const maxPrice = data.items.length ? Math.max(...data.items.map(i => i.pricing?.auctioned?.price || 0)) : 0;
+  const desc = `${data.items.length} lots de ${catName} vendus aux enchères en France. Prix moyen : ${formatPrice(avgPrice)}€. Record : ${formatPrice(maxPrice)}€. Photos et résultats sur Adjugé !`;
 
   // Top 10 most expensive in this category
   const top10Cat = [...data.items]
     .sort((a, b) => (b.pricing?.auctioned?.price || 0) - (a.pricing?.auctioned?.price || 0))
     .slice(0, 10);
 
-  return `${htmlHead(catName, desc, "", `/categorie/${slug}.html`)}
+  const catTitle = `${catName} aux enchères en France — Prix adjugés & Résultats | Adjugé !`;
+
+  // Schema.org FAQPage for GEO
+  const catFaqQuestions = [
+    { q: `Combien coûte un ${catName} aux enchères en France ?`, a: `En moyenne, un lot de ${catName} se vend ${formatPrice(avgPrice)} € aux enchères en France. Le record observé est de ${formatPrice(maxPrice)} €.` },
+    { q: `Où acheter des ${catName} aux enchères ?`, a: `Adjugé ! recense ${data.items.length} lots de ${catName} vendus aux enchères dans toute la France. Consultez les résultats avec photos et prix adjugés.` },
+    { q: `Quel est le prix moyen des ${catName} aux enchères ?`, a: `Le prix moyen constaté pour la catégorie ${catName} est de ${formatPrice(avgPrice)} €, pour un total de ${formatPrice(totalPrice)} € sur ${data.items.length} lots vendus.` },
+  ];
+  const catFaqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": catFaqQuestions.map(({ q, a }) => ({
+      "@type": "Question",
+      "name": q,
+      "acceptedAnswer": { "@type": "Answer", "text": a }
+    }))
+  };
+
+  // Record lot for factual synthesis
+  const recordLot = data.items.length ? [...data.items].sort((a, b) => (b.pricing?.auctioned?.price || 0) - (a.pricing?.auctioned?.price || 0))[0] : null;
+  const recordLotTitle = recordLot ? (recordLot._aiTitle || (recordLot.description || "").split("\\n")[0]?.substring(0, 60) || "lot") : "";
+
+  // Related categories for internal linking
+  const relatedCats = [...registry.categories.entries()]
+    .filter(([s]) => s !== slug)
+    .sort((a, b) => b[1].items.length - a[1].items.length)
+    .slice(0, 5);
+
+  return `${htmlHead(catTitle, desc, `<script type="application/ld+json">${JSON.stringify(catFaqSchema)}<\/script>`, `/categorie/${slug}.html`)}
 <body>
   ${navHtml()}
   <div class="breadcrumb">
@@ -1031,12 +1095,32 @@ function generateCategoryPage(slug, data) {
       <main>
         <div class="card">
           <div class="card-body">
-            <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(catName)}</h1>
-            ${catDesc ? `<div class="cat-desc"><p style="color:var(--text2);margin-bottom:1rem;font-size:0.9rem;">${esc(catDesc)}</p></div><span class="cat-desc-toggle" onclick="this.previousElementSibling.classList.toggle('expanded');this.textContent=this.previousElementSibling.classList.contains('expanded')?'▲ Voir moins':'▼ Voir plus'">▼ Voir plus</span>` : ""}
+            <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(catName)} aux enchères</h1>
+
+            <!-- Factual synthesis (TASK 9) -->
+            <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
+              Au ${todayStr()}, la catégorie <strong>${esc(catName)}</strong> compte <strong>${formatPrice(data.items.length)}</strong> lots vendus pour <strong>${formatPrice(totalPrice)} €</strong>. Le record est de <strong>${formatPrice(maxPrice)} €</strong>${recordLotTitle ? ` pour ${esc(recordLotTitle)}` : ""}.
+            </p>
+
+            <!-- Category description visible (TASK 5) -->
+            ${catDesc ? `<p style="color:var(--text2);margin-bottom:1rem;font-size:0.9rem;line-height:1.7;">${esc(catDesc)}</p>` : ""}
+
+            <!-- Dynamic stats paragraph (TASK 5) -->
+            <p style="color:var(--text2);font-size:0.88rem;line-height:1.6;margin-bottom:1rem;">
+              La catégorie ${esc(catName)} compte ${formatPrice(data.items.length)} lots vendus pour un total de ${formatPrice(totalPrice)}€, avec un prix moyen de ${formatPrice(avgPrice)}€.
+            </p>
+
+            <!-- Internal links (TASK 7) -->
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+              <a href="/top-ventes.html" style="background:var(--surface3);padding:4px 12px;border-radius:20px;font-size:0.8rem;color:var(--accent2);border:1px solid var(--border2);">Top Ventes</a>
+              ${relatedCats.map(([s, c]) => `<a href="/categorie/${s}.html" style="background:var(--surface3);padding:4px 12px;border-radius:20px;font-size:0.8rem;color:var(--accent2);border:1px solid var(--border2);">${esc(c._aiName || c.name)}</a>`).join("")}
+            </div>
+
             <div class="hero-stats" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${data.items.length}</div><div class="stat-label">lots vendus</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(avgPrice)} €</div><div class="stat-label">prix moyen</div></div>
+              <div class="stat-box"><div class="stat-number">${formatPrice(maxPrice)} €</div><div class="stat-label">record</div></div>
             </div>
           </div>
         </div>
@@ -1062,6 +1146,27 @@ function generateCategoryPage(slug, data) {
             }).join("")}
           </div>
         </div>` : ""}
+
+        <!-- SSR Pre-rendered Top 10 lots (TASK 8) -->
+        ${top10Cat.length > 0 ? `<div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Lots les plus chers — ${esc(catName)}</h2></div>
+          <div class="card-body">
+            <div class="lot-grid">
+              ${top10Cat.map(item => lotCard(item)).join("\n              ")}
+            </div>
+          </div>
+        </div>` : ""}
+
+        <!-- QAP FAQ blocks (TASK 14) -->
+        <div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Questions fréquentes — ${esc(catName)}</h2></div>
+          <div class="card-body">
+            ${catFaqQuestions.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;" open>
+              <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q)}</summary>
+              <p style="color:var(--text2);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a)}</p>
+            </details>`).join("\n            ")}
+          </div>
+        </div>
 
         ${adSlot("betweenLots")}
 
@@ -1626,11 +1731,17 @@ function generateHomePage(dateStr) {
   const dateParts = dateStr.split("-");
   const dateLabel = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
 
-  return `${htmlHead(`Enchères du ${dateStr}`, `${totalItems} lots vendus aux enchères. Photos, prix, estimations.`, "", `/index.html`)}
+  const homeTitle = "Adjugé ! — Résultats de ventes aux enchères en France | Prix & Photos";
+  const homeDesc = `Adjugé ! recense ${formatPrice(totalItems)} lots vendus aux enchères en France pour ${formatPrice(totalPrice)} €. Consultez prix adjugés, photos et estimations par catégorie.`;
+  return `${htmlHead(homeTitle, homeDesc, "", `/index.html`)}
 <body>
   ${navHtml()}
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
+    <!-- Factual synthesis paragraph (TASK 9) -->
+    <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1.5rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
+      Au ${dateStr}, <strong>Adjugé !</strong> recense <strong>${formatPrice(totalItems)}</strong> lots vendus aux enchères en France pour un total de <strong>${formatPrice(totalPrice)} €</strong>, soit un prix moyen de <strong>${formatPrice(globalAvg)} €</strong>.
+    </p>
     <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📅 Enchères du ${dateLabel}</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
@@ -1786,6 +1897,210 @@ function generateHomePage(dateStr) {
   </script>
 </body>
 </html>`;
+}
+
+// ─── À propos page (TASK 10) ────────────────────────────────────────────────
+
+function generateAProposPage() {
+  const totalItems = registry.items.size;
+  const totalUnsold = registry.unsold.size;
+  const totalCats = registry.categories.size;
+  const totalMaisons = registry.maisons.size;
+  const allValues = [...registry.items.values()];
+  const totalPrice = allValues.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+
+  return `${htmlHead("À propos — Adjugé !", "Qui sommes-nous ? Méthodologie, sources et couverture du site Adjugé ! agrégateur de résultats d'enchères en France.", "", "/a-propos.html")}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › À propos</div>
+  <div class="container">
+    <div class="card"><div class="card-body" style="max-width:800px;margin:0 auto;line-height:1.8;color:var(--text);">
+      <h1 style="font-size:1.6rem;margin-bottom:1.5rem;">À propos d'Adjugé !</h1>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Qui sommes-nous ?</h2>
+      <p><strong>Adjugé !</strong> est un agrégateur indépendant de résultats de ventes aux enchères publiques en France. Notre mission : rendre les prix adjugés accessibles à tous, collectionneurs, professionnels du marché de l'art et curieux.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Notre méthodologie</h2>
+      <p>Les données sont collectées quotidiennement depuis <a href="https://www.interencheres.com" target="_blank" rel="nofollow" style="color:var(--accent);">Interenchères</a>, la principale plateforme de ventes aux enchères en ligne en France. Chaque lot est indexé avec son prix d'adjudication, ses photos, son estimation et la maison de vente associée.</p>
+      <p>Les descriptions et catégories sont enrichies par intelligence artificielle (GPT-4o) pour améliorer la recherche et la navigation.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Couverture</h2>
+      <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+        <li><strong>${formatPrice(totalItems)}</strong> lots vendus référencés</li>
+        <li><strong>${formatPrice(totalUnsold)}</strong> lots invendus</li>
+        <li><strong>${totalCats}</strong> catégories</li>
+        <li><strong>${totalMaisons}</strong> maisons de vente</li>
+        <li><strong>${formatPrice(totalPrice)} €</strong> de total adjugé</li>
+        <li>Couverture : <strong>France entière</strong>, toutes maisons de vente partenaires Interenchères</li>
+      </ul>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Fréquence de mise à jour</h2>
+      <p>Le site est mis à jour <strong>quotidiennement</strong> via un processus automatisé. Les nouvelles ventes sont intégrées chaque jour, avec un historique cumulé sur plusieurs jours.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Date de lancement</h2>
+      <p>Adjugé ! a été lancé en <strong>mars 2026</strong>.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Contact</h2>
+      <p>Pour toute question : <a href="mailto:contact@auboisrieur.fr" style="color:var(--accent);">contact@auboisrieur.fr</a></p>
+
+      <div style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;">
+        <a href="/statistiques.html" style="background:var(--accent);color:#fff;padding:10px 20px;border-radius:10px;font-weight:600;text-decoration:none;">Voir les statistiques</a>
+        <a href="/index.html" style="background:var(--surface3);color:var(--text);padding:10px 20px;border-radius:10px;font-weight:600;text-decoration:none;border:1px solid var(--border2);">Retour à l'accueil</a>
+      </div>
+    </div></div>
+  </div>
+  ${footerHtml()}
+</body></html>`;
+}
+
+// ─── Statistiques page (TASK 11) ──────────────────────────────────────────
+
+function generateStatistiquesPage(dateStr) {
+  const allValues = [...registry.items.values()];
+  const totalItems = allValues.length;
+  const totalPrice = allValues.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+  const avgPrice = totalItems ? Math.round(totalPrice / totalItems) : 0;
+  const maxPrice = totalItems ? Math.max(...allValues.map(({ item }) => item.pricing?.auctioned?.price || 0)) : 0;
+
+  // Top categories
+  const catStats = [...registry.categories.entries()]
+    .map(([slug, c]) => {
+      const catTotal = c.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
+      const catAvg = c.items.length ? Math.round(catTotal / c.items.length) : 0;
+      return { slug, name: c._aiName || c.name, count: c.items.length, total: catTotal, avg: catAvg };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+
+  // Top maisons
+  const maisonStats = [...registry.maisons.entries()]
+    .map(([slug, m]) => {
+      const mTotal = m.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
+      return { slug, name: m.name, city: m.city, count: m.items.length, total: mTotal, sales: m.saleIds.size };
+    })
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 20);
+
+  return `${htmlHead("Statistiques des enchères en France — Adjugé !", "Statistiques complètes des ventes aux enchères en France : lots vendus, prix moyens, records, top catégories et maisons de vente.", "", "/statistiques.html")}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › Statistiques</div>
+  <div class="container">
+    <h1 style="font-size:1.5rem;margin-bottom:1.5rem;">Statistiques des ventes aux enchères</h1>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem;">
+      <div class="card" style="margin:0;"><div class="card-body stat-box">
+        <div class="stat-number" style="font-size:${statFontSize(totalItems)}">${formatPrice(totalItems)}</div>
+        <div class="stat-label">lots vendus</div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body stat-box">
+        <div class="stat-number" style="font-size:${statFontSize(totalPrice)}">${formatPrice(totalPrice)} €</div>
+        <div class="stat-label">total adjugé</div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body stat-box">
+        <div class="stat-number" style="font-size:${statFontSize(avgPrice)}">${formatPrice(avgPrice)} €</div>
+        <div class="stat-label">prix moyen</div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body stat-box">
+        <div class="stat-number" style="font-size:${statFontSize(maxPrice)}">${formatPrice(maxPrice)} €</div>
+        <div class="stat-label">record absolu</div>
+      </div></div>
+    </div>
+
+    <div class="grid-2">
+      <main>
+        <div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Top catégories</h2></div>
+          <div class="card-body" style="overflow-x:auto;">
+            <table style="width:100%;font-size:0.88rem;">
+              <thead><tr style="border-bottom:2px solid var(--border2);">
+                <th style="text-align:left;padding:0.5rem;color:var(--text2);">Catégorie</th>
+                <th style="text-align:right;padding:0.5rem;color:var(--text2);">Lots</th>
+                <th style="text-align:right;padding:0.5rem;color:var(--text2);">Total</th>
+                <th style="text-align:right;padding:0.5rem;color:var(--text2);">Moy.</th>
+              </tr></thead>
+              <tbody>
+                ${catStats.map(c => `<tr style="border-bottom:1px solid var(--border);">
+                  <td style="padding:0.5rem;"><a href="/categorie/${c.slug}.html">${esc(c.name)}</a></td>
+                  <td style="text-align:right;padding:0.5rem;">${formatPrice(c.count)}</td>
+                  <td style="text-align:right;padding:0.5rem;color:var(--green);font-weight:600;">${formatPrice(c.total)} €</td>
+                  <td style="text-align:right;padding:0.5rem;">${formatPrice(c.avg)} €</td>
+                </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2 style="font-size:1.1rem;">Top maisons de vente</h2></div>
+          <div class="card-body" style="overflow-x:auto;">
+            <table style="width:100%;font-size:0.88rem;">
+              <thead><tr style="border-bottom:2px solid var(--border2);">
+                <th style="text-align:left;padding:0.5rem;color:var(--text2);">Maison</th>
+                <th style="text-align:left;padding:0.5rem;color:var(--text2);">Ville</th>
+                <th style="text-align:right;padding:0.5rem;color:var(--text2);">Lots</th>
+                <th style="text-align:right;padding:0.5rem;color:var(--text2);">Total</th>
+              </tr></thead>
+              <tbody>
+                ${maisonStats.map(m => `<tr style="border-bottom:1px solid var(--border);">
+                  <td style="padding:0.5rem;"><a href="/maison/${m.slug}.html">${esc(m.name)}</a></td>
+                  <td style="padding:0.5rem;color:var(--text2);">${esc(m.city)}</td>
+                  <td style="text-align:right;padding:0.5rem;">${formatPrice(m.count)}</td>
+                  <td style="text-align:right;padding:0.5rem;color:var(--green);font-weight:600;">${formatPrice(m.total)} €</td>
+                </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+      ${sidebarHtml()}
+    </div>
+  </div>
+  ${footerHtml()}
+</body></html>`;
+}
+
+// ─── llms.txt generator (TASK 12) ──────────────────────────────────────────
+
+function generateLlmsTxt() {
+  return `# Adjugé ! — auboisrieur.fr
+Description: Agrégateur de résultats de ventes aux enchères publiques françaises.
+Source: Interenchères (interencheres.com)
+Mise à jour: Quotidienne
+Données: Prix adjugés, photos, statistiques par catégorie
+Couverture: France entière, toutes maisons de vente
+Contact: contact@auboisrieur.fr
+Statistiques: https://auboisrieur.fr/statistiques.html
+A propos: https://auboisrieur.fr/a-propos.html
+`;
+}
+
+// ─── API stats.json generator (TASK 13) ────────────────────────────────────
+
+function generateStatsJson(dateStr) {
+  const allValues = [...registry.items.values()];
+  const totalItems = allValues.length;
+  const totalPrice = allValues.reduce((s, { item }) => s + (item.pricing?.auctioned?.price || 0), 0);
+  const avgPrice = totalItems ? Math.round(totalPrice / totalItems) : 0;
+  const maxPrice = totalItems ? Math.max(...allValues.map(({ item }) => item.pricing?.auctioned?.price || 0)) : 0;
+
+  const categories = [...registry.categories.entries()]
+    .map(([slug, c]) => {
+      const catTotal = c.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
+      const catAvg = c.items.length ? Math.round(catTotal / c.items.length) : 0;
+      return { slug, name: c._aiName || c.name, lots: c.items.length, total_eur: catTotal, avg_eur: catAvg };
+    })
+    .sort((a, b) => b.lots - a.lots);
+
+  return JSON.stringify({
+    date: dateStr,
+    source: "Interenchères (interencheres.com)",
+    total_lots: totalItems,
+    total_adjuge_eur: totalPrice,
+    prix_moyen_eur: avgPrice,
+    record_absolu_eur: maxPrice,
+    categories,
+  }, null, 2);
 }
 
 // ─── Full site rebuild ──────────────────────────────────────────────────────
@@ -1958,6 +2273,23 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "politique-confidentialite.html"), generatePolitiqueConfidentialite(), "utf-8");
   pageCount += 2;
 
+  // À propos page (TASK 10)
+  fs.writeFileSync(path.join(SITE_DIR, "a-propos.html"), generateAProposPage(), "utf-8");
+  pageCount++;
+
+  // Statistiques page (TASK 11)
+  fs.writeFileSync(path.join(SITE_DIR, "statistiques.html"), generateStatistiquesPage(dateStr), "utf-8");
+  pageCount++;
+
+  // llms.txt (TASK 12)
+  fs.writeFileSync(path.join(SITE_DIR, "llms.txt"), generateLlmsTxt(), "utf-8");
+  pageCount++;
+
+  // /api/stats.json (TASK 13)
+  ensureDir(path.join(SITE_DIR, "api"));
+  fs.writeFileSync(path.join(SITE_DIR, "api", "stats.json"), generateStatsJson(dateStr), "utf-8");
+  pageCount++;
+
   // Search index as JS — includes both sold AND unsold items
   const allSearchItems = [...registry.items.values(), ...registry.unsold.values()];
   const searchIndex = allSearchItems.map(({ item }) => {
@@ -1982,6 +2314,9 @@ function rebuildAllPages(dateStr) {
   sitemap += `  <url><loc>${siteUrl}/invendus.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/mentions-legales.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/politique-confidentialite.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/a-propos.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/statistiques.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/api/stats.json</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.3</priority></url>\n`;
   for (const [slug] of registry.categories) {
     sitemap += `  <url><loc>${siteUrl}/categorie/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   }
@@ -2150,7 +2485,7 @@ async function ftpUpload() {
   let alreadyUploaded = {};
   try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
 
-  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html"]);
+  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html", "a-propos.html", "statistiques.html", "llms.txt", "stats.json", "maisons.html"]);
 
   const files = allFiles.filter(f => {
     const basename = path.basename(f.local);
