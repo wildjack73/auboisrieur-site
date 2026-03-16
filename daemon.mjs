@@ -607,7 +607,7 @@ function toggleTheme(){
       const scored=data.filter(it=>words.every(w=>it.t.toLowerCase().includes(w))).map(it=>{
         const tl=it.t.toLowerCase();
         let score=0;
-        words.forEach(w=>{const re=new RegExp('\\\\b'+w.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')+'\\\\b','i');if(re.test(it.t))score+=10;else score+=1;});
+        words.forEach(w=>{if(tl.includes(w))score+=10;else score+=1;});
         if(tl.startsWith(q))score+=20;
         return{...it,score};
       }).sort((a,b)=>b.score-a.score);
