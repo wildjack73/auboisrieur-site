@@ -1468,7 +1468,7 @@ function generateInvendusIndex() {
             <div id="unsoldCount" style="color:var(--text3);font-size:0.8rem;margin-bottom:0.8rem;"></div>
             <div class="lot-grid" id="unsoldGrid"></div>
             <div id="unsoldMore" style="text-align:center;padding:1.5rem;display:none;">
-              <button onclick="loadMoreUnsold()" style="background:var(--accent);color:white;border:none;padding:10px 24px;border-radius:8px;font-size:0.9rem;cursor:pointer;font-family:inherit;">Voir plus</button>
+              <div style="color:var(--text3);font-size:0.85rem;">Chargement...</div>
             </div>
           </div>
         </div>
@@ -1502,7 +1502,16 @@ function generateInvendusIndex() {
       countEl.textContent = filtered.length + ' résultat' + (filtered.length > 1 ? 's' : '');
       more.style.display = shown < filtered.length ? 'block' : 'none';
     }
-    window.loadMoreUnsold = function() { render(filtered, true); };
+    // Infinite scroll
+    var loading = false;
+    var observer = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting && !loading && shown < filtered.length) {
+        loading = true;
+        render(filtered, true);
+        loading = false;
+      }
+    }, { rootMargin: '400px' });
+    observer.observe(more);
 
     function applyFilters() {
       var q = document.getElementById('unsoldSearch').value.toLowerCase();
