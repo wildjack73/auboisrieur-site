@@ -1068,9 +1068,8 @@ function generateCategoryPage(slug, data) {
         <div class="card">
           <div class="card-header"><h2 style="font-size:1.1rem;">Tous les lots (${data.items.length})</h2></div>
           <div class="card-body">
-            <div class="lot-grid">
-              ${data.items.slice(0, config.lotsPerCategoryPage).map(lotCard).join("\n              ")}
-            </div>
+            <div class="lot-grid" id="catGrid"></div>
+            <div id="catLoading" style="text-align:center;padding:1rem;display:none;color:var(--text3);">Chargement...</div>
           </div>
         </div>
 
@@ -1079,6 +1078,42 @@ function generateCategoryPage(slug, data) {
     </div>
   </div>
   ${footerHtml()}
+  <script>
+  (function(){
+    var allLots = ${JSON.stringify(data.items.map(item => {
+      const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+      const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+      const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+      const price = item.pricing?.auctioned?.price || 0;
+      const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+      const cat = item.category?.name || "";
+      return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+    }))};
+    var grid = document.getElementById('catGrid');
+    var loading = document.getElementById('catLoading');
+    var offset = 0, BATCH = 40, isLoading = false;
+    function loadMore() {
+      if (isLoading || offset >= allLots.length) return;
+      isLoading = true; loading.style.display = 'block';
+      setTimeout(function() {
+        var batch = allLots.slice(offset, offset + BATCH);
+        batch.forEach(function(d) {
+          grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
+            + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
+            + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
+            + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
+        });
+        offset += batch.length;
+        loading.style.display = 'none'; isLoading = false;
+      }, 100);
+    }
+    loadMore();
+    var sentinel = document.createElement('div'); sentinel.style.height = '1px';
+    loading.parentNode.insertBefore(sentinel, loading);
+    new IntersectionObserver(function(e) { if (e[0].isIntersecting) loadMore(); }, { rootMargin: '400px' }).observe(sentinel);
+  })();
+  </script>
 </body>
 </html>`;
 }
@@ -1132,11 +1167,10 @@ function generateMaisonPage(slug, data) {
         </div>
 
         <div class="card">
-          <div class="card-header"><h2 style="font-size:1.1rem;">Derniers lots vendus</h2></div>
+          <div class="card-header"><h2 style="font-size:1.1rem;">Derniers lots vendus (${data.items.length})</h2></div>
           <div class="card-body">
-            <div class="lot-grid">
-              ${data.items.slice(0, config.lotsPerCategoryPage).map(lotCard).join("\n              ")}
-            </div>
+            <div class="lot-grid" id="maisonGrid"></div>
+            <div id="maisonLoading" style="text-align:center;padding:1rem;display:none;color:var(--text3);">Chargement...</div>
           </div>
         </div>
       </main>
@@ -2351,9 +2385,10 @@ async function callGpt(messages, retries = 2) {
 
 const AI_SYSTEM_PROMPT = `Tu es un expert en objets d'art, antiquités et enchères. On te donne la description brute d'un lot vendu aux enchères en France avec son prix d'adjudication.
 
-Tu dois retourner un JSON avec exactement 5 champs :
+Tu dois retourner un JSON avec exactement 6 champs :
 - "title": un titre accrocheur, clair et SEO-friendly (max 70 caractères). Pas de numéro de lot, pas de "Lot N°", pas de "A partir de". Juste l'objet.
 - "desc": une description enrichie de 2-3 phrases (max 300 caractères) qui décrit l'objet, son intérêt, son époque, sa rareté. Ton expert qui donne envie. Pas de mention de la maison de vente.
+- "category": la VRAIE catégorie de l'objet basée sur sa description (pas celle de la vente). Choisis parmi : Bijoux - Montres, Tableaux - Peintures, Mobilier, Céramiques - Porcelaine, Art asiatique, Livres - Manuscrits, Véhicules, Vins - Spiritueux, Mode - Luxe, Jouets - Figurines, Instruments de musique, Art contemporain, Sculptures, Argenterie - Orfèvrerie, Numismatique, Photographie, Luminaires, Tapis - Textiles, Objets de vitrine, Matériel professionnel, Électroménager, High-tech - Multimédia, Sports - Loisirs, Jardin - Extérieur, Autre
 - "price_analysis": une analyse du prix en 2-3 phrases (max 250 caractères). Compare avec les prix habituels du marché pour ce type d'objet. Ex: "Adjugé à 500€, ce meuble Napoléon III se situe dans la fourchette basse. Les pièces similaires en bon état atteignent 1 500 à 3 000€."
 - "faq": un array de 3 objets {q, a} — questions GEO (Generative Engine Optimization) conçues pour être reprises par les moteurs IA (ChatGPT, Perplexity, Google AI Overview). Les questions DOIVENT contenir le NOM COMPLET ET EXACT de l'objet + un mot-clé prix/valeur/côte. Format : "Combien coûte [objet exact] aux enchères ?", "Quelle est la valeur d'un [objet exact] ?", "Quel est le prix moyen d'un [objet exact] ?". Les réponses doivent être factuelles : citer le prix adjugé, comparer avec le marché, donner une fourchette (max 200 car chacune).
 - "tags": un array de 3-5 mots-clés pertinents pour cet objet (ex: ["Napoléon III", "meuble ancien", "marqueterie", "XIXe siècle"])
@@ -2374,12 +2409,17 @@ async function aiEnrichLots(maxPerRun = 0) {
     if (cache[item.id]) {
       item._aiTitle = cache[item.id].t;
       item._aiDesc = cache[item.id].d;
+      if (cache[item.id].cat) {
+        item._aiCategory = cache[item.id].cat;
+        item.category = { ...item.category, name: cache[item.id].cat };
+      }
     }
   }
 
   // Find items that still need enrichment
   let toEnrich = items.filter(({ item }) => {
     if (!cache[item.id]) return true;
+    if (!cache[item.id].cat) return true; // needs AI category
     const faq = cache[item.id].faq || [];
     if (faq.length < 3) return true;
     const hasGeoQ = faq.some(f => /prix|valeur|co[uû]t|combien/i.test(f.q || ""));
@@ -2425,12 +2465,14 @@ async function aiEnrichLots(maxPerRun = 0) {
         cache[item.id] = {
           t: parsed.title,
           d: parsed.desc,
+          cat: parsed.category || "",
           pa: parsed.price_analysis || "",
           faq: parsed.faq || [],
           tags: parsed.tags || [],
         };
         item._aiTitle = parsed.title;
         item._aiDesc = parsed.desc;
+        item._aiCategory = parsed.category || "";
         item._aiPriceAnalysis = parsed.price_analysis || "";
         item._aiFaq = parsed.faq || [];
         item._aiTags = parsed.tags || [];
