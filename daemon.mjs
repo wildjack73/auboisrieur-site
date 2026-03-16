@@ -28,6 +28,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API = "https://search.interencheres.com/v1/search";
 const PAGE_SIZE = 200;
 const SITE_DIR = path.join(__dirname, "site");
+const DATA_DIR = path.join(SITE_DIR, "data");
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -615,6 +616,10 @@ function footerHtml() {
   return `<footer class="footer">
   <div style="font-weight:600;color:var(--text2);margin-bottom:0.3rem;">${esc(config.siteName)}</div>
   Résultats de ventes aux enchères en France · Photos · Prix · Estimations<br>
+  <div style="margin-top:0.5rem;">
+    <a href="/mentions-legales.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Mentions légales</a>·
+    <a href="/politique-confidentialite.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Politique de confidentialité</a>
+  </div>
   <span style="color:var(--text3);font-size:0.72rem;">Les liens marchands sont des liens affiliés.</span>
 </footer>`;
 }
@@ -1632,6 +1637,110 @@ function generateHomePage(dateStr) {
 
 // ─── Full site rebuild ──────────────────────────────────────────────────────
 
+function generateMentionsLegales() {
+  return `${htmlHead("Mentions légales", "Mentions légales du site auboisrieur.fr", "", "/mentions-legales.html")}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › Mentions légales</div>
+  <div class="container">
+    <div class="card"><div class="card-body" style="max-width:800px;margin:0 auto;line-height:1.8;color:var(--text);">
+      <h1 style="font-size:1.6rem;margin-bottom:1.5rem;">Mentions légales</h1>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Éditeur du site</h2>
+      <p>Le site <strong>auboisrieur.fr</strong> est un site d'agrégation de résultats de ventes aux enchères publiques en France. Il est édité à titre personnel.</p>
+      <p>Contact : <a href="mailto:contact@auboisrieur.fr" style="color:var(--accent);">contact@auboisrieur.fr</a></p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Hébergement</h2>
+      <p>Ce site est hébergé par <strong>Hostinger International Ltd</strong>, 61 Lordou Vironos str., 6023 Larnaca, Chypre.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Propriété intellectuelle</h2>
+      <p>Les photos et descriptions des lots proviennent des catalogues de ventes aux enchères publiés par les maisons de vente sur <a href="https://www.interencheres.com" target="_blank" rel="nofollow" style="color:var(--accent);">Interenchères</a>. Ces contenus restent la propriété de leurs auteurs respectifs.</p>
+      <p>Les textes enrichis par intelligence artificielle (titres, descriptions, FAQ) sont générés automatiquement à titre informatif et ne constituent en aucun cas une expertise officielle.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Liens d'affiliation</h2>
+      <p>Ce site contient des liens d'affiliation vers <strong>Amazon</strong> et <strong>eBay</strong>. En cliquant sur ces liens et en effectuant un achat, nous percevons une commission sans surcoût pour vous. Ces liens sont identifiés par les boutons "Chercher sur Amazon" et "Chercher sur eBay".</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Publicité</h2>
+      <p>Ce site utilise <strong>Google AdSense</strong> pour afficher des publicités. Google utilise des cookies pour diffuser des annonces pertinentes. Vous pouvez gérer vos préférences publicitaires via <a href="https://www.google.com/settings/ads" target="_blank" rel="nofollow" style="color:var(--accent);">les paramètres Google Ads</a>.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Responsabilité</h2>
+      <p>Les informations diffusées sur ce site (prix, descriptions, estimations) sont fournies à titre indicatif. Elles ne constituent ni une expertise, ni un conseil d'achat ou de vente. Nous ne garantissons pas l'exactitude des prix affichés ni la disponibilité des lots.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Droit applicable</h2>
+      <p>Le présent site est soumis au droit français. Tout litige sera de la compétence des juridictions françaises.</p>
+    </div></div>
+  </div>
+  ${footerHtml()}
+</body></html>`;
+}
+
+function generatePolitiqueConfidentialite() {
+  return `${htmlHead("Politique de confidentialité", "Politique de protection des données personnelles du site auboisrieur.fr", "", "/politique-confidentialite.html")}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › Politique de confidentialité</div>
+  <div class="container">
+    <div class="card"><div class="card-body" style="max-width:800px;margin:0 auto;line-height:1.8;color:var(--text);">
+      <h1 style="font-size:1.6rem;margin-bottom:1.5rem;">Politique de confidentialité & Protection des données</h1>
+      <p style="color:var(--text2);margin-bottom:1.5rem;">Dernière mise à jour : ${new Date().toISOString().slice(0, 10)}</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">1. Données collectées</h2>
+      <p>Le site <strong>auboisrieur.fr</strong> ne collecte <strong>aucune donnée personnelle directement</strong>. Nous ne proposons ni formulaire d'inscription, ni espace membre, ni newsletter.</p>
+      <p>Cependant, des données peuvent être collectées indirectement par nos partenaires :</p>
+      <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+        <li><strong>Google AdSense</strong> : cookies publicitaires pour afficher des annonces personnalisées</li>
+        <li><strong>Google Analytics / GoatCounter</strong> : statistiques anonymes de fréquentation</li>
+        <li><strong>Amazon / eBay (affiliation)</strong> : cookies de suivi lors du clic sur les liens partenaires</li>
+      </ul>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">2. Cookies</h2>
+      <p>Ce site utilise des cookies pour :</p>
+      <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+        <li><strong>Mémoriser votre préférence de thème</strong> (clair/sombre) — cookie local, aucune donnée transmise</li>
+        <li><strong>Afficher des publicités</strong> via Google AdSense — cookies tiers de Google</li>
+        <li><strong>Mesurer l'audience</strong> — cookies analytiques anonymisés</li>
+      </ul>
+      <p>Vous pouvez à tout moment désactiver les cookies via les paramètres de votre navigateur.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">3. Finalité du traitement</h2>
+      <p>Les données indirectement collectées servent uniquement à :</p>
+      <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+        <li>Améliorer l'expérience utilisateur (thème, navigation)</li>
+        <li>Financer le site via la publicité et l'affiliation</li>
+        <li>Analyser la fréquentation pour améliorer le contenu</li>
+      </ul>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">4. Durée de conservation</h2>
+      <p>Le cookie de thème est conservé dans votre navigateur sans limite de durée. Les cookies publicitaires et analytiques sont gérés par leurs émetteurs respectifs (Google, Amazon, eBay) selon leurs propres politiques.</p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">5. Vos droits (RGPD)</h2>
+      <p>Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez des droits suivants :</p>
+      <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+        <li><strong>Droit d'accès</strong> : savoir quelles données sont collectées</li>
+        <li><strong>Droit de rectification</strong> : corriger vos données</li>
+        <li><strong>Droit à l'effacement</strong> : demander la suppression de vos données</li>
+        <li><strong>Droit d'opposition</strong> : refuser le traitement de vos données</li>
+        <li><strong>Droit à la portabilité</strong> : récupérer vos données dans un format lisible</li>
+      </ul>
+      <p>Pour exercer vos droits, contactez-nous à : <a href="mailto:contact@auboisrieur.fr" style="color:var(--accent);">contact@auboisrieur.fr</a></p>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">6. Sous-traitants</h2>
+      <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+        <tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:0.5rem;color:var(--accent);">Partenaire</th><th style="text-align:left;padding:0.5rem;color:var(--accent);">Finalité</th><th style="text-align:left;padding:0.5rem;color:var(--accent);">Politique</th></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:0.5rem;">Google AdSense</td><td style="padding:0.5rem;">Publicité</td><td style="padding:0.5rem;"><a href="https://policies.google.com/privacy" target="_blank" rel="nofollow" style="color:var(--accent);">Voir</a></td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:0.5rem;">Amazon</td><td style="padding:0.5rem;">Affiliation</td><td style="padding:0.5rem;"><a href="https://www.amazon.fr/gp/help/customer/display.html?nodeId=201909010" target="_blank" rel="nofollow" style="color:var(--accent);">Voir</a></td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:0.5rem;">eBay</td><td style="padding:0.5rem;">Affiliation</td><td style="padding:0.5rem;"><a href="https://www.ebay.fr/help/policies/member-behaviour-policies/user-privacy-notice-privacy-policy?id=4260" target="_blank" rel="nofollow" style="color:var(--accent);">Voir</a></td></tr>
+        <tr><td style="padding:0.5rem;">Hostinger</td><td style="padding:0.5rem;">Hébergement</td><td style="padding:0.5rem;"><a href="https://www.hostinger.fr/politique-de-confidentialite" target="_blank" rel="nofollow" style="color:var(--accent);">Voir</a></td></tr>
+      </table>
+
+      <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">7. Contact</h2>
+      <p>Pour toute question relative à la protection de vos données : <a href="mailto:contact@auboisrieur.fr" style="color:var(--accent);">contact@auboisrieur.fr</a></p>
+    </div></div>
+  </div>
+  ${footerHtml()}
+</body></html>`;
+}
+
 function rebuildAllPages(dateStr) {
   // Ensure directories
   ensureDir(path.join(SITE_DIR, "lot"));
@@ -1691,6 +1800,11 @@ function rebuildAllPages(dateStr) {
 
   if (skipped > 0) console.log(`  ⏩ ${skipped} pages lot déjà existantes (ignorées)`);
 
+  // Legal pages
+  fs.writeFileSync(path.join(SITE_DIR, "mentions-legales.html"), generateMentionsLegales(), "utf-8");
+  fs.writeFileSync(path.join(SITE_DIR, "politique-confidentialite.html"), generatePolitiqueConfidentialite(), "utf-8");
+  pageCount += 2;
+
   // Search index as JS (more reliable than JSON fetch on shared hosting)
   const searchIndex = [...registry.items.values()].map(({ item }) => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
@@ -1712,6 +1826,8 @@ function rebuildAllPages(dateStr) {
   sitemap += `  <url><loc>${siteUrl}/categories.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/top-ventes.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
   sitemap += `  <url><loc>${siteUrl}/invendus.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/mentions-legales.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>\n`;
+  sitemap += `  <url><loc>${siteUrl}/politique-confidentialite.html</loc><lastmod>${today}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>\n`;
   for (const [slug] of registry.categories) {
     sitemap += `  <url><loc>${siteUrl}/categorie/${slug}.html</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n`;
   }
@@ -1898,7 +2014,7 @@ async function ftpUpload() {
     const allFiles = collectFiles(SITE_DIR, remote);
 
     // Incremental upload: track which files were already uploaded
-    const uploadedTracker = path.join(dataDir, "ftp-uploaded.json");
+    const uploadedTracker = path.join(DATA_DIR, "ftp-uploaded.json");
     let alreadyUploaded = {};
     try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
 
@@ -1962,7 +2078,7 @@ async function ftpUpload() {
 
 function runDaemon(dateStr, intervalSec) {
   ensureDir(SITE_DIR);
-  const dataDir = path.join(SITE_DIR, "data");
+  const dataDir = DATA_DIR;
   ensureDir(dataDir);
 
   const knownSold = new Set();
@@ -2322,7 +2438,7 @@ function scrapDate(dateStr) {
 
 async function runOnce(dateStr) {
   ensureDir(SITE_DIR);
-  const dataDir = path.join(SITE_DIR, "data");
+  const dataDir = DATA_DIR;
   ensureDir(dataDir);
 
   console.log(`\n🏛️  Interenchères — Exécution unique`);
@@ -2402,7 +2518,7 @@ async function runOnce(dateStr) {
 
 async function runRebuild(dateStr) {
   ensureDir(SITE_DIR);
-  const dataDir = path.join(SITE_DIR, "data");
+  const dataDir = DATA_DIR;
   ensureDir(dataDir);
 
   console.log(`\n🔄 Interenchères — Rebuild depuis le cache`);
