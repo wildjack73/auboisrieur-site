@@ -943,18 +943,18 @@ function generateLotPage(item, sale) {
     <div class="grid-2">
       <main>
         <div class="card">
-          <div class="card-body">
+          <div class="card-body" style="padding-bottom:0.5rem;">
             <h1 style="font-size:1.4rem;margin-bottom:0.3rem;line-height:1.4;overflow-wrap:break-word;word-break:break-word;">${esc(lotTitle)}</h1>
-            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:0.8rem;overflow-wrap:break-word;">${esc(lotDesc)}</p>` : ""}
-            <div style="margin:0.5rem 0 1rem;">
+            <div style="margin:0.5rem 0 0.8rem;">
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
             </div>
-            ${adSlot("inArticle", "margin-top:0.8rem;")}
           </div>
           ${carouselHtml}
           ${adSlot("betweenLots", "padding:0.8rem 1.5rem;")}
           <div class="card-body">
+            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;overflow-wrap:break-word;">${esc(lotDesc)}</p>` : ""}
+
             ${amazonButton(shortTitle)}
 
             ${adSlot("inArticle")}
@@ -1905,14 +1905,15 @@ function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "politique-confidentialite.html"), generatePolitiqueConfidentialite(), "utf-8");
   pageCount += 2;
 
-  // Search index as JS (more reliable than JSON fetch on shared hosting)
-  const searchIndex = [...registry.items.values()].map(({ item }) => {
+  // Search index as JS — includes both sold AND unsold items
+  const allSearchItems = [...registry.items.values(), ...registry.unsold.values()];
+  const searchIndex = allSearchItems.map(({ item }) => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
     const fallbackTitle = (lns.length > 1 && lns[0].length < 60) ? lns[0] + " " + lns.slice(1).join(" ") : lns.join(" ");
     const title = item._aiTitle || fallbackTitle;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
-    const price = formatPrice(item.pricing?.auctioned?.price || 0);
+    const price = item.pricing?.auctioned?.price ? formatPrice(item.pricing.auctioned.price) : "Invendu";
     return { id: lotSlug(item), t: title.substring(0, 150), p: price, img: thumb };
   });
   fs.writeFileSync(path.join(SITE_DIR, "search-data.js"), `window.__SI=${JSON.stringify(searchIndex)};`, "utf-8");
