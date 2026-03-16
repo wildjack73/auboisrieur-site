@@ -684,6 +684,10 @@ function sidebarHtml() {
       </div>
     </div>
     ${adSlot("sidebar")}
+    <div style="padding:1rem 0.5rem;display:flex;flex-wrap:wrap;gap:0.3rem 1rem;justify-content:center;">
+      <a href="/mentions-legales.html" style="color:var(--text3);text-decoration:none;font-size:0.72rem;">Mentions légales</a>
+      <a href="/politique-confidentialite.html" style="color:var(--text3);text-decoration:none;font-size:0.72rem;">Confidentialité</a>
+    </div>
   </aside>`;
 }
 
