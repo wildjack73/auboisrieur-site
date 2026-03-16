@@ -2227,11 +2227,20 @@ function rebuildAllPages(dateStr) {
   let pageCount = 0;
   let skipped = 0;
 
-  // Lot pages — only generate if file doesn't exist yet (incremental)
+  // Template version — increment when lot page template changes to force regeneration
+  const TEMPLATE_VERSION = "v3";
+  const versionFile = path.join(DATA_DIR, "template-version.txt");
+  let lastVersion = "";
+  try { lastVersion = fs.readFileSync(versionFile, "utf-8").trim(); } catch {}
+  const forceRegen = lastVersion !== TEMPLATE_VERSION;
+  if (forceRegen) console.log(`  🔄 Template ${lastVersion || "?"} → ${TEMPLATE_VERSION} — regénération de toutes les pages lot`);
+  fs.writeFileSync(versionFile, TEMPLATE_VERSION, "utf-8");
+
+  // Lot pages — regenerate all if template changed, otherwise only new
   for (const [itemId, { item, sale }] of registry.items) {
     const slug = lotSlug(item);
     const filePath = path.join(SITE_DIR, "lot", `${slug}.html`);
-    if (fs.existsSync(filePath)) { skipped++; continue; }
+    if (!forceRegen && fs.existsSync(filePath)) { skipped++; continue; }
     fs.writeFileSync(filePath, generateLotPage(item, sale), "utf-8");
     pageCount++;
   }
@@ -2265,11 +2274,11 @@ function rebuildAllPages(dateStr) {
     pageCount++;
   }
 
-  // Unsold lot pages — only generate if file doesn't exist yet
+  // Unsold lot pages — regenerate all if template changed
   for (const [itemId, { item, sale }] of registry.unsold) {
     const slug = lotSlug(item);
     const filePath = path.join(SITE_DIR, "lot", `${slug}.html`);
-    if (fs.existsSync(filePath)) { skipped++; continue; }
+    if (!forceRegen && fs.existsSync(filePath)) { skipped++; continue; }
     fs.writeFileSync(filePath, generateUnsoldPage(item, sale), "utf-8");
     pageCount++;
   }
