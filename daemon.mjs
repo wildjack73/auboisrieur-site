@@ -3772,9 +3772,8 @@ async function runOnce(dateStr) {
     console.log(`  📄 ${pageCount} pages générées`);
     await ftpUpload();
 
-    // 2) AI enrichment AFTER first deploy (max 200 per run to avoid timeout)
-    const MAX_AI_PER_RUN = 500;
-    await aiEnrichLots(MAX_AI_PER_RUN);
+    // 2) AI enrichment AFTER first deploy — no limit, enrich everything
+    await aiEnrichLots(0);
 
     // 3) Rebuild only the AI-enriched pages + index pages, then re-upload
     const enrichedCount = rebuildAllPages(dateStr);
