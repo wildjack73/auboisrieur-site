@@ -1458,10 +1458,11 @@ function generateInvendusIndex() {
     const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
     const cat = item.category?.name || "Autre";
-    const estLow = item.pricing?.estimates?.low || 0;
+    const estLow = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
     const estHigh = item.pricing?.estimates?.max || 0;
+    const startPrice = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
     const date = sale?.datetime ? sale.datetime.substring(0, 10) : "";
-    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, d: date };
+    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date };
   });
 
   const metaDesc = `${unsoldItems.length} lots invendus aux enchères. Filtrez par catégorie et contactez les maisons de vente pour négocier.`;
@@ -1527,11 +1528,13 @@ function generateInvendusIndex() {
       var batch = items.slice(shown, shown + PAGE);
       batch.forEach(function(d) {
         var est = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : '';
+        var sp = d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '';
+        var priceInfo = est || sp;
         grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
           + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);display:flex;align-items:center;justify-content:center;color:var(--text3);">📷</div>')
           + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
-          + '<div style="color:var(--red);font-weight:700;font-size:0.85rem;">Invendu</div>'
-          + (est ? '<div style="color:var(--text3);font-size:0.75rem;">' + est + '</div>' : '')
+          + (priceInfo ? '<div style="color:var(--accent2);font-weight:700;font-size:0.85rem;">' + priceInfo + '</div>' : '')
+          + '<div style="color:var(--red);font-weight:600;font-size:0.78rem;">Invendu</div>'
           + '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">' + d.c + '</div>'
           + '</div></a>';
       });
