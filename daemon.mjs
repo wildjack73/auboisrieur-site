@@ -736,7 +736,8 @@ function generateLotPage(item, sale) {
   // If first line is short (<60 chars) and there are more lines → it's a title
   const hasShortTitle = lines.length > 1 && lines[0].length < 60;
   const fallbackTitle = hasShortTitle ? lines[0] : lines[0]?.substring(0, 70) || "Objet de collection";
-  const fallbackDesc = hasShortTitle ? lines.slice(1).join(" ") : (lines.length > 1 ? lines.slice(1).join(" ") : "");
+  // If only one long line, use the full text as description (don't leave it empty)
+  const fallbackDesc = hasShortTitle ? lines.slice(1).join(" ") : (lines.length > 1 ? lines.slice(1).join(" ") : (lines[0]?.length > 70 ? lines[0] : ""));
   // Use AI-enriched title/desc if available
   const lotTitle = item._aiTitle || fallbackTitle;
   const lotDesc = item._aiDesc || fallbackDesc;
@@ -1001,6 +1002,9 @@ function generateLotPage(item, sale) {
             <table class="meta-table">
               ${catSlug ? `<tr><td>Catégorie</td><td><a href="/categorie/${catSlug}.html">${esc(catName)}</a></td></tr>` : ""}
               <tr><td>Date</td><td>${saleDate}</td></tr>
+              ${org ? `<tr><td>Maison de vente</td><td>${esc(org)}${city ? ` — ${esc(city)}` : ""}</td></tr>` : ""}
+              ${saleName ? `<tr><td>Vente</td><td>${esc(saleName)}</td></tr>` : ""}
+              <tr><td>Source</td><td><a href="https://www.interencheres.com/lots/${item.id}" target="_blank" rel="nofollow" style="color:var(--accent);">🔗 Voir sur Interenchères</a></td></tr>
             </table>
 
             ${item._aiTags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:1rem;">
