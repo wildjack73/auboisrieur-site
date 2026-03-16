@@ -125,6 +125,14 @@ function formatPrice(n) {
   return Number(n || 0).toLocaleString("fr-FR");
 }
 
+function statFontSize(n) {
+  const str = formatPrice(n);
+  if (str.length > 10) return "1.1rem";
+  if (str.length > 7) return "1.3rem";
+  if (str.length > 5) return "1.5rem";
+  return "1.8rem";
+}
+
 // ─── API functions ──────────────────────────────────────────────────────────
 
 function fetchTodaySales(dateStr) {
@@ -595,8 +603,15 @@ function toggleTheme(){
     if(q.length<2){results.classList.remove('active');results.innerHTML='';return;}
     timer=setTimeout(()=>{
       const data=window.__SI||[];
-      const words=q.split(/\\s+/);
-      const matches=data.filter(it=>words.every(w=>it.t.toLowerCase().includes(w))).slice(0,12);
+      const words=q.split(/\\s+/).filter(w=>w.length>0);
+      const scored=data.filter(it=>words.every(w=>it.t.toLowerCase().includes(w))).map(it=>{
+        const tl=it.t.toLowerCase();
+        let score=0;
+        words.forEach(w=>{const re=new RegExp('\\\\b'+w.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')+'\\\\b','i');if(re.test(it.t))score+=10;else score+=1;});
+        if(tl.startsWith(q))score+=20;
+        return{...it,score};
+      }).sort((a,b)=>b.score-a.score);
+      const matches=scored.slice(0,12);
       if(!matches.length){results.innerHTML='<div class="search-no-result">Aucun résultat</div>';results.classList.add('active');return;}
       results.innerHTML=matches.map(m=>\`<a href="/lot/\${m.id}.html" class="search-result">
         \${m.img?\`<img src="\${m.img}" alt="" loading="lazy">\`:''}
@@ -1385,9 +1400,30 @@ function unsoldLotCard(item) {
 
 function generateInvendusIndex() {
   const unsoldItems = [...registry.unsold.values()]
-    .sort((a, b) => (b.item.pricing?.estimates?.max || 0) - (a.item.pricing?.estimates?.max || 0));
+    .sort((a, b) => (b.sale?.datetime || "").localeCompare(a.sale?.datetime || ""));
 
-  const metaDesc = `${unsoldItems.length} lots invendus. Contactez les maisons de vente pour négocier.`;
+  // Collect categories for filter
+  const catCounts = new Map();
+  for (const { item } of unsoldItems) {
+    const cat = item.category?.name || "Autre";
+    catCounts.set(cat, (catCounts.get(cat) || 0) + 1);
+  }
+  const sortedCats = [...catCounts.entries()].sort((a, b) => b[1] - a[1]);
+
+  // Build JSON data for client-side filtering
+  const unsoldData = unsoldItems.map(({ item, sale }) => {
+    const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+    const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
+    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const cat = item.category?.name || "Autre";
+    const estLow = item.pricing?.estimates?.low || 0;
+    const estHigh = item.pricing?.estimates?.max || 0;
+    const date = sale?.datetime ? sale.datetime.substring(0, 10) : "";
+    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, d: date };
+  });
+
+  const metaDesc = `${unsoldItems.length} lots invendus aux enchères. Filtrez par catégorie et contactez les maisons de vente pour négocier.`;
 
   return `${htmlHead("Invendus — Objets non vendus aux enchères", metaDesc, "", "/invendus.html")}
 <body>
@@ -1398,7 +1434,7 @@ function generateInvendusIndex() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📦</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(unsoldItems.length)}</div><div class="stat-label">invendus</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(unsoldItems.length)}">${formatPrice(unsoldItems.length)}</div><div class="stat-label">invendus</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💬</div>
@@ -1408,11 +1444,27 @@ function generateInvendusIndex() {
     <div class="grid-2">
       <main>
         <div class="card">
-          <div class="card-header"><h1 style="font-size:1.2rem;">Lots invendus — À négocier directement</h1></div>
+          <div class="card-header" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.8rem;">
+            <h1 style="font-size:1.2rem;flex:1;">Lots invendus — À négocier</h1>
+          </div>
           <div class="card-body">
-            <p style="color:var(--text2);margin-bottom:1.5rem;font-size:0.92rem;">Ces objets n'ont pas trouvé preneur. Ils sont peut-être encore disponibles ! Cliquez sur un lot pour contacter la maison de vente.</p>
-            <div class="lot-grid">
-              ${unsoldItems.map(({ item }) => unsoldLotCard(item)).join("\n              ")}
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+              <input type="text" id="unsoldSearch" placeholder="🔍 Rechercher dans les invendus..." style="flex:1;min-width:200px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 14px;border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;">
+              <select id="unsoldCat" style="background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;">
+                <option value="">Toutes catégories (${unsoldItems.length})</option>
+                ${sortedCats.map(([cat, count]) => `<option value="${esc(cat)}">${esc(cat)} (${count})</option>`).join("")}
+              </select>
+              <select id="unsoldSort" style="background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;">
+                <option value="recent">Plus récents</option>
+                <option value="price-desc">Estimation décroissante</option>
+                <option value="price-asc">Estimation croissante</option>
+              </select>
+            </div>
+            <p style="color:var(--text2);margin-bottom:1rem;font-size:0.85rem;">Ces objets n'ont pas trouvé preneur. Cliquez sur un lot pour contacter la maison de vente.</p>
+            <div id="unsoldCount" style="color:var(--text3);font-size:0.8rem;margin-bottom:0.8rem;"></div>
+            <div class="lot-grid" id="unsoldGrid"></div>
+            <div id="unsoldMore" style="text-align:center;padding:1.5rem;display:none;">
+              <button onclick="loadMoreUnsold()" style="background:var(--accent);color:white;border:none;padding:10px 24px;border-radius:8px;font-size:0.9rem;cursor:pointer;font-family:inherit;">Voir plus</button>
             </div>
           </div>
         </div>
@@ -1421,6 +1473,54 @@ function generateInvendusIndex() {
     </div>
   </div>
   ${footerHtml()}
+  <script>
+  (function(){
+    var DATA = ${JSON.stringify(unsoldData)};
+    var PAGE = 40, shown = 0, filtered = DATA;
+    var grid = document.getElementById('unsoldGrid');
+    var more = document.getElementById('unsoldMore');
+    var countEl = document.getElementById('unsoldCount');
+
+    function render(items, append) {
+      if (!append) { grid.innerHTML = ''; shown = 0; }
+      var batch = items.slice(shown, shown + PAGE);
+      batch.forEach(function(d) {
+        var est = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : '';
+        grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
+          + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);display:flex;align-items:center;justify-content:center;color:var(--text3);">📷</div>')
+          + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
+          + '<div style="color:var(--red);font-weight:700;font-size:0.85rem;">Invendu</div>'
+          + (est ? '<div style="color:var(--text3);font-size:0.75rem;">' + est + '</div>' : '')
+          + '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">' + d.c + '</div>'
+          + '</div></a>';
+      });
+      shown += batch.length;
+      countEl.textContent = filtered.length + ' résultat' + (filtered.length > 1 ? 's' : '');
+      more.style.display = shown < filtered.length ? 'block' : 'none';
+    }
+    window.loadMoreUnsold = function() { render(filtered, true); };
+
+    function applyFilters() {
+      var q = document.getElementById('unsoldSearch').value.toLowerCase();
+      var cat = document.getElementById('unsoldCat').value;
+      var sort = document.getElementById('unsoldSort').value;
+      filtered = DATA.filter(function(d) {
+        if (cat && d.c !== cat) return false;
+        if (q && d.t.toLowerCase().indexOf(q) === -1) return false;
+        return true;
+      });
+      if (sort === 'price-desc') filtered.sort(function(a,b) { return (b.eh||0) - (a.eh||0); });
+      else if (sort === 'price-asc') filtered.sort(function(a,b) { return (a.eh||0) - (b.eh||0); });
+      else filtered.sort(function(a,b) { return (b.d||'').localeCompare(a.d||''); });
+      render(filtered, false);
+    }
+
+    document.getElementById('unsoldSearch').addEventListener('input', applyFilters);
+    document.getElementById('unsoldCat').addEventListener('change', applyFilters);
+    document.getElementById('unsoldSort').addEventListener('change', applyFilters);
+    applyFilters();
+  })();
+  </script>
 </body>
 </html>`;
 }
@@ -1482,19 +1582,19 @@ function generateHomePage(dateStr) {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🔨</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayCount)}</div><div class="stat-label">objets vendus</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(dayCount)}">${formatPrice(dayCount)}</div><div class="stat-label">objets vendus</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💰</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayPrice)} €</div><div class="stat-label">total adjugé</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(dayPrice)}">${formatPrice(dayPrice)} €</div><div class="stat-label">total adjugé</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:rgba(251,191,36,0.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📊</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayAvg)} €</div><div class="stat-label">prix moyen</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(dayAvg)}">${formatPrice(dayAvg)} €</div><div class="stat-label">prix moyen</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🏆</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(dayMax)} €</div><div class="stat-label">record du jour</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(dayMax)}">${formatPrice(dayMax)} €</div><div class="stat-label">record du jour</div></div>
       </div></div>
     </div>
 
@@ -1502,19 +1602,19 @@ function generateHomePage(dateStr) {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent-glow),rgba(139,92,246,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🌐</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalItems)}</div><div class="stat-label">lots au total</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(totalItems)}">${formatPrice(totalItems)}</div><div class="stat-label">lots au total</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--green-bg),rgba(16,185,129,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💎</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(totalPrice)} €</div><div class="stat-label">total cumulé</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(totalPrice)}">${formatPrice(totalPrice)} €</div><div class="stat-label">total cumulé</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚖️</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(globalAvg)} €</div><div class="stat-label">prix moyen global</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(globalAvg)}">${formatPrice(globalAvg)} €</div><div class="stat-label">prix moyen global</div></div>
       </div></div>
       <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--red-bg),rgba(239,68,68,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👑</div>
-        <div><div class="stat-number" style="font-size:1.8rem;">${formatPrice(globalMax)} €</div><div class="stat-label">record absolu</div></div>
+        <div><div class="stat-number" style="font-size:${statFontSize(globalMax)}">${formatPrice(globalMax)} €</div><div class="stat-label">record absolu</div></div>
       </div></div>
     </div>
 
@@ -2019,7 +2119,7 @@ async function ftpUpload() {
     try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
 
     // Always re-upload these pages (they change every run): index, categories, top-ventes, invendus, sitemap, ads.txt, robots
-    const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json"]);
+    const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html"]);
 
     const files = allFiles.filter(f => {
       const basename = path.basename(f.local);
@@ -2047,26 +2147,42 @@ async function ftpUpload() {
     }
     if (dirs.size > 0) console.log(`  📁 ${dirs.size} dossiers vérifiés`);
 
-    // Upload files one by one
+    // Upload files — prioritize index pages first, then lot pages
+    const priorityFiles = files.filter(f => !f.remote.includes("/lot/") && !f.remote.includes("/invendu/"));
+    const lotFiles = files.filter(f => f.remote.includes("/lot/") || f.remote.includes("/invendu/"));
+    const sortedFiles = [...priorityFiles, ...lotFiles];
+
     const start = Date.now();
     let uploadCount = 0;
     let errorCount = 0;
-    for (const f of files) {
+
+    // Save tracker every 200 files so progress isn't lost on timeout
+    const saveTracker = () => { try { fs.writeFileSync(uploadedTracker, JSON.stringify(alreadyUploaded), "utf-8"); } catch {} };
+
+    for (const f of sortedFiles) {
       try {
         await client.uploadFrom(f.local, f.remote);
         uploadCount++;
         alreadyUploaded[f.remote] = Date.now();
-        if (uploadCount % 100 === 0) console.log(`    ${uploadCount}/${files.length} uploadés...`);
+        if (uploadCount % 200 === 0) {
+          console.log(`    ${uploadCount}/${sortedFiles.length} uploadés...`);
+          saveTracker();
+        }
       } catch (err) {
         errorCount++;
         if (errorCount <= 5) console.warn(`  ⚠ Upload ${f.remote}: ${err.message}`);
+        // If too many errors, likely connection lost — save progress and stop
+        if (errorCount > 20) {
+          console.warn(`  ⛔ Trop d'erreurs FTP (${errorCount}), arrêt — reprise au prochain run`);
+          break;
+        }
       }
     }
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.log(`  📤 FTP terminé: ${uploadCount}/${files.length} fichiers en ${elapsed}s${errorCount ? ` (${errorCount} erreurs)` : ""}`);
+    console.log(`  📤 FTP terminé: ${uploadCount}/${sortedFiles.length} fichiers en ${elapsed}s${errorCount ? ` (${errorCount} erreurs)` : ""}`);
 
     // Save upload tracker
-    try { fs.writeFileSync(uploadedTracker, JSON.stringify(alreadyUploaded), "utf-8"); } catch {}
+    saveTracker();
   } catch (err) {
     console.warn(`  ⚠ FTP erreur: ${err.message}`);
   } finally {
