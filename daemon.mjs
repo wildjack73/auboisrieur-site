@@ -309,7 +309,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23a78bfa'/%3E%3Cstop offset='100%25' stop-color='%237c5cfc'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2334d399'/%3E%3Cstop offset='100%25' stop-color='%232dd4bf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='14' y='6' width='28' height='12' rx='4' transform='rotate(-40 28 12)' fill='url(%23g)'/%3E%3Crect x='24' y='16' width='5' height='24' rx='2.5' transform='rotate(-40 26.5 28)' fill='%237c5cfc'/%3E%3Crect x='10' y='49' width='44' height='7' rx='3.5' fill='url(%23g2)'/%3E%3Crect x='16' y='44' width='32' height='7' rx='2' fill='url(%23g2)' opacity='0.6'/%3E%3C/svg%3E">
   <title>${title.includes("Adjugé") ? esc(title) : esc(title) + " — " + esc(config.siteName)}</title>
   <meta name="description" content="${esc(description)}">
   <meta name="robots" content="index, follow">
@@ -376,7 +376,9 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     /* Hamburger button */
     .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; padding: 0.6rem 0.8rem; cursor: pointer; line-height: 1; }
     .nav-links { display: none; }
-    .cat-desc-toggle { display: none; }
+    .cat-desc { max-height: 5.5em; overflow: hidden; position: relative; transition: max-height 0.3s ease; }
+    .cat-desc.expanded { max-height: none; }
+    .cat-desc-toggle { display: block; text-align: center; color: var(--accent); font-size: 0.85rem; padding: 0.5rem; cursor: pointer; }
 
     @media (max-width: 800px) {
       .grid-2 { grid-template-columns: 1fr; }
@@ -406,9 +408,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       .hero-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
       .stat-box { padding: 0.8rem 0.3rem; }
       h1 { font-size: 1.15rem !important; }
-      .cat-desc { max-height: 120px; overflow: hidden; position: relative; }
-      .cat-desc.expanded { max-height: none; }
-      .cat-desc-toggle { display: block; text-align: center; color: var(--accent); font-size: 0.85rem; padding: 0.5rem; cursor: pointer; }
+      .cat-desc { max-height: 4.5em; }
     }
 
     /* Cards */
@@ -416,7 +416,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .card:hover { border-color: var(--border2); }
     .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
     .card-header h2, .card-header h3 { color: var(--text); font-weight: 700; }
-    .card-body { padding: 1.5rem; overflow: hidden; word-break: break-word; overflow-wrap: break-word; }
+    .card-body { padding: 1.5rem; overflow: hidden; word-break: break-word; overflow-wrap: break-word; max-width: 100%; box-sizing: border-box; }
 
     /* Images */
     .gallery { display: flex; flex-wrap: wrap; gap: 8px; padding: 1.5rem; background: var(--bg); justify-content: center; max-width: 100%; box-sizing: border-box; }
@@ -556,7 +556,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
 function navHtml() {
   return `<nav class="topnav">
-  <a href="/index.html" class="brand"><span class="brand-text">Adjugé !</span></a>
+  <a href="/index.html" class="brand"><svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><defs><linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient></defs><rect x="14" y="6" width="28" height="12" rx="4" transform="rotate(-40 28 12)" fill="url(#ng)"/><rect x="24" y="16" width="5" height="24" rx="2.5" transform="rotate(-40 26.5 28)" fill="#7c5cfc"/><rect x="10" y="49" width="44" height="7" rx="3.5" fill="#34d399"/><rect x="16" y="44" width="32" height="7" rx="2" fill="#34d399" opacity="0.6"/></svg><span class="brand-text">Adjugé !</span></a>
   <a href="/index.html" class="desk-link">Accueil</a>
   <a href="/categories.html" class="desk-link">Catégories</a>
   <a href="/top-ventes.html" class="desk-link">🏆 Top</a>
@@ -958,9 +958,9 @@ function generateLotPage(item, sale) {
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
             </div>
+            ${adSlot("inArticle", "margin:0.8rem 0;")}
           </div>
           ${carouselHtml}
-          ${adSlot("betweenLots", "padding:0.8rem 1.5rem;")}
           <div class="card-body">
             ${amazonButton(shortTitle)}
 
@@ -987,7 +987,7 @@ function generateLotPage(item, sale) {
               const isLong = descText.length > 800;
               const visibleParas = isLong ? paragraphs.slice(0, 3) : paragraphs;
               const hiddenParas = isLong ? paragraphs.slice(3) : [];
-              return `<div style="color:var(--text);font-size:0.92rem;line-height:1.8;margin-bottom:1rem;overflow-wrap:break-word;">
+              return `<div style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:1rem;overflow-wrap:break-word;max-width:100%;">
                 ${visibleParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
                 ${hiddenParas.length > 0 ? `<div id="descMore" style="display:none;">
                   ${hiddenParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
@@ -1102,8 +1102,9 @@ function generateCategoryPage(slug, data) {
               Au ${todayStr()}, la catégorie <strong>${esc(catName)}</strong> compte <strong>${formatPrice(data.items.length)}</strong> lots vendus pour <strong>${formatPrice(totalPrice)} €</strong>. Le record est de <strong>${formatPrice(maxPrice)} €</strong>${recordLotTitle ? ` pour ${esc(recordLotTitle)}` : ""}.
             </p>
 
-            <!-- Category description visible (TASK 5) -->
-            ${catDesc ? `<p style="color:var(--text2);margin-bottom:1rem;font-size:0.9rem;line-height:1.7;">${esc(catDesc)}</p>` : ""}
+            <!-- Category description with "Voir plus" toggle -->
+            ${catDesc ? `<div class="cat-desc" id="catDesc" style="color:var(--text2);margin-bottom:0.5rem;font-size:0.9rem;line-height:1.7;">${esc(catDesc)}</div>
+            <div class="cat-desc-toggle" id="catDescToggle" onclick="var d=document.getElementById('catDesc');d.classList.toggle('expanded');this.textContent=d.classList.contains('expanded')?'▲ Voir moins':'▼ Voir plus';">▼ Voir plus</div>` : ""}
 
             <!-- Dynamic stats paragraph (TASK 5) -->
             <p style="color:var(--text2);font-size:0.88rem;line-height:1.6;margin-bottom:1rem;">
@@ -1163,7 +1164,7 @@ function generateCategoryPage(slug, data) {
           <div class="card-body">
             ${catFaqQuestions.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;" open>
               <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q)}</summary>
-              <p style="color:var(--text2);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a)}</p>
+              <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a)}</p>
             </details>`).join("\n            ")}
           </div>
         </div>
@@ -1480,7 +1481,7 @@ function generateUnsoldPage(item, sale) {
           <div class="card-body">
             <div style="display:inline-block;background:var(--red-bg);color:var(--red);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:700;margin-bottom:0.8rem;">Invendu</div>
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;line-height:1.4;overflow-wrap:break-word;">${esc(lotTitle)}</h1>
-            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:0.8rem;">${esc(lotDesc)}</p>` : ""}
+            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;overflow-wrap:break-word;max-width:100%;">${esc(lotDesc)}</p>` : ""}
             ${est.min != null ? `<div style="margin:0.8rem 0;">
               <span style="font-size:1.3rem;font-weight:700;color:var(--text);">Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €</span>
             </div>` : ""}
@@ -1507,6 +1508,9 @@ function generateUnsoldPage(item, sale) {
               </a>` : ""}
               ${orgEmail ? `<a href="mailto:${esc(orgEmail)}?subject=${encodeURIComponent("Demande concernant : " + lotTitle)}" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;color:var(--accent2);font-weight:700;font-size:0.95rem;text-decoration:none;">
                 <span style="font-size:1.2rem;">✉️</span> ${esc(orgEmail)}
+              </a>` : ""}
+              ${item.organization?.id ? `<a href="https://www.interencheres.com/maisons-de-vente/${item.organization.id}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;color:var(--accent2);font-weight:700;font-size:0.95rem;text-decoration:none;">
+                <span style="font-size:1.2rem;">🏛️</span> Voir sur Interenchères
               </a>` : ""}
               <a href="https://www.google.com/search?q=${encodeURIComponent(org + " " + city + " enchères contact")}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-weight:600;font-size:0.92rem;text-decoration:none;">
                 <span style="font-size:1.2rem;">🔍</span> Rechercher les coordonnées de ${esc(org)}
@@ -1807,7 +1811,7 @@ function generateHomePage(dateStr) {
   <script>
   (function(){
     const BATCH = 24;
-    const AD_EVERY = 24; // insert ad every 24 lots
+    const AD_EVERY = 12; // insert ad every 12 lots
     const allLots = ${JSON.stringify(allItems)};
     const grid = document.getElementById('lotGrid');
     const adContainer = document.getElementById('adContainer');
