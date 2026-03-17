@@ -1487,29 +1487,95 @@ function generateSalePage(saleId, data) {
 
 function generateCategoriesIndex() {
   const cats = [...registry.categories.entries()].sort((a, b) => b[1].items.length - a[1].items.length);
-  return `${htmlHead("Toutes les catégories", "Liste des catégories de ventes aux enchères")}
+
+  // Group categories into thematic families
+  const FAMILIES = {
+    "🚗 Véhicules & Transport": ["véhicule", "voiture", "auto", "moto", "utilitaire", "camping", "bateau", "nautique", "sport automobile", "collection automobile", "agricole"],
+    "💎 Bijoux & Horlogerie": ["bijou", "montre", "pendule", "horloge", "horlog", "orfèvrerie", "argenterie"],
+    "🎨 Art & Antiquités": ["tableau", "peinture", "sculpt", "estampe", "gravure", "dessin", "lithographie", "art moderne", "art contemporain", "art ancien", "art d'asie", "art d'afrique", "art premier", "archéologie"],
+    "🏠 Mobilier & Décoration": ["mobilier", "meuble", "hauteur d'appui", "décoration", "luminaire", "tapis", "tapisserie", "vente mobilière"],
+    "📚 Livres & Collections": ["livre", "manuscrit", "bande dessinée", "bd", "jouet", "train", "poupée", "automate", "philatélie", "timbre", "numismatique", "monnaie", "carte postale", "collection"],
+    "🍷 Vins & Gastronomie": ["vin", "spiritueux", "alcool", "champagne"],
+    "👗 Mode & Luxe": ["mode", "vintage", "maroquinerie", "couture", "luxe"],
+    "🏺 Céramiques & Objets d'art": ["céramique", "faïence", "porcelaine", "verre", "cristal", "objet d'art"],
+    "📸 Photographie & Instruments": ["photo", "instrument", "musique", "scientifique", "optique", "marine"],
+    "🏢 Matériel & Stocks": ["marchandise", "stock", "matériel", "bureau", "informatique", "fonds de commerce", "secteur"],
+    "🏡 Immobilier & Autres": ["immobilier", "terrain", "appartement", "maison"]
+  };
+
+  // Classify each category
+  const grouped = new Map();
+  const OTHER_KEY = "📦 Autres catégories";
+  for (const [key] of Object.entries(FAMILIES)) grouped.set(key, []);
+  grouped.set(OTHER_KEY, []);
+
+  for (const [slug, c] of cats) {
+    const catName = (c._aiName || c.name).toLowerCase();
+    let found = false;
+    for (const [family, keywords] of Object.entries(FAMILIES)) {
+      if (keywords.some(kw => catName.includes(kw))) {
+        grouped.get(family).push([slug, c]);
+        found = true;
+        break;
+      }
+    }
+    if (!found) grouped.get(OTHER_KEY).push([slug, c]);
+  }
+
+  // Remove empty groups
+  for (const [key, val] of grouped) {
+    if (val.length === 0) grouped.delete(key);
+  }
+
+  // Total stats
+  const totalLots = cats.reduce((s, [, c]) => s + c.items.length, 0);
+  const totalPrice = cats.reduce((s, [, c]) => s + c.items.reduce((ss, i) => ss + (i.pricing?.auctioned?.price || 0), 0), 0);
+
+  function catCard(slug, c) {
+    const catName = c._aiName || c.name;
+    const catDesc = c._aiDesc || "";
+    const totalCatPrice = c.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
+    const avgPrice = c.items.length ? Math.round(totalCatPrice / c.items.length) : 0;
+    const top = c.items.sort((a, b) => (b.pricing?.auctioned?.price || 0) - (a.pricing?.auctioned?.price || 0))[0];
+    const thumb = top?.medias?.[0] ? imgUrl(top.medias[0], "md") : "";
+    return `<a href="/categorie/${slug}.html" class="lot-card" style="position:relative;">
+      ${thumb ? `<img src="${esc(thumb)}" alt="${esc(catName)}" loading="lazy">` : `<div class="no-img" style="height:140px;display:flex;align-items:center;justify-content:center;font-size:2rem;">📁</div>`}
+      <div class="lot-info">
+        <div class="lot-title" style="font-weight:700;font-size:0.88rem;">${esc(catName)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+          <span style="color:var(--green);font-weight:700;font-size:0.82rem;">${c.items.length} lots</span>
+          ${avgPrice > 0 ? `<span style="color:var(--text3);font-size:0.75rem;">moy. ${formatPrice(avgPrice)} €</span>` : ""}
+        </div>
+        ${catDesc ? `<div style="font-size:0.72rem;color:var(--text3);margin-top:3px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(catDesc)}</div>` : ""}
+      </div>
+    </a>`;
+  }
+
+  return `${htmlHead("Catégories d'enchères en France — Tous les résultats | Adjugé !", `${cats.length} catégories de ventes aux enchères en France. ${formatPrice(totalLots)} lots vendus pour ${formatPrice(totalPrice)} €. Consultez prix, photos et résultats.`)}
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Catégories</div>
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
-    <h1 style="font-size:1.5rem;margin-bottom:1.5rem;">${cats.length} catégories</h1>
-    <div class="lot-grid">
-      ${cats.map(([slug, c]) => {
-        const catName = c._aiName || c.name;
-        const catDesc = c._aiDesc || "";
-        const top = c.items[0];
-        const thumb = top?.medias?.[0] ? imgUrl(top.medias[0], "md") : "";
-        return `<a href="/categorie/${slug}.html" class="lot-card">
-          ${thumb ? `<img src="${esc(thumb)}" alt="${esc(catName)}" loading="lazy">` : `<div class="no-img">📁</div>`}
-          <div class="lot-info">
-            <div class="lot-title" style="font-weight:600;">${esc(catName)}</div>
-            ${catDesc ? `<div style="font-size:0.75rem;color:var(--text3);margin:2px 0;line-height:1.3;">${esc(catDesc.substring(0, 100))}</div>` : ""}
-            <div class="lot-cat">${c.items.length} lots</div>
-          </div>
-        </a>`;
-      }).join("\n      ")}
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-body">
+        <h1 style="font-size:1.5rem;margin-bottom:0.5rem;">${cats.length} catégories d'enchères</h1>
+        <p style="color:var(--text2);font-size:0.92rem;line-height:1.6;">
+          Explorez <strong>${formatPrice(totalLots)} lots</strong> vendus aux enchères en France, répartis en ${cats.length} catégories
+          pour un total de <strong>${formatPrice(totalPrice)} €</strong>.
+          Cliquez sur une catégorie pour voir les résultats, prix moyens et records.
+        </p>
+      </div>
     </div>
+
+    ${[...grouped.entries()].map(([family, items]) => `
+      <div style="margin-bottom:2rem;">
+        <h2 style="font-size:1.2rem;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:2px solid var(--border);">${family} <span style="font-size:0.85rem;font-weight:400;color:var(--text3);">(${items.reduce((s, [, c]) => s + c.items.length, 0)} lots)</span></h2>
+        <div class="lot-grid">
+          ${items.map(([slug, c]) => catCard(slug, c)).join("\n          ")}
+        </div>
+      </div>
+    `).join("")}
   </div>
   ${footerHtml()}
 </body>
