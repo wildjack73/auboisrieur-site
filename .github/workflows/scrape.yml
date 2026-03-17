@@ -26,7 +26,7 @@ concurrency:
 jobs:
   scrape-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -69,6 +69,7 @@ jobs:
           SKIP_FTP: "true"
           AI_BUDGET: "50"
           SKIP_AI: "true"
+          SKIP_FORCE_REGEN: "true"
         run: |
           MODE="${{ github.event.inputs.mode || 'scrape' }}"
           DATE_ARG=""

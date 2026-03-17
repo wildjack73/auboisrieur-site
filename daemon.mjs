@@ -3108,10 +3108,12 @@ function rebuildAllPages(dateStr) {
 
   // Template version — increment when lot page template changes to force regeneration
   const TEMPLATE_VERSION = "v5";
+  // HACK: skip force-regen in CI to avoid 26K files upload timeout
+  const skipForceRegen = process.env.SKIP_FORCE_REGEN === "true";
   const versionFile = path.join(DATA_DIR, "template-version.txt");
   let lastVersion = "";
   try { lastVersion = fs.readFileSync(versionFile, "utf-8").trim(); } catch {}
-  const forceRegen = lastVersion !== TEMPLATE_VERSION;
+  const forceRegen = !skipForceRegen && lastVersion !== TEMPLATE_VERSION;
   if (forceRegen) console.log(`  🔄 Template ${lastVersion || "?"} → ${TEMPLATE_VERSION} — regénération de toutes les pages lot`);
   fs.writeFileSync(versionFile, TEMPLATE_VERSION, "utf-8");
 
