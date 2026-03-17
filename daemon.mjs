@@ -1031,7 +1031,7 @@ function generateLotPage(item, sale) {
             <table class="meta-table">
               ${catSlug ? `<tr><td>Catégorie</td><td><a href="/categorie/${catSlug}.html">${esc(catName)}</a></td></tr>` : ""}
               <tr><td>Date</td><td>${saleDate}</td></tr>
-              ${org ? `<tr><td>Maison de vente</td><td>${esc(org)}${city ? ` — ${esc(city)}` : ""}</td></tr>` : ""}
+              ${org ? `<tr><td>Maison de vente</td><td><a href="/maison/${orgSlug}.html">${esc(org)}</a>${city ? ` — <a href="/ville/${slugify(city)}.html">${esc(city)}</a>` : ""}</td></tr>` : ""}
               ${saleName ? `<tr><td>Vente</td><td>${esc(saleName)}</td></tr>` : ""}
             </table>
 
@@ -1046,7 +1046,31 @@ function generateLotPage(item, sale) {
           <div class="card-body">
             <p style="color:var(--text);line-height:1.7;font-size:0.92rem;">${esc(item._aiPriceAnalysis)}</p>
           </div>
-        </div>` : ""}
+        </div>` : (() => {
+          // Auto-generated price context for lots not yet AI-enriched
+          const avgCat = catSlug && registry.categories.has(catSlug) ? (() => {
+            const cat = registry.categories.get(catSlug);
+            const total = cat.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
+            return cat.items.length ? Math.round(total / cat.items.length) : 0;
+          })() : 0;
+          const priceVal = auc.price || 0;
+          const diff = avgCat > 0 && priceVal > 0 ? Math.round((priceVal / avgCat - 1) * 100) : 0;
+          const diffText = diff > 20 ? `Ce lot a été adjugé <strong>${diff}% au-dessus</strong> du prix moyen de la catégorie.` :
+                           diff < -20 ? `Ce lot a été adjugé <strong>${Math.abs(diff)}% en dessous</strong> du prix moyen de la catégorie — une bonne affaire.` :
+                           avgCat > 0 ? `Ce lot a été adjugé à un prix proche de la moyenne de la catégorie.` : "";
+          return priceVal > 0 && avgCat > 0 ? `<div class="card">
+            <div class="card-header"><h3 style="font-size:1rem;">💰 Contexte de prix</h3></div>
+            <div class="card-body">
+              <p style="color:var(--text);line-height:1.7;font-size:0.92rem;">
+                Ce lot de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> a été adjugé <strong>${formatPrice(priceVal)} €</strong>
+                ${saleDate ? ` le ${saleDate}` : ""}${org ? ` chez <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.
+                ${est.min != null ? `L'estimation était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €. ` : ""}
+                Le prix moyen dans cette catégorie est de <strong>${formatPrice(avgCat)} €</strong>.
+                ${diffText}
+              </p>
+            </div>
+          </div>` : "";
+        })()}
 
         ${item._aiFaq?.length ? `<div class="card">
           <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
@@ -1056,7 +1080,32 @@ function generateLotPage(item, sale) {
               <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a || "")}</p>
             </details>`).join("")}
           </div>
-        </div>` : ""}
+        </div>` : (() => {
+          // Auto-generated FAQ for lots not yet AI-enriched
+          const priceVal = auc.price || 0;
+          const faqs = [];
+          if (priceVal > 0 && catName) faqs.push({
+            q: `Combien a été vendu ce lot de ${catName.toLowerCase()} ?`,
+            a: `Ce lot a été adjugé ${formatPrice(priceVal)} € aux enchères${org ? ` chez ${org}` : ""}${city ? ` à ${city}` : ""}${saleDate ? ` le ${saleDate}` : ""}.${est.min != null ? ` L'estimation initiale était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}`
+          });
+          if (catName) faqs.push({
+            q: `Où trouver des ${catName.toLowerCase()} aux enchères en France ?`,
+            a: `Adjugé ! référence des milliers de lots de ${catName.toLowerCase()} vendus aux enchères en France. Consultez la page catégorie pour voir tous les résultats, prix moyens et records.`
+          });
+          if (org && city) faqs.push({
+            q: `Comment contacter ${org} à ${city} ?`,
+            a: `${org} est une maison de vente aux enchères située à ${city}. Retrouvez ses coordonnées et ses prochaines ventes sur sa page dédiée sur Adjugé !`
+          });
+          return faqs.length > 0 ? `<div class="card">
+            <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
+            <div class="card-body">
+              ${faqs.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;" open>
+                <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q)}</summary>
+                <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a)}</p>
+              </details>`).join("")}
+            </div>
+          </div>` : "";
+        })()}
 
         ${adSlot("betweenLots")}
 
@@ -1582,7 +1631,11 @@ function generateUnsoldPage(item, sale) {
           <div class="card-body">
             <div style="display:inline-block;background:var(--red-bg);color:var(--red);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:700;margin-bottom:0.8rem;">Invendu</div>
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;line-height:1.4;overflow-wrap:break-word;">${esc(lotTitle)}</h1>
-            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;overflow-wrap:break-word;max-width:100%;">${esc(lotDesc)}</p>` : ""}
+            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;overflow-wrap:break-word;max-width:100%;">${esc(lotDesc)}</p>` : `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;">
+              Ce lot de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${saleDate}` : ""}${org ? ` organisée par ${esc(org)}` : ""}${city ? ` à ${esc(city)}` : ""}.
+              ${est.min != null ? `Son estimation était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}
+              Il est peut-être encore disponible — contactez directement la maison de vente pour négocier un prix.
+            </p>`}
             ${est.min != null ? `<div style="margin:0.8rem 0;">
               <span style="font-size:1.3rem;font-weight:700;color:var(--text);">Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €</span>
             </div>` : ""}
@@ -1590,10 +1643,43 @@ function generateUnsoldPage(item, sale) {
             <table class="meta-table">
               ${catSlug ? `<tr><td>Catégorie</td><td><a href="/categorie/${catSlug}.html">${esc(catName)}</a></td></tr>` : ""}
               <tr><td>Date</td><td>${saleDate}</td></tr>
-              ${org ? `<tr><td>Maison</td><td>${esc(org)}${city ? ` · ${esc(city)}` : ""}</td></tr>` : ""}
+              ${org ? `<tr><td>Maison</td><td><a href="/maison/${orgSlug}.html">${esc(org)}</a>${city ? ` · <a href="/ville/${slugify(city)}.html">${esc(city)}</a>` : ""}</td></tr>` : ""}
             </table>
           </div>
         </div>
+
+        ${item._aiFaq?.length ? `<div class="card">
+          <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
+          <div class="card-body">
+            ${item._aiFaq.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;" open>
+              <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q || "")}</summary>
+              <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a || "")}</p>
+            </details>`).join("")}
+          </div>
+        </div>` : (() => {
+          const faqs = [];
+          if (catName) faqs.push({
+            q: `Peut-on encore acheter ce lot de ${catName.toLowerCase()} ?`,
+            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères. Il est possible qu'il soit encore disponible. Contactez directement ${org || "la maison de vente"}${city ? ` à ${city}` : ""} pour connaître sa disponibilité et négocier un prix.`
+          });
+          if (est.min != null) faqs.push({
+            q: `Quelle était l'estimation de ce lot ?`,
+            a: `L'estimation de ce lot était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €. N'ayant pas trouvé preneur, il est envisageable de l'acquérir à un prix inférieur à l'estimation basse en contactant la maison de vente.`
+          });
+          if (org && city) faqs.push({
+            q: `Comment contacter ${org} ?`,
+            a: `${org} est une maison de vente aux enchères située à ${city}. Vous pouvez les contacter via les coordonnées ci-dessous pour vous renseigner sur la disponibilité de ce lot.`
+          });
+          return faqs.length > 0 ? `<div class="card">
+            <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
+            <div class="card-body">
+              ${faqs.map(({ q, a }) => `<details style="margin-bottom:0.8rem;border-bottom:1px solid var(--border);padding-bottom:0.8rem;" open>
+                <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:0.92rem;padding:0.3rem 0;">${esc(q)}</summary>
+                <p style="color:var(--text);margin-top:0.5rem;font-size:0.88rem;line-height:1.6;">${esc(a)}</p>
+              </details>`).join("")}
+            </div>
+          </div>` : "";
+        })()}
 
         <div class="card" style="border-color:var(--accent);border-width:2px;">
           <div class="card-header"><h3 style="font-size:1.1rem;">📞 Contacter la maison de vente</h3></div>
@@ -1609,9 +1695,6 @@ function generateUnsoldPage(item, sale) {
               </a>` : ""}
               ${orgEmail ? `<a href="mailto:${esc(orgEmail)}?subject=${encodeURIComponent("Demande concernant : " + lotTitle)}" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;color:var(--accent2);font-weight:700;font-size:0.95rem;text-decoration:none;">
                 <span style="font-size:1.2rem;">✉️</span> ${esc(orgEmail)}
-              </a>` : ""}
-              ${item.organization?.id ? `<a href="https://www.interencheres.com/maisons-de-vente/${item.organization.id}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;color:var(--accent2);font-weight:700;font-size:0.95rem;text-decoration:none;">
-                <span style="font-size:1.2rem;">🏛️</span> Voir sur Interenchères
               </a>` : ""}
               <a href="https://www.google.com/search?q=${encodeURIComponent(org + " " + city + " enchères contact")}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-weight:600;font-size:0.92rem;text-decoration:none;">
                 <span style="font-size:1.2rem;">🔍</span> Rechercher les coordonnées de ${esc(org)}
@@ -2850,7 +2933,7 @@ function rebuildAllPages(dateStr) {
   let skipped = 0;
 
   // Template version — increment when lot page template changes to force regeneration
-  const TEMPLATE_VERSION = "v4";
+  const TEMPLATE_VERSION = "v5";
   const versionFile = path.join(DATA_DIR, "template-version.txt");
   let lastVersion = "";
   try { lastVersion = fs.readFileSync(versionFile, "utf-8").trim(); } catch {}
@@ -3505,7 +3588,8 @@ async function aiEnrichLots(maxPerRun = 0) {
   }
 
   const cache = loadAiCache();
-  const items = [...registry.items.values()];
+  // Merge sold + unsold items for enrichment
+  const items = [...registry.items.values(), ...registry.unsold.values()];
 
   // Apply existing cache first (so pages already enriched keep their AI content)
   for (const { item } of items) {
