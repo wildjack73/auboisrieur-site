@@ -4030,8 +4030,10 @@ async function runOnce(dateStr) {
     console.log(`  📄 ${pageCount} pages générées`);
     await ftpUpload();
 
-    // 2) AI enrichment AFTER first deploy — no limit, enrich everything
-    await aiEnrichLots(0);
+    // 2) AI enrichment AFTER first deploy — limit to fit in 2h job timeout
+    //    ~100 lots per 13 min → 500 lots = ~65 min, leaves time for lftp
+    const AI_BUDGET = process.env.AI_BUDGET ? parseInt(process.env.AI_BUDGET) : 500;
+    await aiEnrichLots(AI_BUDGET);
 
     // 3) Rebuild only the AI-enriched pages + index pages, then re-upload
     const enrichedCount = rebuildAllPages(dateStr);
@@ -4079,8 +4081,9 @@ async function runRebuild(dateStr) {
     process.exit(1);
   }
 
-  // Apply AI enrichment from cache (no new API calls if already enriched)
-  await aiEnrichLots();
+  // Apply AI enrichment from cache — limited to fit in job timeout
+  const AI_BUDGET = process.env.AI_BUDGET ? parseInt(process.env.AI_BUDGET) : 500;
+  await aiEnrichLots(AI_BUDGET);
 
   // Rebuild all pages with new design
   const pageCount = rebuildAllPages(dateStr);
