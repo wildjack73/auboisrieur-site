@@ -188,10 +188,54 @@ const registry = {
 
 // ─── Smart re-categorization rules ──────────────────────────────────────────
 const RECAT_RULES = [
-  { pattern: /\b(moto|scooter|cyclo|quad|trottinette|harley.davidson|yamaha.*moto|honda.*moto|kawasaki|suzuki.*moto|ducati|triumph|bmw.*moto|ktm|aprilia|vespa)\b/i, category: "Motos, cyclos, quads, véhicules sans permis" },
+  // Véhicules
+  { pattern: /\b(moto|scooter|cyclo|quad|trottinette|harley.davidson|yamaha.*moto|honda.*moto|kawasaki|suzuki.*moto|ducati|triumph|bmw.*moto|ktm|aprilia|vespa)\b/i, category: "Motos - Scooters - Quads" },
   { pattern: /\b(vélo|bicyclette|vtt|vtc|e-bike|ebike|bike)\b/i, category: "Vélos" },
-  { pattern: /\b(bateau|voilier|catamaran|jet.ski|zodiac|semi-rigide|hors.bord)\b/i, category: "Bateaux, nautisme" },
-  { pattern: /\b(tracteur|moissonneuse|engin.*chantier|pelleteuse|chargeuse|manitou|fendt|john.deere|case.*ih)\b/i, category: "Matériel agricole" },
+  { pattern: /\b(bateau|voilier|catamaran|jet.ski|zodiac|semi-rigide|hors.bord)\b/i, category: "Bateaux - Nautisme" },
+  { pattern: /\b(tracteur|moissonneuse|engin.*chantier|pelleteuse|chargeuse|manitou|fendt|john.deere|case.*ih|chariot.*élévateur|nacelle)\b/i, category: "Matériel agricole - Espaces verts" },
+  // Bijoux & Horlogerie
+  { pattern: /\b(bague|collier|bracelet.*or|pendentif|broche|solitaire|diamant|rubis|saphir|émeraude|perle|chaîne.*or|parure|bijou)\b/i, category: "Bijoux - Montres" },
+  { pattern: /\b(rolex|omega|cartier.*montre|patek|breitling|tag.*heuer|jaeger|longines|montre.*gousset|montre.*poche|montre.*homme|montre.*femme|chronograph)\b/i, category: "Bijoux - Montres" },
+  { pattern: /\b(pendule|horloge|comtoise|cartel|régulateur|garniture.*cheminée)\b/i, category: "Pendules - Horloges - Montres" },
+  // Art
+  { pattern: /\b(huile.*toile|huile.*panneau|huile.*carton|aquarelle|gouache|pastel|sanguine|tableau.*sign|peinture.*sign)\b/i, category: "Tableaux - Peintures" },
+  { pattern: /\b(lithographie|estampe|gravure|eau-forte|sérigraphie|xylographie)\b/i, category: "Estampes - Dessins - Gravures" },
+  { pattern: /\b(sculpture|bronze|marbre.*sculpt|buste|statue|terre.*cuite.*sculpt|sujet.*bronze)\b/i, category: "Sculptures" },
+  // Mobilier
+  { pattern: /\b(commode|armoire|buffet|secrétaire|bureau.*ancien|console|guéridon|table.*louis|fauteuil.*louis|bergère|canapé.*ancien|lit.*baldaquin|bonheur.*jour)\b/i, category: "Mobilier" },
+  { pattern: /\b(lustre|lampe.*art.*déco|applique.*bronze|bougeoir|chandelier|lampadaire.*ancien|girandole)\b/i, category: "Luminaires" },
+  { pattern: /\b(tapis.*persan|tapis.*orient|kilim|tapisserie.*aubusson|tapisserie.*verdure)\b/i, category: "Tapis - Textiles" },
+  // Céramiques & Verre
+  { pattern: /\b(vase.*sèvres|porcelaine.*chine|faïence|majolique|grès.*ancien|poterie.*ancien|barbotine|biscuit|compagnie.*indes)\b/i, category: "Céramiques - Faïence - Porcelaine" },
+  { pattern: /\b(cristal|lalique|daum|gallé|baccarat|murano|pâte.*verre|verre.*émaillé)\b/i, category: "Verrerie - Cristallerie" },
+  // Argenterie
+  { pattern: /\b(argenterie|argent.*massif|ménagère.*argent|couverts.*argent|orfèvrerie|christofle|puiforcat)\b/i, category: "Argenterie - Orfèvrerie" },
+  // Livres & Collections
+  { pattern: /\b(livre.*ancien|manuscrit|incunable|édition.*originale|reliure|atlas.*ancien|carte.*ancienne|bible.*ancien)\b/i, category: "Livres - Manuscrits" },
+  { pattern: /\b(bande.*dessinée|bd.*originale|planche.*originale|tintin|astérix|lucky.*luke)\b/i, category: "Bandes dessinées" },
+  { pattern: /\b(jouet.*ancien|dinky|solido|train.*miniature|poupée.*ancien|ours.*peluche|automate|jeu.*société.*ancien|playmobil|lego)\b/i, category: "Jouets - Figurines" },
+  { pattern: /\b(pièce.*or|pièce.*argent|napoléon.*or|louis.*or|médaille|numismatique|monnaie.*ancienne)\b/i, category: "Numismatique - Monnaies" },
+  { pattern: /\b(timbre|philatélie|carnet.*timbre|lettre.*ancienne)\b/i, category: "Philatélie - Timbres" },
+  // Mode & Luxe
+  { pattern: /\b(hermès|chanel|louis.*vuitton|birkin|kelly.*hermès|gucci|dior|prada|yves.*saint.*laurent|balenciaga|givenchy|valentino|celine)\b/i, category: "Mode - Luxe" },
+  { pattern: /\b(sac.*main|sac.*cuir|manteau.*fourrure|vison|étole|foulard.*soie|cravate.*soie)\b/i, category: "Mode - Luxe" },
+  // Vins
+  { pattern: /\b(bordeaux|bourgogne|champagne|romanée|pétrus|mouton.*rothschild|lafite|margaux|haut-brion|cheval.*blanc|whisky|cognac|armagnac|rhum.*ancien)\b/i, category: "Vins - Spiritueux" },
+  // High-tech
+  { pattern: /\b(iphone|ipad|macbook|samsung.*galaxy|playstation|xbox|nintendo|aspirateur.*robot|drone|gopro|sony.*alpha|nikon|canon.*eos)\b/i, category: "High-tech - Multimédia" },
+  { pattern: /\b(télévision|tv.*oled|tv.*qled|enceinte.*bluetooth|casque.*audio|ordinateur|écran)\b/i, category: "High-tech - Multimédia" },
+  // Électroménager
+  { pattern: /\b(lave.*linge|lave.*vaisselle|réfrigérateur|congélateur|four|micro-onde|cafetière|robot.*cuisine|thermomix|dyson|kitchenaid)\b/i, category: "Électroménager" },
+  // Sports & Loisirs
+  { pattern: /\b(golf|tennis|ski|plongée|fitness|musculation|vélo.*appartement|tapis.*course|raquette)\b/i, category: "Sports - Loisirs" },
+  // Art asiatique
+  { pattern: /\b(chine.*ancien|japon.*ancien|netsuke|jade|céladon|tang|ming|qing|bouddha|gandhara|ivoire.*chine|laque.*japon|estampe.*japon|ukiyo)\b/i, category: "Art d'Asie" },
+  // Instruments de musique
+  { pattern: /\b(piano|violon|guitare|saxophone|trompette|accordéon|violoncelle|flûte|clarinette|harpe|orgue)\b/i, category: "Instruments de musique" },
+  // Armes & Militaria
+  { pattern: /\b(fusil|pistolet|carabine|revolver|sabre|épée|baïonnette|casque.*militaire|médaille.*militaire|décorations.*militaire|uniforme.*militaire)\b/i, category: "Armes - Militaria" },
+  // Photographie
+  { pattern: /\b(photographie.*ancienne|daguerréotype|tirage.*argentique|photo.*vintage|leica|rolleiflex)\b/i, category: "Photographie" },
 ];
 
 function smartCategory(item) {
@@ -2985,7 +3029,30 @@ function generatePolitiqueConfidentialite() {
 </body></html>`;
 }
 
+function rebuildCategories() {
+  // Rebuild categories from current item.category.name (which may have been updated by AI or rules)
+  registry.categories.clear();
+  for (const [, { item }] of registry.items) {
+    const catName = item.category?.name;
+    if (!catName) continue;
+    const catSlug = slugify(catName);
+    if (!registry.categories.has(catSlug)) {
+      registry.categories.set(catSlug, {
+        name: catName,
+        id: item.category.id,
+        description: item.category.description || "",
+        items: [],
+      });
+    }
+    registry.categories.get(catSlug).items.push(item);
+  }
+  console.log(`  📂 ${registry.categories.size} catégories reconstruites`);
+}
+
 function rebuildAllPages(dateStr) {
+  // Rebuild categories before generating pages (AI may have changed categories)
+  rebuildCategories();
+
   // Ensure directories
   ensureDir(path.join(SITE_DIR, "lot"));
   ensureDir(path.join(SITE_DIR, "categorie"));
