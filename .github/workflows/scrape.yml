@@ -56,7 +56,7 @@ jobs:
           tar -xzf data-cache.tar.gz -C site/data
           echo "📦 Bootstrapped $(ls site/data/*.json 2>/dev/null | wc -l) cached lot files"
 
-      - name: Run scraper (no FTP)
+      - name: Scrape + build pages (NO AI)
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           GA_ID: ${{ secrets.GA_ID }}
@@ -67,6 +67,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
           SKIP_FTP: "true"
+          AI_BUDGET: "0"
         run: |
           MODE="${{ github.event.inputs.mode || 'scrape' }}"
           DATE_ARG=""
@@ -78,7 +79,7 @@ jobs:
             echo "🔄 Mode rebuild — regénération depuis le cache"
             node daemon.mjs --rebuild $DATE_ARG
           else
-            echo "🔍 Mode scrape — scraping + génération"
+            echo "🔍 Mode scrape — scraping + génération (sans AI)"
             node daemon.mjs --once $DATE_ARG
           fi
 
@@ -95,7 +96,6 @@ jobs:
           FILE_COUNT=$(find site -not -path "site/data/*" -type f | wc -l)
           echo "📤 $FILE_COUNT fichiers à synchroniser vers $REMOTE"
 
-          # lftp mirror: upload only new/modified files, 10 parallel connections
           lftp -c "
             set ftp:ssl-allow no;
             set net:timeout 30;
@@ -108,3 +108,41 @@ jobs:
             quit;
           "
           echo "✅ Déploiement terminé"
+
+      - name: AI enrichment + redeploy (bonus)
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          GA_ID: ${{ secrets.GA_ID }}
+          AD_SLOT_HEADER: ${{ secrets.AD_SLOT_HEADER }}
+          AD_SLOT_SIDEBAR: ${{ secrets.AD_SLOT_SIDEBAR }}
+          AD_SLOT_INARTICLE: ${{ secrets.AD_SLOT_INARTICLE }}
+          AD_SLOT_BETWEENLOTS: ${{ secrets.AD_SLOT_BETWEENLOTS }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+          SKIP_FTP: "true"
+          AI_BUDGET: "300"
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_REMOTE_PATH: ${{ secrets.FTP_REMOTE_PATH }}
+        run: |
+          DATE_ARG=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            DATE_ARG="--date ${{ github.event.inputs.date }}"
+          fi
+
+          echo "🤖 AI enrichissement (budget: 300 lots) + rebuild"
+          node daemon.mjs --rebuild $DATE_ARG
+
+          REMOTE="${FTP_REMOTE_PATH:-/public_html}"
+          echo "📤 Redéploiement avec pages enrichies..."
+          lftp -c "
+            set ftp:ssl-allow no;
+            set net:timeout 30;
+            set net:max-retries 5;
+            set mirror:parallel-transfer-count 10;
+            open -u $FTP_USER,$FTP_PASSWORD $FTP_HOST;
+            mirror --reverse --only-newer --parallel=10 --exclude data/ --verbose=1 site/ $REMOTE/;
+            quit;
+          "
+          echo "✅ Enrichissement + redéploiement terminé"
