@@ -4030,16 +4030,19 @@ async function runOnce(dateStr) {
     console.log(`  📄 ${pageCount} pages générées`);
     await ftpUpload();
 
-    // 2) AI enrichment AFTER first deploy — limit to fit in 2h job timeout
-    //    ~100 lots per 13 min → 500 lots = ~65 min, leaves time for lftp
-    const AI_BUDGET = process.env.AI_BUDGET ? parseInt(process.env.AI_BUDGET) : 500;
-    await aiEnrichLots(AI_BUDGET);
+    // 2) AI enrichment AFTER first deploy
+    if (process.env.SKIP_AI === "true") {
+      console.log("  ⏭️  AI skip (SKIP_AI=true)");
+    } else {
+      const AI_BUDGET = process.env.AI_BUDGET ? parseInt(process.env.AI_BUDGET) : 50;
+      await aiEnrichLots(AI_BUDGET);
 
-    // 3) Rebuild only the AI-enriched pages + index pages, then re-upload
-    const enrichedCount = rebuildAllPages(dateStr);
-    if (enrichedCount > 0) {
-      console.log(`  🔄 ${enrichedCount} pages mises à jour avec IA`);
-      await ftpUpload();
+      // 3) Rebuild only the AI-enriched pages + index pages, then re-upload
+      const enrichedCount = rebuildAllPages(dateStr);
+      if (enrichedCount > 0) {
+        console.log(`  🔄 ${enrichedCount} pages mises à jour avec IA`);
+        await ftpUpload();
+      }
     }
   } else {
     console.log("  Aucun lot — rien à générer.");

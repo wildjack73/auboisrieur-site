@@ -26,7 +26,7 @@ concurrency:
 jobs:
   scrape-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -68,6 +68,7 @@ jobs:
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
           SKIP_FTP: "true"
           AI_BUDGET: "50"
+          SKIP_AI: "true"
         run: |
           MODE="${{ github.event.inputs.mode || 'scrape' }}"
           DATE_ARG=""
