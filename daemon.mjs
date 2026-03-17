@@ -771,7 +771,7 @@ function lotCard(item) {
   const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
   const title = item._aiTitle || fallback;
   const price = item.pricing?.auctioned?.price || 0;
-  const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+  const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
   const catName = item.category?.name || "";
   const catSlug = catName ? slugify(catName) : "";
   return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
@@ -1327,7 +1327,7 @@ function generateCategoryPage(slug, data) {
       const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
       const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
       const price = item.pricing?.auctioned?.price || 0;
-      const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+      const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
       const cat = item.category?.name || "";
       const estC = item.pricing?.estimates || {};
       const elC = estC.low || estC.min || 0;
@@ -1409,7 +1409,7 @@ function generateMaisonPage(slug, data) {
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
     const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
     const price = item.pricing?.auctioned?.price || 0;
-    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "";
     const _est = item.pricing?.estimates || {};
     const el = _est.low || _est.min || 0;
@@ -1604,7 +1604,7 @@ function generateCategoriesIndex() {
     const totalCatPrice = c.items.reduce((s, i) => s + (i.pricing?.auctioned?.price || 0), 0);
     const avgPrice = c.items.length ? Math.round(totalCatPrice / c.items.length) : 0;
     const top = c.items.sort((a, b) => (b.pricing?.auctioned?.price || 0) - (a.pricing?.auctioned?.price || 0))[0];
-    const thumb = top?.medias?.[0] ? imgUrl(top.medias[0], "md") : "";
+    const thumb = top?.medias?.[0] ? imgUrl(top.medias[0], "lg") : "";
     return `<a href="/categorie/${slug}.html" class="lot-card" style="position:relative;">
       ${thumb ? `<img src="${esc(thumb)}" alt="${esc(catName)}" loading="lazy">` : `<div class="no-img" style="height:140px;display:flex;align-items:center;justify-content:center;font-size:2rem;">📁</div>`}
       <div class="lot-info">
@@ -1689,7 +1689,7 @@ function generateTopVentesPage() {
           const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
           const desc = item._aiDesc || (lns.length > 1 ? lns.slice(1).join(" ").substring(0, 100) : "");
           const price = item.pricing?.auctioned?.price || 0;
-          const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+          const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
           const catName = item.category?.name || "";
           const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
           return `<a href="/lot/${lotSlug(item)}.html" class="card" style="margin-bottom:1rem;text-decoration:none;color:var(--text);display:flex;flex-direction:row;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;${i < 3 ? 'border-color:var(--accent);' : ''}" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
@@ -1852,7 +1852,7 @@ function unsoldLotCard(item) {
   const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
   const title = item._aiTitle || fallback;
   const est = item.pricing?.estimates || {};
-  const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+  const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
   const catName = item.category?.name || "";
   return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
     ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" loading="lazy">` : `<div class="no-img">📦</div>`}
@@ -1882,7 +1882,7 @@ function generateInvendusIndex() {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
     const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
-    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "Autre";
     const estLow = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
     const estHigh = item.pricing?.estimates?.max || 0;
@@ -2039,7 +2039,7 @@ function generateHomePage(dateStr) {
       const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
       const title = item._aiTitle || fallback;
       const price = item.pricing?.auctioned?.price || 0;
-      const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+      const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
       const cat = item.category?.name || "";
       const est = item.pricing?.estimates || {};
       const sp = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
@@ -2459,7 +2459,7 @@ function generateVillePage(slug, data) {
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
     const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
     const price = item.pricing?.auctioned?.price || 0;
-    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "";
     const _est = item.pricing?.estimates || {};
     const el = _est.low || _est.min || 0;
@@ -2700,7 +2700,7 @@ function generatePrixPage(slug, data) {
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
     const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
     const price = item.pricing?.auctioned?.price || 0;
-    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
+    const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "";
     const _est = item.pricing?.estimates || {};
     const el = _est.low || _est.min || 0;
