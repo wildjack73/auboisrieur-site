@@ -1068,7 +1068,18 @@ function generateLotPage(item, sale) {
                 </div>
                 <button onclick="document.getElementById('descMore').style.display='block';this.style.display='none';" style="background:none;border:1px solid var(--border2);color:var(--accent);padding:8px 20px;border-radius:20px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-top:0.3rem;">▼ Lire la suite</button>` : ""}
               </div>`;
-            })() : ""}
+            })() : (() => {
+              // Auto-generated description for lots without AI enrichment
+              const priceVal = auc.price || 0;
+              const descParts = [];
+              descParts.push(`Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} a été ${auc.sold ? `adjugé <strong>${formatPrice(priceVal)} €</strong>` : "présenté"} aux enchères${saleDate ? ` le ${saleDate}` : ""}${org ? ` par la maison <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.`);
+              if (est.min != null) descParts.push(`L'estimation de cet objet était comprise entre <strong>${formatPrice(est.min)} €</strong> et <strong>${formatPrice(est.max)} €</strong>.`);
+              if (saleName) descParts.push(`Il faisait partie de la vente « ${esc(saleName)} ».`);
+              if (catName) descParts.push(`Retrouvez tous les résultats de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> avec photos, prix et estimations sur Adjugé !`);
+              return `<div style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:1rem;overflow-wrap:break-word;max-width:100%;">
+                ${descParts.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
+              </div>`;
+            })()}
 
             ${adSlot("inArticle")}
 
@@ -1318,7 +1329,11 @@ function generateCategoryPage(slug, data) {
       const price = item.pricing?.auctioned?.price || 0;
       const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
       const cat = item.category?.name || "";
-      return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+      const estC = item.pricing?.estimates || {};
+      const elC = estC.low || estC.min || 0;
+      const ehC = estC.max || 0;
+      const spC = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+      return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat, el: elC, eh: ehC, sp: spC };
     }))};
     var grid = document.getElementById('catGrid');
     var loading = document.getElementById('catLoading');
@@ -1329,10 +1344,12 @@ function generateCategoryPage(slug, data) {
       setTimeout(function() {
         var batch = allLots.slice(offset, offset + BATCH);
         batch.forEach(function(d) {
+          var _ex = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : (d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '');
           grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
             + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
             + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
             + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + (_ex ? '<div style="color:var(--text3);font-size:0.72rem;">' + _ex + '</div>' : '')
             + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
         });
         offset += batch.length;
@@ -1394,7 +1411,11 @@ function generateMaisonPage(slug, data) {
     const price = item.pricing?.auctioned?.price || 0;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
     const cat = item.category?.name || "";
-    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+    const _est = item.pricing?.estimates || {};
+    const el = _est.low || _est.min || 0;
+    const eh = _est.max || 0;
+    const sp = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat, el, eh, sp };
   });
 
   return `${htmlHead(pageTitle, desc, `<script type="application/ld+json">${JSON.stringify(orgSchema)}<\/script>`, `/maison/${slug}.html`)}
@@ -1462,10 +1483,12 @@ function generateMaisonPage(slug, data) {
       setTimeout(function() {
         var batch = allLots.slice(offset, offset + BATCH);
         batch.forEach(function(d) {
+          var _ex = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : (d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '');
           grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
             + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
             + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
             + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + (_ex ? '<div style="color:var(--text3);font-size:0.72rem;">' + _ex + '</div>' : '')
             + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
         });
         offset += batch.length;
@@ -2018,7 +2041,11 @@ function generateHomePage(dateStr) {
       const price = item.pricing?.auctioned?.price || 0;
       const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
       const cat = item.category?.name || "";
-      return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+      const est = item.pricing?.estimates || {};
+      const sp = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+      const el = est.low || est.min || 0;
+      const eh = est.max || 0;
+      return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat, sp, el, eh };
     });
 
   const adsenseId = config.adsenseId || "";
@@ -2137,6 +2164,8 @@ function generateHomePage(dateStr) {
         html += '<div class="lot-info">';
         html += '<div class="lot-title">' + esc(lot.t) + '</div>';
         html += '<div class="lot-price">' + formatPrice(lot.p) + ' €</div>';
+        var extra = lot.el && lot.eh ? 'Est. ' + formatPrice(lot.el) + ' – ' + formatPrice(lot.eh) + ' €' : (lot.sp ? 'Mise à prix : ' + formatPrice(lot.sp) + ' €' : '');
+        if (extra) html += '<div style="color:var(--text3);font-size:0.72rem;margin-top:1px;">' + extra + '</div>';
         if (lot.c) html += '<div class="lot-cat">' + esc(lot.c) + '</div>';
         html += '</div></a>';
       }
@@ -2223,7 +2252,7 @@ function generateAProposPage() {
       <p><strong>Adjugé !</strong> est un agrégateur indépendant de résultats de ventes aux enchères publiques en France. Notre mission : rendre les prix adjugés accessibles à tous, collectionneurs, professionnels du marché de l'art et curieux.</p>
 
       <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Notre méthodologie</h2>
-      <p>Les données sont collectées quotidiennement depuis <a href="https://www.interencheres.com" target="_blank" rel="nofollow" style="color:var(--accent);">Interenchères</a>, la principale plateforme de ventes aux enchères en ligne en France. Chaque lot est indexé avec son prix d'adjudication, ses photos, son estimation et la maison de vente associée.</p>
+      <p>Les données sont collectées quotidiennement depuis Interenchères, la principale plateforme de ventes aux enchères en ligne en France. Chaque lot est indexé avec son prix d'adjudication, ses photos, son estimation et la maison de vente associée.</p>
       <p>Les descriptions et catégories sont enrichies par intelligence artificielle (GPT-4o) pour améliorer la recherche et la navigation.</p>
 
       <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Couverture</h2>
@@ -2432,7 +2461,11 @@ function generateVillePage(slug, data) {
     const price = item.pricing?.auctioned?.price || 0;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
     const cat = item.category?.name || "";
-    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+    const _est = item.pricing?.estimates || {};
+    const el = _est.low || _est.min || 0;
+    const eh = _est.max || 0;
+    const sp = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat, el, eh, sp };
   });
 
   return `${htmlHead(pageTitle, desc, `<script type="application/ld+json">${JSON.stringify(localSchema)}<\/script>
@@ -2530,10 +2563,12 @@ function generateVillePage(slug, data) {
       setTimeout(function() {
         var batch = allLots.slice(offset, offset + BATCH);
         batch.forEach(function(d) {
+          var _ex = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : (d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '');
           grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
             + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
             + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
             + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + (_ex ? '<div style="color:var(--text3);font-size:0.72rem;">' + _ex + '</div>' : '')
             + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
         });
         offset += batch.length;
@@ -2667,7 +2702,11 @@ function generatePrixPage(slug, data) {
     const price = item.pricing?.auctioned?.price || 0;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "md") : "";
     const cat = item.category?.name || "";
-    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat };
+    const _est = item.pricing?.estimates || {};
+    const el = _est.low || _est.min || 0;
+    const eh = _est.max || 0;
+    const sp = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+    return { s: lotSlug(item), t: title, p: price, i: thumb, c: cat, el, eh, sp };
   });
 
   return `${htmlHead(pageTitle, desc, `<script type="application/ld+json">${JSON.stringify(faqSchema)}<\/script>`, `/prix/${slug}.html`)}
@@ -2755,10 +2794,12 @@ function generatePrixPage(slug, data) {
       setTimeout(function() {
         var batch = allLots.slice(offset, offset + BATCH);
         batch.forEach(function(d) {
+          var _ex = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : (d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '');
           grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
             + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);"></div>')
             + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
             + '<div style="color:var(--green);font-weight:700;font-size:0.85rem;">' + (d.p ? d.p.toLocaleString('fr-FR') + ' €' : '') + '</div>'
+            + (_ex ? '<div style="color:var(--text3);font-size:0.72rem;">' + _ex + '</div>' : '')
             + '<div style="color:var(--text3);font-size:0.7rem;">' + d.c + '</div></div></a>';
         });
         offset += batch.length;
@@ -2942,7 +2983,7 @@ function generateMentionsLegales() {
       <p>Ce site est hébergé par <strong>Hostinger International Ltd</strong>, 61 Lordou Vironos str., 6023 Larnaca, Chypre.</p>
 
       <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Propriété intellectuelle</h2>
-      <p>Les photos et descriptions des lots proviennent des catalogues de ventes aux enchères publiés par les maisons de vente sur <a href="https://www.interencheres.com" target="_blank" rel="nofollow" style="color:var(--accent);">Interenchères</a>. Ces contenus restent la propriété de leurs auteurs respectifs.</p>
+      <p>Les photos et descriptions des lots proviennent des catalogues de ventes aux enchères publiés par les maisons de vente. Ces contenus restent la propriété de leurs auteurs respectifs.</p>
       <p>Les textes enrichis par intelligence artificielle (titres, descriptions, FAQ) sont générés automatiquement à titre informatif et ne constituent en aucun cas une expertise officielle.</p>
 
       <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Liens d'affiliation</h2>
