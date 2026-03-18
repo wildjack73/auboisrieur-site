@@ -2891,7 +2891,7 @@ function generateLlmsTxt() {
 
 ## Description
 Adjugé ! est un site indépendant qui recense les résultats de ventes aux enchères publiques en France.
-Source des données : Interenchères (interencheres.com).
+Source des données : ventes aux enchères publiques françaises.
 Mise à jour : quotidienne.
 Contact : contact@auboisrieur.fr
 
@@ -2987,7 +2987,7 @@ ${topCities.map(([, c]) => `${c.name} (${c.items.length} lots)`).join(", ")}
 ${topBrands.map(([, d]) => `${d.name} (${d.items.length} lots)`).join(", ")}
 
 ## Source
-Données collectées quotidiennement depuis Interenchères (interencheres.com).
+Données collectées quotidiennement depuis les ventes aux enchères publiques françaises.
 Descriptions enrichies par intelligence artificielle.
 Dernière mise à jour : ${todayStr()}.
 `;
@@ -3014,7 +3014,7 @@ function generateStatsJson(dateStr) {
 
   return JSON.stringify({
     date: dateStr,
-    source: "Interenchères (interencheres.com)",
+    source: "Ventes aux enchères publiques françaises",
     total_lots: totalItems,
     total_adjuge_eur: totalPrice,
     prix_moyen_eur: avgPrice,
