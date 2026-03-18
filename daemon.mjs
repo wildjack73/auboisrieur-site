@@ -799,14 +799,50 @@ function similarLots(item) {
 
 // ─── Page generators ────────────────────────────────────────────────────────
 
-function generateLotPage(item, sale) {
-  const rawDesc = item.description || item.title_translations?.["fr-FR"] || "Objet de collection";
+// Clean raw description: remove expo/viewing info, license plates used as titles, etc.
+function cleanRawDesc(raw) {
+  return raw.split("\n").map(l => l.trim()).filter(l => {
+    if (!l) return false;
+    // Remove exhibition/viewing lines
+    if (/^expo(sition)?\s+(le|du|les|:)/i.test(l)) return false;
+    if (/^visite\s+(le|du|les|:)/i.test(l)) return false;
+    if (/^retrait\s+(le|du|les|:)/i.test(l)) return false;
+    if (/^\d{1,2}h\d{0,2}\s*(à|au)\s*\d{1,2}h/i.test(l)) return false;
+    // Remove lines that are just addresses
+    if (/^\d+\s+(rue|av\.|avenue|boulevard|bd|impasse|chemin|allée|place)\s/i.test(l)) return false;
+    // Remove "A partir de X€" lines
+    if (/^à partir de\s+\d/i.test(l)) return false;
+    return true;
+  }).join("\n");
+}
+
+// Extract a meaningful title from raw description (skip license plates, lot numbers, etc.)
+function extractTitle(rawDesc) {
   const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
-  // If first line is short (<60 chars) and there are more lines → it's a title
-  const hasShortTitle = lines.length > 1 && lines[0].length < 60;
-  const fallbackTitle = hasShortTitle ? lines[0] : lines[0]?.substring(0, 70) || "Objet de collection";
-  // If only one long line, use the full text as description (don't leave it empty)
-  const fallbackDesc = hasShortTitle ? lines.slice(1).join(" ") : (lines.length > 1 ? lines.slice(1).join(" ") : (lines[0]?.length > 70 ? lines[0] : ""));
+  // Skip lines that are just license plates (XX-123-YY or XX 123 YY)
+  const isLicensePlate = (s) => /^[A-Z]{2}[\s-]?\d{3}[\s-]?[A-Z]{2}$/i.test(s.trim());
+  const isLotNumber = (s) => /^(lot\s*n?°?\s*\d|n°?\s*\d)/i.test(s.trim());
+  const isJustNumber = (s) => /^\d+$/.test(s.trim());
+
+  // Find the first meaningful line
+  for (const line of lines) {
+    if (isLicensePlate(line) || isLotNumber(line) || isJustNumber(line)) continue;
+    if (line.length < 3) continue;
+    return line.length > 70 ? line.substring(0, 70) : line;
+  }
+  // If all lines are plates/numbers, try joining first two meaningful words
+  return lines[0]?.substring(0, 70) || "Objet de collection";
+}
+
+function generateLotPage(item, sale) {
+  const rawDescOriginal = item.description || item.title_translations?.["fr-FR"] || "Objet de collection";
+  const rawDesc = cleanRawDesc(rawDescOriginal);
+  const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
+  const fallbackTitle = extractTitle(rawDesc);
+  // Use remaining lines as fallback description
+  const titleLine = fallbackTitle;
+  const descLines = lines.filter(l => l !== titleLine);
+  const fallbackDesc = descLines.join(" ").trim();
   // Use AI-enriched title/desc if available
   const lotTitle = item._aiTitle || fallbackTitle;
   const lotDesc = item._aiDesc || fallbackDesc;
@@ -3754,13 +3790,18 @@ async function callGpt(messages, retries = 2) {
 
 const AI_SYSTEM_PROMPT = `Tu es un expert en objets d'art, antiquités et enchères. On te donne la description brute d'un lot vendu aux enchères en France avec son prix d'adjudication.
 
+RÈGLES IMPORTANTES :
+- IDENTIFIE le vrai objet dans la description. La première ligne peut être un numéro d'immatriculation, un code, un numéro de lot — ignore-les. Trouve le NOM RÉEL du produit (marque, modèle, type d'objet).
+- IGNORE les infos logistiques : dates d'expo, adresses de retrait, conditions de vente, frais.
+- La catégorie Interenchères peut être vague ("Secteurs d'activités spécifiques - Divers") — recatégorise correctement.
+
 Tu dois retourner un JSON avec exactement 6 champs :
-- "title": un titre accrocheur, clair et SEO-friendly (max 70 caractères). Pas de numéro de lot, pas de "Lot N°", pas de "A partir de". Juste l'objet.
-- "desc": une description enrichie de 2-3 phrases (max 300 caractères) qui décrit l'objet, son intérêt, son époque, sa rareté. Ton expert qui donne envie. Pas de mention de la maison de vente.
-- "category": la VRAIE catégorie de l'objet basée sur sa description (pas celle de la vente). Choisis parmi : Bijoux - Montres, Tableaux - Peintures, Mobilier, Céramiques - Porcelaine, Art asiatique, Livres - Manuscrits, Véhicules, Vins - Spiritueux, Mode - Luxe, Jouets - Figurines, Instruments de musique, Art contemporain, Sculptures, Argenterie - Orfèvrerie, Numismatique, Photographie, Luminaires, Tapis - Textiles, Objets de vitrine, Matériel professionnel, Électroménager, High-tech - Multimédia, Sports - Loisirs, Jardin - Extérieur, Autre
-- "price_analysis": une analyse du prix en 2-3 phrases (max 250 caractères). Compare avec les prix habituels du marché pour ce type d'objet. Ex: "Adjugé à 500€, ce meuble Napoléon III se situe dans la fourchette basse. Les pièces similaires en bon état atteignent 1 500 à 3 000€."
-- "faq": un array de 3 objets {q, a} — questions GEO (Generative Engine Optimization) conçues pour être reprises par les moteurs IA (ChatGPT, Perplexity, Google AI Overview). Les questions DOIVENT contenir le NOM COMPLET ET EXACT de l'objet + un mot-clé prix/valeur/côte. Format : "Combien coûte [objet exact] aux enchères ?", "Quelle est la valeur d'un [objet exact] ?", "Quel est le prix moyen d'un [objet exact] ?". Les réponses doivent être factuelles : citer le prix adjugé, comparer avec le marché, donner une fourchette (max 200 car chacune).
-- "tags": un array de 3-5 mots-clés pertinents pour cet objet (ex: ["Napoléon III", "meuble ancien", "marqueterie", "XIXe siècle"])
+- "title": le NOM RÉEL de l'objet, accrocheur, clair et SEO-friendly (max 70 car). Ex: si la desc parle d'une "CITROEN AMI" avec immatriculation, le titre doit être "Citroën AMI — Véhicule électrique compact". Pas de numéro de lot, pas de plaque d'immat, pas de "A partir de".
+- "desc": une description enrichie de 2-3 phrases (max 300 car) qui décrit l'objet, son intérêt, ses caractéristiques. Ton expert qui donne envie. Pas de mention de la maison de vente ni d'infos expo/retrait.
+- "category": la VRAIE catégorie basée sur l'objet réel. Choisis parmi : Bijoux - Montres, Tableaux - Peintures, Mobilier, Céramiques - Porcelaine, Art asiatique, Livres - Manuscrits, Véhicules, Vins - Spiritueux, Mode - Luxe, Jouets - Figurines, Instruments de musique, Art contemporain, Sculptures, Argenterie - Orfèvrerie, Numismatique, Photographie, Luminaires, Tapis - Textiles, Objets de vitrine, Matériel professionnel, Électroménager, High-tech - Multimédia, Sports - Loisirs, Jardin - Extérieur, Autre
+- "price_analysis": analyse du prix en 2-3 phrases (max 250 car). Compare avec le marché.
+- "faq": array de 3 objets {q, a} — questions contenant le NOM RÉEL DE L'OBJET (pas la catégorie Interenchères !). Format : "Combien coûte un/une [objet réel] aux enchères ?", "Quelle est la valeur d'un/une [objet réel] ?", etc. Réponses factuelles avec prix (max 200 car chacune).
+- "tags": array de 3-5 mots-clés pertinents (marque, époque, matériau, style...)
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
@@ -3815,11 +3856,12 @@ async function aiEnrichLots(maxPerRun = 0) {
   let errors = 0;
 
   async function processItem({ item }) {
-    const rawDesc = item.description || item.title_translations?.["fr-FR"] || "";
+    const rawDescOrig = item.description || item.title_translations?.["fr-FR"] || "";
+    const rawDesc = cleanRawDesc(rawDescOrig);
     const catName = item.category?.name || "";
     const price = item.pricing?.auctioned?.price || 0;
 
-    const userMsg = `Catégorie: ${catName}\nPrix adjugé: ${price}€\nDescription brute:\n${rawDesc.substring(0, 500)}`;
+    const userMsg = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€\nDescription brute:\n${rawDesc.substring(0, 500)}`;
 
     try {
       const response = await callGpt([
