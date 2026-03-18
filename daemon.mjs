@@ -95,6 +95,16 @@ function esc(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+// Only write file if content changed — preserves timestamp for lftp --only-newer
+function writeIfChanged(filePath, content) {
+  try {
+    const existing = fs.readFileSync(filePath, "utf-8");
+    if (existing === content) return false; // unchanged
+  } catch {} // file doesn't exist yet
+  fs.writeFileSync(filePath, content, "utf-8");
+  return true; // written
+}
+
 function slugify(s) {
   return String(s || "")
     .toLowerCase()
@@ -3267,7 +3277,7 @@ async function rebuildAllPages(dateStr) {
     // Skip if: no force regen, file exists, and AI status hasn't changed
     if (!forceRegen && fs.existsSync(filePath) && (hasAi === wasBuiltWithAi)) { skipped++; continue; }
 
-    fs.writeFileSync(filePath, generateLotPage(item, sale), "utf-8");
+    writeIfChanged(filePath, generateLotPage(item, sale));
     if (hasAi) alreadyBuiltWithAi[itemId] = true;
     pageCount++;
 
@@ -3282,13 +3292,15 @@ async function rebuildAllPages(dateStr) {
   // Save AI build tracker
   fs.writeFileSync(aiTracker, JSON.stringify(alreadyBuiltWithAi), "utf-8");
 
-  // Category pages — always regenerate (content changes with new lots)
+  // Category pages — only write if content changed (preserves timestamps for lftp)
+  let catChanged = 0;
   for (const [slug, data] of registry.categories) {
-    fs.writeFileSync(path.join(SITE_DIR, "categorie", `${slug}.html`), generateCategoryPage(slug, data), "utf-8");
+    if (writeIfChanged(path.join(SITE_DIR, "categorie", `${slug}.html`), generateCategoryPage(slug, data))) catChanged++;
     pageCount++;
   }
+  console.log(`  📂 ${registry.categories.size} catégories (${catChanged} modifiées)`);
 
-  // Index pages — always regenerate
+  // Index pages — always write (content changes with new lots)
   fs.writeFileSync(path.join(SITE_DIR, "categories.html"), generateCategoriesIndex(), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "index.html"), generateHomePage(dateStr), "utf-8");
   fs.writeFileSync(path.join(SITE_DIR, "top-ventes.html"), generateTopVentesPage(), "utf-8");
@@ -3303,7 +3315,7 @@ async function rebuildAllPages(dateStr) {
     dayMap.get(d).push({ item, sale });
   }
   for (const [day] of dayMap) {
-    fs.writeFileSync(path.join(SITE_DIR, "jour", `${day}.html`), generateHomePage(day), "utf-8");
+    writeIfChanged(path.join(SITE_DIR, "jour", `${day}.html`), generateHomePage(day));
     pageCount++;
   }
   if (!dayMap.has(dateStr)) {
@@ -3316,7 +3328,7 @@ async function rebuildAllPages(dateStr) {
     const slug = lotSlug(item);
     const filePath = path.join(SITE_DIR, "lot", `${slug}.html`);
     if (!forceRegen && fs.existsSync(filePath)) { skipped++; continue; }
-    fs.writeFileSync(filePath, generateUnsoldPage(item, sale), "utf-8");
+    writeIfChanged(filePath, generateUnsoldPage(item, sale));
     pageCount++;
   }
 
@@ -3361,7 +3373,7 @@ async function rebuildAllPages(dateStr) {
   // Maison pages — always regenerate
   for (const [slug, data] of registry.maisons) {
     if (data.items.length >= 3) {
-      fs.writeFileSync(path.join(SITE_DIR, "maison", `${slug}.html`), generateMaisonPage(slug, data), "utf-8");
+      writeIfChanged(path.join(SITE_DIR, "maison", `${slug}.html`), generateMaisonPage(slug, data));
       pageCount++;
     }
   }
@@ -3373,7 +3385,7 @@ async function rebuildAllPages(dateStr) {
   let cityPageCount = 0;
   for (const [slug, data] of cityRegistry) {
     if (data.items.length >= 3) {
-      fs.writeFileSync(path.join(SITE_DIR, "ville", `${slug}.html`), generateVillePage(slug, data), "utf-8");
+      writeIfChanged(path.join(SITE_DIR, "ville", `${slug}.html`), generateVillePage(slug, data));
       cityPageCount++;
     }
   }
@@ -3386,7 +3398,7 @@ async function rebuildAllPages(dateStr) {
   let kwPageCount = 0;
   for (const [slug, data] of kwRegistry) {
     if (data.items.length >= 3) {
-      fs.writeFileSync(path.join(SITE_DIR, "prix", `${slug}.html`), generatePrixPage(slug, data), "utf-8");
+      writeIfChanged(path.join(SITE_DIR, "prix", `${slug}.html`), generatePrixPage(slug, data));
       kwPageCount++;
     }
   }
