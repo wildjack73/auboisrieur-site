@@ -771,17 +771,24 @@ function lotCard(item, sale) {
   const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
   const title = item._aiTitle || fallback;
   const price = item.pricing?.auctioned?.price || 0;
+  const sold = price > 0;
+  const est = item.pricing?.estimates || {};
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
   const catName = item.category?.name || "";
   const catSlug = catName ? slugify(catName) : "";
   const saleDate = sale?.datetime ? sale.datetime.substring(0, 10) : "";
   const dateDisplay = saleDate ? saleDate.split("-").reverse().join("/") : "";
+  const estStr = est.min != null ? `Est. ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
+  const priceLabel = sold ? `${formatPrice(price)} €` : (estStr || "Prix non communiqué");
+  const statusLabel = sold ? "Adjugé" : "Invendu";
+  const statusColor = sold ? "var(--accent)" : "#e67e22";
   return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
     ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" loading="lazy">` : `<div class="no-img">📦</div>`}
     <div class="lot-info">
       <div class="lot-title">${esc(title)}</div>
-      <div class="lot-price">${formatPrice(price)} €</div>
-      ${dateDisplay ? `<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">📅 Vendu le ${dateDisplay}</div>` : ""}
+      <div style="font-weight:700;color:${statusColor};font-size:0.95rem;">${priceLabel}</div>
+      <div style="font-size:0.75rem;color:${statusColor};">${statusLabel}</div>
+      ${dateDisplay ? `<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">Présenté en vente le ${dateDisplay}</div>` : ""}
       ${catSlug ? `<div class="lot-cat">${esc(catName)}</div>` : ""}
     </div>
   </a>`;
@@ -1894,7 +1901,7 @@ function generateUnsoldPage(item, sale) {
 </html>`;
 }
 
-function unsoldLotCard(item) {
+function unsoldLotCard(item, sale) {
   const rawD = item.description || item.title_translations?.["fr-FR"] || "";
   const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
   const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
@@ -1902,12 +1909,15 @@ function unsoldLotCard(item) {
   const est = item.pricing?.estimates || {};
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
   const catName = item.category?.name || "";
+  const saleDate = sale?.datetime ? sale.datetime.substring(0, 10) : "";
+  const dateDisplay = saleDate ? saleDate.split("-").reverse().join("/") : "";
   return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
     ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" loading="lazy">` : `<div class="no-img">📦</div>`}
     <div class="lot-info">
       <div class="lot-title">${esc(title)}</div>
-      <div style="font-weight:700;color:var(--red);margin-top:0.3rem;font-size:0.88rem;">Invendu</div>
-      ${est.min != null ? `<div style="font-size:0.78rem;color:var(--text2);margin-top:0.2rem;">Est. ${formatPrice(est.min)} – ${formatPrice(est.max)} €</div>` : ""}
+      ${est.min != null ? `<div style="font-weight:700;color:#e67e22;font-size:0.88rem;">Est. ${formatPrice(est.min)} – ${formatPrice(est.max)} €</div>` : ""}
+      <div style="font-size:0.75rem;color:var(--red);font-weight:600;">Invendu</div>
+      ${dateDisplay ? `<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">Présenté en vente le ${dateDisplay}</div>` : ""}
       ${catName ? `<div class="lot-cat">${esc(catName)}</div>` : ""}
     </div>
   </a>`;
