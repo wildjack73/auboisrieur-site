@@ -1672,7 +1672,7 @@ function generateCategoriesIndex() {
     </a>`;
   }
 
-  return `${htmlHead("Catégories d'enchères en France — Tous les résultats | Adjugé !", `${cats.length} catégories de ventes aux enchères en France. ${formatPrice(totalLots)} lots vendus pour ${formatPrice(totalPrice)} €. Consultez prix, photos et résultats.`)}
+  return `${htmlHead("Catégories d'enchères en France — Tous les résultats | Adjugé !", `${cats.length} catégories de ventes aux enchères en France. ${formatPrice(totalLots)} lots vendus pour ${formatPrice(totalPrice)} €. Consultez prix, photos et résultats.`, "", "/categories.html")}
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Catégories</div>
@@ -1705,7 +1705,7 @@ function generateCategoriesIndex() {
 
 function generateMaisonsIndex() {
   const maisons = [...registry.maisons.entries()].sort((a, b) => b[1].items.length - a[1].items.length);
-  return `${htmlHead("Maisons de vente", "Liste des maisons de vente aux enchères")}
+  return `${htmlHead("Maisons de vente", "Liste des maisons de vente aux enchères", "", "/maisons.html")}
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Maisons de vente</div>
@@ -3315,6 +3315,29 @@ async function rebuildAllPages(dateStr) {
   fs.writeFileSync(path.join(SITE_DIR, "politique-confidentialite.html"), generatePolitiqueConfidentialite(), "utf-8");
   pageCount += 2;
 
+  // Page 404 custom — SEO friendly
+  const topCats = [...registry.categories.entries()]
+    .sort((a, b) => b[1].items.length - a[1].items.length)
+    .slice(0, 8);
+  fs.writeFileSync(path.join(SITE_DIR, "404.html"), `${htmlHead("Page introuvable — Adjugé !", "Cette page n'existe pas ou a été déplacée. Retrouvez nos enchères sur Adjugé !", '<meta name="robots" content="noindex">', "/404.html")}
+<body>
+  ${navHtml()}
+  <div class="container" style="text-align:center;padding:3rem 1rem;">
+    <div style="font-size:4rem;margin-bottom:1rem;">🔨</div>
+    <h1 style="font-size:1.8rem;margin-bottom:0.5rem;">Page introuvable</h1>
+    <p style="color:var(--text2);margin-bottom:2rem;max-width:500px;margin-left:auto;margin-right:auto;">Cette page n'existe pas ou a été déplacée. Pas de panique, retrouvez nos milliers d'objets vendus aux enchères !</p>
+    <div style="display:flex;flex-wrap:wrap;gap:0.8rem;justify-content:center;margin-bottom:2rem;">
+      <a href="/index.html" style="background:var(--accent);color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;">🏠 Accueil</a>
+      <a href="/categories.html" style="background:var(--surface3);color:var(--text);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--border2);">📂 Catégories</a>
+      <a href="/invendus.html" style="background:var(--surface3);color:var(--text);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--border2);">📦 Invendus</a>
+      <a href="/top-ventes.html" style="background:var(--surface3);color:var(--text);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--border2);">🏆 Top Ventes</a>
+    </div>
+    ${topCats.length > 0 ? `<div style="margin-top:1rem;"><h3 style="font-size:1rem;margin-bottom:0.8rem;">Catégories populaires</h3><div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;">${topCats.map(([slug, data]) => `<a href="/categorie/${slug}.html" style="background:var(--surface2);padding:6px 14px;border-radius:20px;font-size:0.82rem;text-decoration:none;color:var(--text);border:1px solid var(--border2);">${esc(data.name)} (${data.items.length})</a>`).join("")}</div></div>` : ""}
+  </div>
+  ${footerHtml()}
+</body></html>`, "utf-8");
+  pageCount++;
+
   // À propos page (TASK 10)
   fs.writeFileSync(path.join(SITE_DIR, "a-propos.html"), generateAProposPage(), "utf-8");
   pageCount++;
@@ -3537,6 +3560,9 @@ AddType application/json .json
   # Block WordPress wp-login, wp-admin, xmlrpc
   RewriteRule ^wp-login\\.php$ - [R=404,L]
   RewriteRule ^xmlrpc\\.php$ - [R=404,L]
+
+  # Fallback: custom 404 page
+  ErrorDocument 404 /404.html
 </IfModule>
 `, "utf-8");
 
@@ -3604,7 +3630,7 @@ async function ftpUpload() {
   let alreadyUploaded = {};
   try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
 
-  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html", "a-propos.html", "statistiques.html", "llms.txt", "llms-full.txt", "stats.json", "maisons.html", "villes.html"]);
+  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html", "a-propos.html", "statistiques.html", "llms.txt", "llms-full.txt", "stats.json", "maisons.html", "villes.html", "404.html"]);
 
   const files = allFiles.filter(f => {
     const basename = path.basename(f.local);
