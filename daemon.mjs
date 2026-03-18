@@ -1038,46 +1038,53 @@ function generateLotPage(item, sale) {
           <div class="card-body">
             ${amazonButton(shortTitle)}
 
-            ${lotDesc ? (() => {
-              // Split long descriptions into readable paragraphs
-              const descText = esc(lotDesc);
-              // Split on double newlines, or create paragraphs every ~300 chars at sentence boundaries
-              let paragraphs = descText.split(/\n\n+/).filter(p => p.trim());
-              if (paragraphs.length === 1 && descText.length > 400) {
-                // Single block of text — split at sentence boundaries (. ! ?) every ~300 chars
-                const sentences = descText.split(/(?<=[.!?])\s+/);
-                paragraphs = [];
-                let current = "";
-                for (const s of sentences) {
-                  if (current.length + s.length > 300 && current.length > 0) {
-                    paragraphs.push(current.trim());
-                    current = s;
-                  } else {
-                    current += (current ? " " : "") + s;
-                  }
-                }
-                if (current.trim()) paragraphs.push(current.trim());
-              }
-              const isLong = descText.length > 800;
-              const visibleParas = isLong ? paragraphs.slice(0, 3) : paragraphs;
-              const hiddenParas = isLong ? paragraphs.slice(3) : [];
-              return `<div style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:1rem;overflow-wrap:break-word;max-width:100%;">
-                ${visibleParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
-                ${hiddenParas.length > 0 ? `<div id="descMore" style="display:none;">
-                  ${hiddenParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
-                </div>
-                <button onclick="document.getElementById('descMore').style.display='block';this.style.display='none';" style="background:none;border:1px solid var(--border2);color:var(--accent);padding:8px 20px;border-radius:20px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-top:0.3rem;">▼ Lire la suite</button>` : ""}
-              </div>`;
-            })() : (() => {
-              // Auto-generated description for lots without AI enrichment
+            ${(() => {
+              // Auto-generated context paragraph for ALL lots (AI or not)
               const priceVal = auc.price || 0;
-              const descParts = [];
-              descParts.push(`Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} a été ${auc.sold ? `adjugé <strong>${formatPrice(priceVal)} €</strong>` : "présenté"} aux enchères${saleDate ? ` le ${saleDate}` : ""}${org ? ` par la maison <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.`);
-              if (est.min != null) descParts.push(`L'estimation de cet objet était comprise entre <strong>${formatPrice(est.min)} €</strong> et <strong>${formatPrice(est.max)} €</strong>.`);
-              if (saleName) descParts.push(`Il faisait partie de la vente « ${esc(saleName)} ».`);
-              if (catName) descParts.push(`Retrouvez tous les résultats de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> avec photos, prix et estimations sur Adjugé !`);
+              const contextParts = [];
+              contextParts.push(`Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} a été ${auc.sold ? `adjugé <strong>${formatPrice(priceVal)} €</strong>` : "présenté"} aux enchères${saleDate ? ` le ${saleDate}` : ""}${org ? ` par la maison <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.`);
+              if (est.min != null) contextParts.push(`L'estimation de cet objet était comprise entre <strong>${formatPrice(est.min)} €</strong> et <strong>${formatPrice(est.max)} €</strong>.`);
+              if (saleName) contextParts.push(`Il faisait partie de la vente « ${esc(saleName)} ».`);
+
+              // AI description (rich)
+              if (item._aiDesc) {
+                const descText = esc(item._aiDesc);
+                let paragraphs = descText.split(/\n\n+/).filter(p => p.trim());
+                if (paragraphs.length === 1 && descText.length > 400) {
+                  const sentences = descText.split(/(?<=[.!?])\s+/);
+                  paragraphs = [];
+                  let current = "";
+                  for (const s of sentences) {
+                    if (current.length + s.length > 300 && current.length > 0) {
+                      paragraphs.push(current.trim());
+                      current = s;
+                    } else {
+                      current += (current ? " " : "") + s;
+                    }
+                  }
+                  if (current.trim()) paragraphs.push(current.trim());
+                }
+                const isLong = descText.length > 800;
+                const visibleParas = isLong ? paragraphs.slice(0, 3) : paragraphs;
+                const hiddenParas = isLong ? paragraphs.slice(3) : [];
+                return `<div style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:1rem;overflow-wrap:break-word;max-width:100%;">
+                  ${visibleParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
+                  ${hiddenParas.length > 0 ? `<div id="descMore" style="display:none;">
+                    ${hiddenParas.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
+                  </div>
+                  <button onclick="document.getElementById('descMore').style.display='block';this.style.display='none';" style="background:none;border:1px solid var(--border2);color:var(--accent);padding:8px 20px;border-radius:20px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-top:0.3rem;">▼ Lire la suite</button>` : ""}
+                  ${contextParts.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
+                </div>`;
+              }
+
+              // Fallback: raw description text + context
+              const rawText = lotDesc && lotDesc.length > 20 ? `<p style="margin-bottom:0.8rem;">${esc(lotDesc)}</p>` : "";
+              if (catName) contextParts.push(`Retrouvez tous les résultats de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> avec photos, prix et estimations sur Adjugé !`);
+              // Add some helpful tips
+              contextParts.push(`💡 <strong>Vous cherchez un objet similaire ?</strong> Consultez notre sélection <a href="/categorie/${catSlug || 'all'}.html" style="color:var(--accent);">dans cette catégorie</a> ou recherchez sur <a href="https://www.amazon.fr/s?k=${encodeURIComponent(shortTitle)}&tag=clubjouetdm-21" target="_blank" rel="nofollow" style="color:var(--accent);">Amazon</a>.`);
               return `<div style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:1rem;overflow-wrap:break-word;max-width:100%;">
-                ${descParts.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
+                ${rawText}
+                ${contextParts.map(p => `<p style="margin-bottom:0.8rem;">${p}</p>`).join("")}
               </div>`;
             })()}
 
