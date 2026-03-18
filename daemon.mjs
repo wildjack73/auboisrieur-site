@@ -3227,8 +3227,8 @@ async function rebuildAllPages(dateStr) {
   let skipped = 0;
   let uploaded = 0;
 
-  // Open FTP connection for inline uploads
-  const ftp = await createInlineFtp();
+  // Inline FTP disabled — lftp in workflow handles deployment much faster in parallel
+  const ftp = null;
 
   // Template version — increment when lot page template changes to force regeneration
   const TEMPLATE_VERSION = "v5";
