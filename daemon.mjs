@@ -1202,18 +1202,23 @@ function generateLotPage(item, sale) {
         </div>` : (() => {
           // Auto-generated FAQ for lots not yet AI-enriched
           const priceVal = auc.price || 0;
+          const faqTitle = shortTitle.length > 10 ? shortTitle : (catName || "cet objet");
           const faqs = [];
-          if (priceVal > 0 && catName) faqs.push({
-            q: `Combien a été vendu ce lot de ${catName.toLowerCase()} ?`,
-            a: `Ce lot a été adjugé ${formatPrice(priceVal)} € aux enchères${org ? ` chez ${org}` : ""}${city ? ` à ${city}` : ""}${saleDate ? ` le ${saleDate}` : ""}.${est.min != null ? ` L'estimation initiale était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}`
+          if (priceVal > 0) faqs.push({
+            q: `Combien a été vendu « ${faqTitle} » aux enchères ?`,
+            a: `Ce lot a été adjugé ${formatPrice(priceVal)} € aux enchères${org ? ` chez ${org}` : ""}${city ? ` à ${city}` : ""}${saleDate ? ` le ${saleDate}` : ""}.${priceWithFees ? ` Soit environ ${formatPrice(priceWithFees)} € frais de vente inclus (estimation).` : ""}${est.min != null ? ` L'estimation initiale était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}`
           });
-          if (catName) faqs.push({
-            q: `Où trouver des ${catName.toLowerCase()} aux enchères en France ?`,
-            a: `Adjugé ! référence des milliers de lots de ${catName.toLowerCase()} vendus aux enchères en France. Consultez la page catégorie pour voir tous les résultats, prix moyens et records.`
+          else if (!auc.sold) faqs.push({
+            q: `Peut-on encore acheter « ${faqTitle} » ?`,
+            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${saleDate}` : ""}. Il est possible qu'il soit encore disponible.${org ? ` Contactez directement ${org}${city ? ` à ${city}` : ""} pour vérifier la disponibilité et négocier le prix.` : ""}`
+          });
+          if (est.min != null) faqs.push({
+            q: `Quelle était l'estimation de « ${faqTitle} » ?`,
+            a: `L'estimation de ce lot était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.${!auc.sold ? " N'ayant pas été vendu, il est possible de l'acquérir en dessous de l'estimation basse en contactant directement la maison de vente." : priceVal > est.max ? ` Le prix final (${formatPrice(priceVal)} €) a dépassé l'estimation haute, signe d'un fort intérêt des enchérisseurs.` : ""}`
           });
           if (org && city) faqs.push({
-            q: `Comment contacter ${org} à ${city} ?`,
-            a: `${org} est une maison de vente aux enchères située à ${city}. Retrouvez ses coordonnées et ses prochaines ventes sur sa page dédiée sur Adjugé !`
+            q: `Comment contacter ${org} ?`,
+            a: `${org} est une maison de vente aux enchères située à ${city}.${!auc.sold ? " Vous pouvez les contacter pour négocier l'achat de ce lot invendu." : " Retrouvez tous leurs résultats de ventes sur Adjugé !"}`
           });
           return faqs.length > 0 ? `<div class="card">
             <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
@@ -1851,18 +1856,19 @@ function generateUnsoldPage(item, sale) {
             </details>`).join("")}
           </div>
         </div>` : (() => {
+          const faqTitle = lotTitle.length > 10 ? lotTitle : (catName || "cet objet");
           const faqs = [];
-          if (catName) faqs.push({
-            q: `Peut-on encore acheter ce lot de ${catName.toLowerCase()} ?`,
-            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères. Il est possible qu'il soit encore disponible. Contactez directement ${org || "la maison de vente"}${city ? ` à ${city}` : ""} pour connaître sa disponibilité et négocier un prix.`
+          faqs.push({
+            q: `Peut-on encore acheter « ${faqTitle} » ?`,
+            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${saleDate}` : ""}. Il est possible qu'il soit encore disponible. Contactez directement ${org || "la maison de vente"}${city ? ` à ${city}` : ""} pour connaître sa disponibilité et négocier un prix.`
           });
           if (est.min != null) faqs.push({
-            q: `Quelle était l'estimation de ce lot ?`,
-            a: `L'estimation de ce lot était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €. N'ayant pas trouvé preneur, il est envisageable de l'acquérir à un prix inférieur à l'estimation basse en contactant la maison de vente.`
+            q: `Quelle était l'estimation de « ${faqTitle} » ?`,
+            a: `L'estimation de ce lot était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €. N'ayant pas trouvé preneur, il est envisageable de l'acquérir en dessous de l'estimation basse en contactant directement la maison de vente.`
           });
           if (org && city) faqs.push({
-            q: `Comment contacter ${org} ?`,
-            a: `${org} est une maison de vente aux enchères située à ${city}. Vous pouvez les contacter via les coordonnées ci-dessous pour vous renseigner sur la disponibilité de ce lot.`
+            q: `Comment contacter ${org} pour ce lot ?`,
+            a: `${org} est une maison de vente aux enchères située à ${city}. Vous pouvez les contacter pour vous renseigner sur la disponibilité de « ${faqTitle} » et négocier un prix d'achat.`
           });
           return faqs.length > 0 ? `<div class="card">
             <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
