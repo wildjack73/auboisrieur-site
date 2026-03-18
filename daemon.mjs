@@ -4076,25 +4076,20 @@ async function runOnce(dateStr) {
   console.log(`\n  Total: ${totalSold} nouveaux lots scrapés, ${totalItems} lots au total (cache + scrape)`);
 
   if (totalItems > 0) {
-    // 1) Build pages FIRST (so site updates immediately, even without AI)
-    const pageCount = rebuildAllPages(dateStr);
-    console.log(`  📄 ${pageCount} pages générées`);
-    await ftpUpload();
-
-    // 2) AI enrichment AFTER first deploy
+    // 1) AI enrichment FIRST — so pages are built with AI content
     if (process.env.SKIP_AI === "true") {
       console.log("  ⏭️  AI skip (SKIP_AI=true)");
     } else {
       const AI_BUDGET = process.env.AI_BUDGET ? parseInt(process.env.AI_BUDGET) : 50;
       await aiEnrichLots(AI_BUDGET);
-
-      // 3) Rebuild only the AI-enriched pages + index pages, then re-upload
-      const enrichedCount = rebuildAllPages(dateStr);
-      if (enrichedCount > 0) {
-        console.log(`  🔄 ${enrichedCount} pages mises à jour avec IA`);
-        await ftpUpload();
-      }
     }
+
+    // 2) Build ALL pages (with AI data already applied)
+    const pageCount = rebuildAllPages(dateStr);
+    console.log(`  📄 ${pageCount} pages générées`);
+
+    // 3) Deploy once
+    await ftpUpload();
   } else {
     console.log("  Aucun lot — rien à générer.");
   }

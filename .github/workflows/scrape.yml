@@ -67,8 +67,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
           SKIP_FTP: "true"
-          AI_BUDGET: "50"
-          SKIP_AI: "true"
+          AI_BUDGET: "100"
           SKIP_FORCE_REGEN: "true"
         run: |
           MODE="${{ github.event.inputs.mode || 'scrape' }}"
