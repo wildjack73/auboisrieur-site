@@ -96,15 +96,20 @@ jobs:
           sudo apt-get install -y -qq lftp > /dev/null 2>&1
           REMOTE="${FTP_REMOTE_PATH:-/public_html}"
           echo "📤 Deploy vers $REMOTE"
-          lftp -c "
-            set ftp:ssl-allow no;
-            set net:timeout 30;
-            set net:max-retries 5;
-            set net:reconnect-interval-base 5;
-            set mirror:parallel-transfer-count 10;
-            set mirror:use-pget-n 5;
-            open -u $FTP_USER,$FTP_PASSWORD $FTP_HOST;
-            mirror --reverse --only-newer --parallel=10 --exclude data/ --verbose=1 site/ $REMOTE/;
-            quit;
-          "
-          echo "✅ Déploiement terminé"
+          # Retry lftp up to 3 times (Hostinger FTP can be flaky)
+          for attempt in 1 2 3; do
+            echo "🔄 Tentative $attempt/3..."
+            lftp -c "
+              set ftp:ssl-allow no;
+              set net:timeout 60;
+              set net:max-retries 10;
+              set net:reconnect-interval-base 5;
+              set net:reconnect-interval-multiplier 2;
+              set mirror:parallel-transfer-count 5;
+              open -u $FTP_USER,$FTP_PASSWORD $FTP_HOST;
+              mirror --reverse --only-newer --parallel=5 --exclude data/ --verbose=1 site/ $REMOTE/;
+              quit;
+            " && echo "✅ Déploiement terminé" && break
+            echo "⚠️ Tentative $attempt échouée, retry..."
+            sleep 10
+          done
