@@ -3160,14 +3160,27 @@ function rebuildAllPages(dateStr) {
   if (forceRegen) console.log(`  🔄 Template ${lastVersion || "?"} → ${TEMPLATE_VERSION} — regénération de toutes les pages lot`);
   fs.writeFileSync(versionFile, TEMPLATE_VERSION, "utf-8");
 
-  // Lot pages — regenerate all if template changed, otherwise only new
+  // Lot pages — regenerate if: template changed, new page, or AI-enriched since last build
+  const aiTracker = path.join(DATA_DIR, "ai-built.json");
+  let alreadyBuiltWithAi = {};
+  try { alreadyBuiltWithAi = JSON.parse(fs.readFileSync(aiTracker, "utf-8")); } catch {}
+
   for (const [itemId, { item, sale }] of registry.items) {
     const slug = lotSlug(item);
     const filePath = path.join(SITE_DIR, "lot", `${slug}.html`);
-    if (!forceRegen && fs.existsSync(filePath)) { skipped++; continue; }
+    const hasAi = !!item._aiTitle;
+    const wasBuiltWithAi = !!alreadyBuiltWithAi[itemId];
+
+    // Skip if: no force regen, file exists, and AI status hasn't changed
+    if (!forceRegen && fs.existsSync(filePath) && (hasAi === wasBuiltWithAi)) { skipped++; continue; }
+
     fs.writeFileSync(filePath, generateLotPage(item, sale), "utf-8");
+    if (hasAi) alreadyBuiltWithAi[itemId] = true;
     pageCount++;
   }
+
+  // Save AI build tracker
+  fs.writeFileSync(aiTracker, JSON.stringify(alreadyBuiltWithAi), "utf-8");
 
   // Category pages — always regenerate (content changes with new lots)
   for (const [slug, data] of registry.categories) {
