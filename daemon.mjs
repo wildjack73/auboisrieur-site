@@ -765,7 +765,7 @@ function sidebarHtml() {
   </aside>`;
 }
 
-function lotCard(item) {
+function lotCard(item, sale) {
   const rawD = item.description || item.title_translations?.["fr-FR"] || "";
   const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
   const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
@@ -774,11 +774,14 @@ function lotCard(item) {
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
   const catName = item.category?.name || "";
   const catSlug = catName ? slugify(catName) : "";
+  const saleDate = sale?.datetime ? sale.datetime.substring(0, 10) : "";
+  const dateDisplay = saleDate ? saleDate.split("-").reverse().join("/") : "";
   return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
     ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" loading="lazy">` : `<div class="no-img">📦</div>`}
     <div class="lot-info">
       <div class="lot-title">${esc(title)}</div>
       <div class="lot-price">${formatPrice(price)} €</div>
+      ${dateDisplay ? `<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">📅 Vendu le ${dateDisplay}</div>` : ""}
       ${catSlug ? `<div class="lot-cat">${esc(catName)}</div>` : ""}
     </div>
   </a>`;
@@ -1052,10 +1055,11 @@ function generateLotPage(item, sale) {
   ${faqSchema ? `<script type="application/ld+json">${JSON.stringify(faqSchema)}<\/script>` : ""}`, canonicalPath)}
 <body>
   ${navHtml()}
-  <div class="breadcrumb">
-    <a href="/index.html">Accueil</a> ›
+  <div class="breadcrumb" style="display:flex;align-items:center;gap:0.5rem;">
+    <a href="javascript:history.back()" style="text-decoration:none;font-size:1.2rem;color:var(--accent);" title="Retour">←</a>
+    <span><a href="/index.html">Accueil</a> ›
     ${catSlug ? `<a href="/categorie/${catSlug}.html">${esc(catName)}</a> ›` : ""}
-    ${esc(shortTitle)}
+    ${esc(shortTitle)}</span>
   </div>
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
@@ -1791,10 +1795,11 @@ function generateUnsoldPage(item, sale) {
   return `${htmlHead(`${lotTitle} — Invendu`, desc, `${thumb ? `<meta property="og:image" content="${thumb}">` : ""}`, `/lot/${slug}.html`)}
 <body>
   ${navHtml()}
-  <div class="breadcrumb">
-    <a href="/index.html">Accueil</a> ›
+  <div class="breadcrumb" style="display:flex;align-items:center;gap:0.5rem;">
+    <a href="javascript:history.back()" style="text-decoration:none;font-size:1.2rem;color:var(--accent);" title="Retour">←</a>
+    <span><a href="/index.html">Accueil</a> ›
     <a href="/invendus.html">Invendus</a> ›
-    ${esc(lotTitle)}
+    ${esc(lotTitle)}</span>
   </div>
   ${adSlot("header", "padding: 0.5rem 2rem;")}
   <div class="container">
@@ -2004,6 +2009,7 @@ function generateInvendusIndex() {
           + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
           + (priceInfo ? '<div style="color:var(--accent2);font-weight:700;font-size:0.85rem;">' + priceInfo + '</div>' : '')
           + '<div style="color:var(--red);font-weight:600;font-size:0.78rem;">Invendu</div>'
+          + (d.d ? '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">📅 Présenté le ' + d.d.split('-').reverse().join('/') + '</div>' : '')
           + '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">' + d.c + '</div>'
           + '</div></a>';
       });
