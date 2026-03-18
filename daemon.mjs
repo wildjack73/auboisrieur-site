@@ -2013,11 +2013,11 @@ function generateInvendusIndex() {
       batch.forEach(function(d) {
         var est = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : '';
         var sp = d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '';
-        var priceInfo = est || sp;
         grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
           + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);display:flex;align-items:center;justify-content:center;color:var(--text3);">📷</div>')
           + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
-          + (priceInfo ? '<div style="color:var(--accent2);font-weight:700;font-size:0.85rem;">' + priceInfo + '</div>' : '')
+          + (est ? '<div style="color:var(--accent2);font-weight:700;font-size:0.85rem;">' + est + '</div>' : '')
+          + (sp ? '<div style="color:var(--text2);font-size:0.78rem;">' + sp + '</div>' : '')
           + '<div style="color:var(--red);font-weight:600;font-size:0.78rem;">Invendu</div>'
           + (d.d ? '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">📅 Présenté le ' + d.d.split('-').reverse().join('/') + '</div>' : '')
           + '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">' + d.c + '</div>'
