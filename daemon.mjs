@@ -105,6 +105,141 @@ function writeIfChanged(filePath, content) {
   return true; // written
 }
 
+// Extract vehicle specs from raw description for vehicle lots
+function extractVehicleSpecs(rawDesc, catName) {
+  // Only apply to vehicle-related categories
+  const isVehicle = /v[ée]hicul|auto|moto|voiture|utilitaire|camping|quad|scooter/i.test(catName || "")
+    || /v[ée]hicul|automobile/i.test(rawDesc.substring(0, 100));
+  if (!isVehicle) return null;
+
+  const text = rawDesc.replace(/\n/g, " ");
+  const specs = {};
+
+  // Marque + Modèle — first line often has "MARQUE - MODELE ..."
+  const brandModelMatch = text.match(/^([A-Z][A-ZÀ-Ü]{1,15})\s*[-–—]\s*(.+?)(?:\s*[-–—]|$)/m);
+  if (brandModelMatch) {
+    specs.marque = brandModelMatch[1].trim();
+    // Keep full model name (includes engine info which is useful context)
+    let model = brandModelMatch[2].trim();
+    // Remove CH/CV power suffix to avoid redundancy with motorisation
+    model = model.replace(/\s+\d{2,3}\s*(CH|CV)\b/i, "").trim();
+    specs.modele = model.substring(0, 60);
+  }
+
+  // Motorisation — look for engine patterns
+  const engineMatch = text.match(/(\d+[.,]\d+)\s*[lL]?\s*(DCI|HDI|TDI|TDCI|CDI|CRDI|TSI|TFSI|GTI|D4D|JTDM|MJET|MJTD|BlueHDI|PureTech|TCE|DIG-T|E-TECH)?\s*(\d{2,3})\s*(ch|cv|hp)/i);
+  if (engineMatch) {
+    const cylL = engineMatch[1].replace(",", ".");
+    const tech = engineMatch[2] || "";
+    const hp = engineMatch[3];
+    specs.motorisation = `${cylL} L ${tech} ${hp} ch`.replace(/\s+/g, " ").trim();
+  } else {
+    // Try simpler pattern: "1.5 DCI" or "2.0 TDI"
+    const simpleEngine = text.match(/(\d+[.,]\d+)\s*[lL]?\s*(DCI|HDI|TDI|TDCI|CDI|CRDI|TSI|TFSI|GTI|D4D|JTDM|MJET|BlueHDI|PureTech|TCE|DIG-T)/i);
+    if (simpleEngine) specs.motorisation = `${simpleEngine[1].replace(",", ".")} L ${simpleEngine[2]}`;
+    // Or just "68 CH" / "110 CV"
+    const hpOnly = text.match(/(\d{2,3})\s*(ch|cv|hp)/i);
+    if (!specs.motorisation && hpOnly) specs.puissance = `${hpOnly[1]} ${hpOnly[2].toUpperCase()}`;
+  }
+
+  // Carburant / Énergie
+  const fuelMap = {
+    "GO": "Diesel (Gasoil)",
+    "GASOIL": "Diesel (Gasoil)",
+    "GAZOLE": "Diesel (Gasoil)",
+    "DIESEL": "Diesel",
+    "ES": "Essence",
+    "ESSENCE": "Essence",
+    "ELECTRIQUE": "Électrique",
+    "HYBRIDE": "Hybride",
+    "GPL": "GPL",
+    "GNV": "GNV",
+  };
+  for (const [key, val] of Object.entries(fuelMap)) {
+    // Match as standalone word
+    if (new RegExp(`\\b${key}\\b`, "i").test(text)) {
+      specs.carburant = val;
+      break;
+    }
+  }
+
+  // Mise en service
+  const miseEnService = text.match(/mise\s+en\s+service\s*[:.]?\s*(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i)
+    || text.match(/MEC\s*[:.]?\s*(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i)
+    || text.match(/date\s+1[eè]?re?\s+(?:mise\s+en\s+)?(?:circulation|immat)\s*[:.]?\s*(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i);
+  if (miseEnService) specs.mise_en_service = miseEnService[1];
+
+  // Kilométrage
+  const kmMatch = text.match(/(\d[\d\s.,]*)\s*km/i);
+  if (kmMatch) {
+    const kmVal = kmMatch[1].replace(/[\s.]/g, "").replace(",", "");
+    if (parseInt(kmVal) > 100 && parseInt(kmVal) < 1000000) {
+      specs.kilometrage = parseInt(kmVal).toLocaleString("fr-FR") + " km";
+    }
+  }
+
+  // Finition / Version
+  const finitionMatch = text.match(/\b(VISIA|ACENTA|TEKNA|LIFE|ZEN|INTENS|INITIALE|BUSINESS|ACTIVE|ALLURE|GT LINE|GT|RS|AMG|S-LINE|R-LINE|SPORT|LUXURY|PREMIUM|CONFORT|TREND|TITANIUM|GHIA|AMBIENTE|STYLE|ELEGANCE|AVANTAGE|ACCESS|SENSE|SHINE|FLAIR|LOUNGE|POP|EASY|CROSS|CITY|EDITION|SPECIAL|PACK|DYNAMIC|SELECT|TECHNO|FIRST)\b/i);
+  if (finitionMatch) specs.finition = finitionMatch[1];
+
+  // Immatriculation
+  const immatMatch = text.match(/\b([A-Z]{2}[-\s]?\d{3}[-\s]?[A-Z]{2})\b/);
+  if (immatMatch) specs.immatriculation = immatMatch[1];
+
+  // Boîte de vitesses
+  const boiteMatch = text.match(/\b(BVM?\d?|BVA\d?|automatique|manuelle|robotis[ée]e?|CVT|DSG|EDC|EAT\d?|S-?TRONIC|PDK|TIPTRONIC)\b/i);
+  if (boiteMatch) {
+    const val = boiteMatch[1].toUpperCase();
+    if (/BVM|MANUELLE/i.test(val)) specs.boite = "Manuelle";
+    else if (/BVA|AUTO|CVT|DSG|EDC|EAT|TRONIC|PDK|TIPTRONIC/i.test(val)) specs.boite = "Automatique";
+    else specs.boite = boiteMatch[1];
+  }
+
+  // Nombre de portes
+  const portesMatch = text.match(/(\d)\s*(?:portes?|P)\b/i);
+  if (portesMatch && parseInt(portesMatch[1]) >= 2 && parseInt(portesMatch[1]) <= 5) {
+    specs.portes = portesMatch[1] + " portes";
+  }
+
+  // Couleur
+  const couleurMatch = text.match(/\b(noir[e]?|blanc(?:he)?|gris[e]?|rouge|bleu[e]?|vert[e]?|jaune|orange|beige|marron|argent[ée]?|anthracite|brun[e]?|bordeaux|champagne|cr[eè]me|dor[ée]|ivoire|sable|prune)\b/i);
+  if (couleurMatch) specs.couleur = couleurMatch[1].charAt(0).toUpperCase() + couleurMatch[1].slice(1).toLowerCase();
+
+  // Only return if we found meaningful specs
+  const count = Object.keys(specs).length;
+  return count >= 2 ? specs : null;
+}
+
+// Format vehicle specs as HTML table
+function vehicleSpecsHtml(specs) {
+  if (!specs) return "";
+  const labels = {
+    marque: "🏭 Marque",
+    modele: "🚗 Modèle",
+    motorisation: "⚙️ Motorisation",
+    puissance: "💪 Puissance",
+    carburant: "⛽ Énergie",
+    mise_en_service: "📅 Mise en service",
+    kilometrage: "🛣️ Kilométrage",
+    finition: "✨ Finition",
+    boite: "🔧 Boîte de vitesses",
+    portes: "🚪 Portes",
+    couleur: "🎨 Couleur",
+    immatriculation: "🔢 Immatriculation",
+  };
+  const rows = Object.entries(specs)
+    .filter(([k, v]) => v && labels[k])
+    .map(([k, v]) => `<tr><td>${labels[k]}</td><td><strong>${esc(String(v))}</strong></td></tr>`)
+    .join("");
+  if (!rows) return "";
+  return `<div class="card">
+    <div class="card-header"><h3 style="font-size:1rem;">🔧 Fiche technique</h3></div>
+    <div class="card-body">
+      <table class="meta-table">${rows}</table>
+    </div>
+  </div>`;
+}
+
 function slugify(s) {
   return String(s || "")
     .toLowerCase()
@@ -1170,6 +1305,8 @@ function generateLotPage(item, sale) {
           </div>
         </div>
 
+        ${vehicleSpecsHtml(item._aiSpecs || extractVehicleSpecs(rawDesc, catName))}
+
         ${item._aiPriceAnalysis ? `<div class="card">
           <div class="card-header"><h3 style="font-size:1rem;">💰 Analyse du prix</h3></div>
           <div class="card-body">
@@ -1856,6 +1993,8 @@ function generateUnsoldPage(item, sale) {
             </table>
           </div>
         </div>
+
+        ${vehicleSpecsHtml(item._aiSpecs || extractVehicleSpecs(rawDesc, catName))}
 
         ${item._aiFaq?.length ? `<div class="card">
           <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
@@ -3958,13 +4097,14 @@ RÈGLES IMPORTANTES :
 - IGNORE les infos logistiques : dates d'expo, adresses de retrait, conditions de vente, frais.
 - La catégorie Interenchères peut être vague ("Secteurs d'activités spécifiques - Divers") — recatégorise correctement.
 
-Tu dois retourner un JSON avec exactement 6 champs :
+Tu dois retourner un JSON avec exactement 7 champs :
 - "title": le NOM RÉEL de l'objet, accrocheur, clair et SEO-friendly (max 70 car). Ex: si la desc parle d'une "CITROEN AMI" avec immatriculation, le titre doit être "Citroën AMI — Véhicule électrique compact". Pas de numéro de lot, pas de plaque d'immat, pas de "A partir de".
 - "desc": une description enrichie de 2-3 phrases (max 300 car) qui décrit l'objet, son intérêt, ses caractéristiques. Ton expert qui donne envie. Pas de mention de la maison de vente ni d'infos expo/retrait.
 - "category": la VRAIE catégorie basée sur l'objet réel. Choisis parmi : Bijoux - Montres, Tableaux - Peintures, Mobilier, Céramiques - Porcelaine, Art asiatique, Livres - Manuscrits, Véhicules, Vins - Spiritueux, Mode - Luxe, Jouets - Figurines, Instruments de musique, Art contemporain, Sculptures, Argenterie - Orfèvrerie, Numismatique, Photographie, Luminaires, Tapis - Textiles, Objets de vitrine, Matériel professionnel, Électroménager, High-tech - Multimédia, Sports - Loisirs, Jardin - Extérieur, Autre
 - "price_analysis": analyse du prix en 2-3 phrases (max 250 car). Compare avec le marché.
 - "faq": array de 3 objets {q, a} — questions contenant le NOM RÉEL DE L'OBJET (pas la catégorie Interenchères !). Format : "Combien coûte un/une [objet réel] aux enchères ?", "Quelle est la valeur d'un/une [objet réel] ?", etc. Réponses factuelles avec prix (max 200 car chacune).
 - "tags": array de 3-5 mots-clés pertinents (marque, époque, matériau, style...)
+- "specs": (UNIQUEMENT pour les véhicules/motos) un objet avec les champs disponibles : { "marque", "modele", "motorisation", "puissance", "carburant", "mise_en_service", "kilometrage", "finition", "boite", "portes", "couleur", "type_vehicule" }. Ex: {"marque":"Nissan","modele":"Note 1.5 DCI Visia","motorisation":"1.5 L DCI 68 ch","carburant":"Diesel","mise_en_service":"10/07/2007","finition":"Visia"}. Pour les non-véhicules, mettre null.
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
@@ -3983,6 +4123,7 @@ async function aiEnrichLots(maxPerRun = 0) {
     if (cache[item.id]) {
       item._aiTitle = cache[item.id].t;
       item._aiDesc = cache[item.id].d;
+      item._aiSpecs = cache[item.id].specs || null;
       if (cache[item.id].cat) {
         item._aiCategory = cache[item.id].cat;
         item.category = { ...item.category, name: cache[item.id].cat };
@@ -4047,6 +4188,7 @@ async function aiEnrichLots(maxPerRun = 0) {
           pa: parsed.price_analysis || "",
           faq: parsed.faq || [],
           tags: parsed.tags || [],
+          specs: parsed.specs || null,
         };
         item._aiTitle = parsed.title;
         item._aiDesc = parsed.desc;
@@ -4054,6 +4196,7 @@ async function aiEnrichLots(maxPerRun = 0) {
         item._aiPriceAnalysis = parsed.price_analysis || "";
         item._aiFaq = parsed.faq || [];
         item._aiTags = parsed.tags || [];
+        item._aiSpecs = parsed.specs || null;
       }
     } catch (err) {
       errors++;
@@ -4085,6 +4228,7 @@ async function aiEnrichLots(maxPerRun = 0) {
       item._aiPriceAnalysis = cache[item.id].pa || "";
       item._aiFaq = cache[item.id].faq || [];
       item._aiTags = cache[item.id].tags || [];
+      item._aiSpecs = cache[item.id].specs || null;
     }
   }
 
