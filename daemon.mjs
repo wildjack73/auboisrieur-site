@@ -82,6 +82,10 @@ function ensureDir(dir) {
 function todayStr() {
   return new Date().toISOString().substring(0, 10);
 }
+function todayFr() {
+  const d = new Date();
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
 
 function nowStr() {
   return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -1295,16 +1299,12 @@ function generateCategoryPage(slug, data) {
 
             <!-- Factual synthesis (TASK 9) -->
             <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
-              Au ${todayStr()}, la catégorie <strong>${esc(catName)}</strong> compte <strong>${formatPrice(data.items.length)}</strong> lots vendus pour <strong>${formatPrice(totalPrice)} €</strong>. Le record est de <strong>${formatPrice(maxPrice)} €</strong>${recordLotTitle ? ` pour ${esc(recordLotTitle)}` : ""}.
+              Au ${todayFr()}, la catégorie <strong>${esc(catName)}</strong> compte <strong>${formatPrice(data.items.length)}</strong> lots vendus pour <strong>${formatPrice(totalPrice)} €</strong>. Le record est de <strong>${formatPrice(maxPrice)} €</strong>${recordLotTitle ? ` pour ${esc(recordLotTitle)}` : ""}.
             </p>
 
-            <!-- Category description with "Voir plus" toggle -->
-            ${catDesc ? `<div class="cat-desc" id="catDesc" style="color:var(--text2);margin-bottom:0.5rem;font-size:0.9rem;line-height:1.7;">${esc(catDesc)}</div>
-            <div class="cat-desc-toggle" id="catDescToggle" onclick="var d=document.getElementById('catDesc');d.classList.toggle('expanded');this.textContent=d.classList.contains('expanded')?'▲ Voir moins':'▼ Voir plus';">▼ Voir plus</div>` : ""}
-
-            <!-- Dynamic stats paragraph (TASK 5) -->
+            <!-- Dynamic stats paragraph -->
             <p style="color:var(--text2);font-size:0.88rem;line-height:1.6;margin-bottom:1rem;">
-              La catégorie ${esc(catName)} compte ${formatPrice(data.items.length)} lots vendus pour un total de ${formatPrice(totalPrice)}€, avec un prix moyen de ${formatPrice(avgPrice)}€.
+              La catégorie <strong>${esc(catName)}</strong> compte <strong>${formatPrice(data.items.length)}</strong> lots vendus pour un total de <strong>${formatPrice(totalPrice)} €</strong>, avec un prix moyen de <strong>${formatPrice(avgPrice)} €</strong>.${maxPrice > 0 ? ` Record : <strong>${formatPrice(maxPrice)} €</strong>.` : ""}
             </p>
 
             <!-- Internal links (TASK 7) -->
@@ -2134,7 +2134,7 @@ function generateHomePage(dateStr) {
   <div class="container">
     <!-- Factual synthesis paragraph (TASK 9) -->
     <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1.5rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
-      Au ${dateStr}, <strong>Adjugé !</strong> recense <strong>${formatPrice(totalItems)}</strong> lots vendus aux enchères en France pour un total de <strong>${formatPrice(totalPrice)} €</strong>, soit un prix moyen de <strong>${formatPrice(globalAvg)} €</strong>.
+      Au ${todayFr()}, <strong>Adjugé !</strong> recense <strong>${formatPrice(totalItems)}</strong> lots vendus aux enchères en France pour un total de <strong>${formatPrice(totalPrice)} €</strong>, soit un prix moyen de <strong>${formatPrice(globalAvg)} €</strong>.
     </p>
     <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📅 Enchères du ${dateLabel}</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
@@ -2550,7 +2550,7 @@ function generateVillePage(slug, data) {
           <div class="card-body">
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">Enchères à ${esc(name)}</h1>
             <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
-              Au ${todayStr()}, <strong>${formatPrice(items.length)}</strong> lots ont été vendus aux enchères à <strong>${esc(name)}</strong> pour un total de <strong>${formatPrice(totalPrice)} €</strong>, soit un prix moyen de <strong>${formatPrice(avgPrice)} €</strong>.
+              Au ${todayFr()}, <strong>${formatPrice(items.length)}</strong> lots ont été vendus aux enchères à <strong>${esc(name)}</strong> pour un total de <strong>${formatPrice(totalPrice)} €</strong>, soit un prix moyen de <strong>${formatPrice(avgPrice)} €</strong>.
             </p>
             <div class="hero-stats" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${items.length}</div><div class="stat-label">lots vendus</div></div>
@@ -2789,7 +2789,7 @@ function generatePrixPage(slug, data) {
           <div class="card-body">
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">Prix ${esc(label)} aux enchères</h1>
             <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
-              Au ${todayStr()}, <strong>${formatPrice(items.length)}</strong> lots ${esc(label)} ont été vendus aux enchères en France.
+              Au ${todayFr()}, <strong>${formatPrice(items.length)}</strong> lots ${esc(label)} ont été vendus aux enchères en France.
               Le prix moyen est de <strong>${formatPrice(avgPrice)} €</strong>, avec des adjudications allant de <strong>${formatPrice(minPrice)} €</strong> à <strong>${formatPrice(maxPrice)} €</strong>.
             </p>
             <div class="hero-stats" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
@@ -2973,7 +2973,7 @@ function generateLlmsFullTxt() {
 
 ## Résumé
 Adjugé ! est un agrégateur de résultats de ventes aux enchères publiques françaises.
-Au ${todayStr()}, le site recense ${formatPrice(totalItems)} lots vendus pour ${formatPrice(totalPrice)} €.
+Au ${todayFr()}, le site recense ${formatPrice(totalItems)} lots vendus pour ${formatPrice(totalPrice)} €.
 Prix moyen par lot : ${formatPrice(avgPrice)} €.
 
 ## Top catégories
