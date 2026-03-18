@@ -3133,7 +3133,68 @@ function rebuildCategories() {
   console.log(`  📂 ${registry.categories.size} catégories reconstruites`);
 }
 
-function rebuildAllPages(dateStr) {
+// Inline FTP uploader — uploads pages one by one as they're generated
+async function createInlineFtp() {
+  if (process.env.SKIP_FTP === "true" && !config.ftp?.host) {
+    // In CI: use basic-ftp with env vars
+    const host = process.env.FTP_HOST;
+    const user = process.env.FTP_USER;
+    const pass = process.env.FTP_PASSWORD;
+    const remote = process.env.FTP_REMOTE_PATH || "/public_html";
+    if (!host || !user) return null;
+
+    try {
+      const { Client } = await import("basic-ftp");
+      const client = new Client();
+      client.ftp.verbose = false;
+      await client.access({ host, user, password: pass, secure: false });
+      console.log("  📡 FTP inline connecté");
+      return {
+        upload: async (localPath, remotePath) => {
+          const fullRemote = `${remote}/${remotePath}`;
+          try {
+            await client.ensureDir(fullRemote.substring(0, fullRemote.lastIndexOf("/")));
+            await client.uploadFrom(localPath, fullRemote);
+          } catch {}
+        },
+        close: () => { try { client.close(); } catch {} }
+      };
+    } catch (err) {
+      console.log(`  ⚠️ FTP inline indisponible: ${err.message}`);
+      return null;
+    }
+  }
+
+  if (!config.ftp?.enabled) return null;
+  try {
+    const { Client } = await import("basic-ftp");
+    const client = new Client();
+    client.ftp.verbose = false;
+    await client.access({
+      host: config.ftp.host,
+      user: config.ftp.user,
+      password: config.ftp.password,
+      secure: false,
+    });
+    const remote = config.ftp.remotePath || "/public_html";
+    console.log("  📡 FTP inline connecté");
+    return {
+      upload: async (localPath, remotePath) => {
+        const fullRemote = `${remote}/${remotePath}`;
+        try {
+          await client.ensureDir(fullRemote.substring(0, fullRemote.lastIndexOf("/")));
+          await client.uploadFrom(localPath, fullRemote);
+        } catch {}
+      },
+      close: () => { try { client.close(); } catch {} }
+    };
+  } catch (err) {
+    console.log(`  ⚠️ FTP inline indisponible: ${err.message}`);
+    return null;
+  }
+}
+
+async function rebuildAllPages(dateStr) {
   // Rebuild categories before generating pages (AI may have changed categories)
   rebuildCategories();
 
@@ -3148,6 +3209,10 @@ function rebuildAllPages(dateStr) {
 
   let pageCount = 0;
   let skipped = 0;
+  let uploaded = 0;
+
+  // Open FTP connection for inline uploads
+  const ftp = await createInlineFtp();
 
   // Template version — increment when lot page template changes to force regeneration
   const TEMPLATE_VERSION = "v5";
@@ -3177,6 +3242,13 @@ function rebuildAllPages(dateStr) {
     fs.writeFileSync(filePath, generateLotPage(item, sale), "utf-8");
     if (hasAi) alreadyBuiltWithAi[itemId] = true;
     pageCount++;
+
+    // Upload inline — page goes live immediately
+    if (ftp) {
+      await ftp.upload(filePath, `lot/${slug}.html`);
+      uploaded++;
+      if (uploaded % 50 === 0) console.log(`    📤 ${uploaded} pages uploadées en temps réel...`);
+    }
   }
 
   // Save AI build tracker
@@ -3471,6 +3543,18 @@ AddType application/json .json
   if (fs.existsSync(logoDark)) { fs.copyFileSync(logoDark, path.join(SITE_DIR, "logo-dark.jpg")); pageCount++; }
   if (fs.existsSync(logoLight)) { fs.copyFileSync(logoLight, path.join(SITE_DIR, "logo-light.jpg")); pageCount++; }
 
+  // Close FTP connection
+  if (ftp) {
+    // Upload index pages at the end
+    const indexFiles = ["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "robots.txt", "search-data.js", "ads.txt", "llms.txt"];
+    for (const f of indexFiles) {
+      const p = path.join(SITE_DIR, f);
+      if (fs.existsSync(p)) await ftp.upload(p, f);
+    }
+    ftp.close();
+    console.log(`  📤 ${uploaded} pages lot uploadées en temps réel via FTP`);
+  }
+
   return pageCount;
 }
 
@@ -3658,7 +3742,7 @@ async function ftpUpload() {
 
 // ─── daemon ─────────────────────────────────────────────────────────────────
 
-function runDaemon(dateStr, intervalSec) {
+async function runDaemon(dateStr, intervalSec) {
   ensureDir(SITE_DIR);
   const dataDir = DATA_DIR;
   ensureDir(dataDir);
@@ -3681,7 +3765,7 @@ function runDaemon(dateStr, intervalSec) {
         }
       }
       console.log(`  Reprise: ${knownSold.size} lots restaurés.`);
-      const pageCount = rebuildAllPages(dateStr);
+      const pageCount = await rebuildAllPages(dateStr);
       console.log(`  ${pageCount} pages régénérées.\n`);
     } catch {}
   }
@@ -3693,7 +3777,7 @@ function runDaemon(dateStr, intervalSec) {
   console.log(`   AdSense: ${config.adsenseId || "non configuré"}`);
   console.log(`   FTP: ${config.ftp?.enabled ? config.ftp.host : "désactivé"}\n`);
 
-  const poll = () => {
+  const poll = async () => {
     try {
       const sales = fetchTodaySales(dateStr);
       const now = nowStr();
@@ -3731,7 +3815,7 @@ function runDaemon(dateStr, intervalSec) {
 
       // Rebuild all pages (fast — all in memory)
       if (newSoldCount > 0) {
-        const pageCount = rebuildAllPages(dateStr);
+        const pageCount = await rebuildAllPages(dateStr);
         console.log(`  [${now}] +${newSoldCount} lots — Total: ${knownSold.size} lots, ${pageCount} pages`);
         // Upload to FTP
         ftpUpload().catch(err => console.warn(`  ⚠ FTP: ${err.message}`));
@@ -3848,6 +3932,9 @@ async function aiEnrichLots(maxPerRun = 0) {
     if (faq.length < 3) return true;
     const hasGeoQ = faq.some(f => /prix|valeur|co[uû]t|combien/i.test(f.q || ""));
     if (!hasGeoQ) return true;
+    // Re-enrich if FAQ references generic category names instead of actual product
+    const hasBadFaq = faq.some(f => /secteurs? d.activit|divers|ventes? aux ench.res\s*[?.]?\s*$/i.test(f.q || ""));
+    if (hasBadFaq) return true;
     return false;
   });
 
@@ -4098,7 +4185,7 @@ async function runOnce(dateStr) {
     }
 
     // 2) Build ALL pages (with AI data already applied)
-    const pageCount = rebuildAllPages(dateStr);
+    const pageCount = await rebuildAllPages(dateStr);
     console.log(`  📄 ${pageCount} pages générées`);
 
     // 3) Deploy once
@@ -4148,7 +4235,7 @@ async function runRebuild(dateStr) {
   await aiEnrichLots(AI_BUDGET);
 
   // Rebuild all pages with new design
-  const pageCount = rebuildAllPages(dateStr);
+  const pageCount = await rebuildAllPages(dateStr);
   console.log(`  📄 ${pageCount} pages régénérées`);
 
   // Upload via FTP
