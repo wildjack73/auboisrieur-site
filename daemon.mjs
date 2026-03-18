@@ -881,6 +881,10 @@ function generateLotPage(item, sale) {
   const priceHtml = auc.sold
     ? `<span class="price sold">${formatPrice(auc.price)} €</span>`
     : `<span class="price unsold">Non vendu</span>`;
+  // Prix frais inclus estimé (~25% de frais acheteur en moyenne)
+  const BUYER_FEE_RATE = 0.25;
+  const priceWithFees = auc.sold && auc.price ? Math.round(auc.price * (1 + BUYER_FEE_RATE)) : 0;
+  const feesHtml = priceWithFees ? `<div style="color:var(--text2);font-size:0.82rem;margin-top:4px;">≈ ${formatPrice(priceWithFees)} € frais inclus <span style="font-size:0.7rem;color:var(--text3);" title="Estimation basée sur un taux moyen de frais acheteur de 25%. Les frais réels varient selon la maison de vente (20-30%).">(estimé*)</span></div>` : "";
 
   const estHtml = est.min != null ? `Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
 
@@ -1078,6 +1082,7 @@ function generateLotPage(item, sale) {
             <div style="margin:0.5rem 0 0.8rem;">
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
+              ${feesHtml}
             </div>
             ${adSlot("inArticle", "margin:0.8rem 0;")}
           </div>
@@ -1090,6 +1095,7 @@ function generateLotPage(item, sale) {
               const priceVal = auc.price || 0;
               const contextParts = [];
               contextParts.push(`Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} a été ${auc.sold ? `adjugé <strong>${formatPrice(priceVal)} €</strong>` : "présenté"} aux enchères${saleDate ? ` le ${saleDate}` : ""}${org ? ` par la maison <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.`);
+              if (priceWithFees) contextParts.push(`Soit environ <strong>${formatPrice(priceWithFees)} € frais de vente inclus</strong> (estimation basée sur un taux moyen de 25%).`);
               if (est.min != null) contextParts.push(`L'estimation de cet objet était comprise entre <strong>${formatPrice(est.min)} €</strong> et <strong>${formatPrice(est.max)} €</strong>.`);
               if (saleName) contextParts.push(`Il faisait partie de la vente « ${esc(saleName)} ».`);
 
