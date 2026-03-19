@@ -3474,7 +3474,7 @@ async function rebuildAllPages(dateStr) {
   const ftp = null;
 
   // Template version — increment when lot page template changes to force regeneration
-  const TEMPLATE_VERSION = "v5";
+  const TEMPLATE_VERSION = "v6";
   // HACK: skip force-regen in CI to avoid 26K files upload timeout
   const skipForceRegen = process.env.SKIP_FORCE_REGEN === "true";
   const versionFile = path.join(DATA_DIR, "template-version.txt");
