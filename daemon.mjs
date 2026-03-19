@@ -931,10 +931,8 @@ function sidebarHtml() {
 }
 
 function lotCard(item, sale) {
-  const rawD = item.description || item.title_translations?.["fr-FR"] || "";
-  const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-  const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
-  const title = item._aiTitle || fallback;
+  const rawD = cleanRawDesc(item.description || item.title_translations?.["fr-FR"] || "");
+  const title = item._aiTitle || extractTitle(rawD);
   const price = item.pricing?.auctioned?.price || 0;
   const sold = price > 0;
   const est = item.pricing?.estimates || {};
@@ -2140,10 +2138,8 @@ function generateUnsoldPage(item, sale) {
 }
 
 function unsoldLotCard(item, sale) {
-  const rawD = item.description || item.title_translations?.["fr-FR"] || "";
-  const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-  const fallback = (lns.length > 1 && lns[0].length < 60) ? lns[0] : lns[0]?.substring(0, 70) || "Objet";
-  const title = item._aiTitle || fallback;
+  const rawD = cleanRawDesc(item.description || item.title_translations?.["fr-FR"] || "");
+  const title = item._aiTitle || extractTitle(rawD);
   const est = item.pricing?.estimates || {};
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
   const catName = item.category?.name || "";
