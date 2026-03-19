@@ -44,18 +44,10 @@ jobs:
         uses: actions/cache@v4
         id: data-cache
         with:
-          path: |
-            site/data
-            site/lot
-            site/categorie
-            site/ville
-            site/maison
-            site/prix
-            site/jour
-            site/invendus
-          key: site-full-${{ github.run_number }}
+          path: site/data
+          key: site-data-${{ github.run_number }}
           restore-keys: |
-            site-full-
+            site-data-
 
       - name: Bootstrap data from repo archive (first time only)
         if: steps.data-cache.outputs.cache-hit != 'true' && hashFiles('data-cache.tar.gz') != ''
@@ -76,7 +68,7 @@ jobs:
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
           SKIP_FTP: "true"
           AI_BUDGET: "100"
-          SKIP_FORCE_REGEN: "true"
+          SKIP_FORCE_REGEN: "false"
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
