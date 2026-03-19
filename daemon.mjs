@@ -3273,7 +3273,12 @@ function generateMentionsLegales() {
       <h1 style="font-size:1.6rem;margin-bottom:1.5rem;">Mentions légales</h1>
 
       <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Éditeur du site</h2>
-      <p>Le site <strong>auboisrieur.fr</strong> est un site d'agrégation de résultats de ventes aux enchères publiques en France. Il est édité à titre personnel.</p>
+      <p>Le site <strong>auboisrieur.fr</strong> est édité par :</p>
+      <p><strong>Référencement NICE</strong><br>
+      Entreprise individuelle<br>
+      SIREN : 447 716 218<br>
+      Siège social : Nice (06), France<br>
+      Activité : Conseil en systèmes et logiciels informatiques (APE 6202A)</p>
       <p>Contact : <a href="mailto:contact@auboisrieur.fr" style="color:var(--accent);">contact@auboisrieur.fr</a></p>
 
       <h2 style="font-size:1.2rem;color:var(--accent);margin-top:1.5rem;">Hébergement</h2>
