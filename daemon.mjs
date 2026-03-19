@@ -1421,6 +1421,10 @@ function generateLotPage(item, sale) {
             q: `Quel est le prix moyen d'un lot ${catName.toLowerCase()} aux enchères ?`,
             a: `Le prix d'un lot ${catName.toLowerCase()} aux enchères varie considérablement selon la qualité, la rareté et la provenance. Ce lot a été adjugé ${formatPrice(priceVal)} €. Sur Adjugé !, retrouvez des milliers de résultats pour comparer les prix et estimer la valeur d'objets similaires.`
           });
+          if (priceVal > 0) faqs.push({
+            q: `Quel est le prix d'occasion de « ${faqTitle} » ?`,
+            a: `Sur le marché de la seconde main, ce type d'objet a été adjugé ${formatPrice(priceVal)} € aux enchères publiques${priceWithFees ? ` (soit ~${formatPrice(priceWithFees)} € frais inclus)` : ""}. Les enchères sont un excellent moyen d'estimer la valeur d'occasion d'un objet — les prix reflètent la demande réelle du marché.`
+          });
           return faqs.length > 0 ? `<div class="card">
             <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
             <div class="card-body">
@@ -2087,6 +2091,10 @@ function generateUnsoldPage(item, sale) {
           if (catName) faqs.push({
             q: `Où trouver des ${catName.toLowerCase()} aux enchères en France ?`,
             a: `Adjugé ! référence des milliers de lots de ${catName.toLowerCase()} vendus et invendus aux enchères en France. Consultez notre catégorie dédiée pour comparer les prix, voir les photos et identifier les bonnes affaires parmi les invendus.`
+          });
+          faqs.push({
+            q: `Quel est le prix d'occasion de « ${faqTitle} » ?`,
+            a: `Cet objet n'ayant pas trouvé preneur aux enchères${est.min != null ? ` malgré une estimation de ${formatPrice(est.min)} à ${formatPrice(est.max)} €` : ""}, il est possible de l'acquérir à un prix avantageux sur le marché de la seconde main. Contactez la maison de vente pour connaître le prix actuel et négocier.`
           });
           return faqs.length > 0 ? `<div class="card">
             <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
