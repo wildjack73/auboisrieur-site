@@ -76,7 +76,7 @@ jobs:
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
           SKIP_FTP: "true"
           AI_BUDGET: "100"
-          SKIP_FORCE_REGEN: "false"
+          SKIP_FORCE_REGEN: "true"
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
