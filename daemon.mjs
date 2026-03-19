@@ -1006,8 +1006,13 @@ function cleanTitleLine(s) {
   t = t.replace(/^sur\s+d[ée]signation\s*(\([^)]*\))?\s*:?\s*/i, "").trim();
   // Remove "dans nos locaux à VILLE :" prefix
   t = t.replace(/^dans\s+nos\s+locaux\s+[àa]\s+[^:]+:\s*/i, "").trim();
-  // Remove leading "- "
+  // Remove "LIEU DE STOCKAGE : Ville - RÉSEAU -" prefix (Alcopa-style)
+  t = t.replace(/^lieu\s+de\s+stockage\s*:\s*[^-]+\s*-\s*/i, "").trim();
+  // Remove network/arcade name prefix (single word followed by -)
+  t = t.replace(/^[A-Z]{3,20}\s*-\s+/i, "").trim();
+  // Remove leading "- " or trailing " - -" or " -"
   t = t.replace(/^[-–—]\s+/, "").trim();
+  t = t.replace(/\s*[-–—]\s*[-–—]?\s*$/, "").trim();
   return t || s; // Return original if cleaning emptied it
 }
 
@@ -1406,6 +1411,15 @@ function generateLotPage(item, sale) {
           if (org && city) faqs.push({
             q: `Comment contacter ${org} ?`,
             a: `${org} est une maison de vente aux enchères située à ${city}.${!auc.sold ? " Vous pouvez les contacter pour négocier l'achat de ce lot invendu." : " Retrouvez tous leurs résultats de ventes sur Adjugé !"}`
+          });
+          // Additional contextual FAQs
+          if (catName) faqs.push({
+            q: `Comment acheter des ${catName.toLowerCase()} aux enchères ?`,
+            a: `Pour acheter des ${catName.toLowerCase()} aux enchères en France, consultez les ventes à venir dans votre région. Les enchères publiques sont ouvertes à tous, en salle ou en ligne. Inscrivez-vous sur le site de la maison de vente, fixez-vous un budget maximum et n'oubliez pas d'ajouter les frais acheteur (environ 20 à 30%) au prix d'adjudication.`
+          });
+          if (priceVal > 0 && catName) faqs.push({
+            q: `Quel est le prix moyen d'un lot ${catName.toLowerCase()} aux enchères ?`,
+            a: `Le prix d'un lot ${catName.toLowerCase()} aux enchères varie considérablement selon la qualité, la rareté et la provenance. Ce lot a été adjugé ${formatPrice(priceVal)} €. Sur Adjugé !, retrouvez des milliers de résultats pour comparer les prix et estimer la valeur d'objets similaires.`
           });
           return faqs.length > 0 ? `<div class="card">
             <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
@@ -1970,11 +1984,13 @@ function generateTopVentesPage() {
 // ─── Unsold item page ────────────────────────────────────────────────────────
 
 function generateUnsoldPage(item, sale) {
-  const rawDesc = item.description || item.title_translations?.["fr-FR"] || "Objet";
+  const rawDescOriginal = item.description || item.title_translations?.["fr-FR"] || "Objet";
+  const rawDesc = cleanRawDesc(rawDescOriginal);
+  const fallbackTitle = extractTitle(rawDesc);
   const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
-  const hasShortTitle = lines.length > 1 && lines[0].length < 60;
-  const lotTitle = item._aiTitle || (hasShortTitle ? lines[0] : lines[0]?.substring(0, 70) || "Objet");
-  const lotDesc = item._aiDesc || (hasShortTitle ? lines.slice(1).join(" ") : lines.length > 1 ? lines.slice(1).join(" ") : "");
+  const descLines = lines.filter(l => cleanTitleLine(l) !== fallbackTitle);
+  const lotTitle = item._aiTitle || fallbackTitle;
+  const lotDesc = item._aiDesc || descLines.join(" ").trim();
   const est = item.pricing?.estimates || {};
   const org = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
   const orgSlug = slugify(org);
@@ -2017,11 +2033,15 @@ function generateUnsoldPage(item, sale) {
           <div class="card-body">
             <div style="display:inline-block;background:var(--red-bg);color:var(--red);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:700;margin-bottom:0.8rem;">Invendu</div>
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;line-height:1.4;overflow-wrap:break-word;">${esc(lotTitle)}</h1>
-            ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;overflow-wrap:break-word;max-width:100%;">${esc(lotDesc)}</p>` : `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;">
-              Ce lot de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${dateFr(saleDate)}` : ""}${org ? ` organisée par ${esc(org)}` : ""}${city ? ` à ${esc(city)}` : ""}.
-              ${est.min != null ? `Son estimation était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}
-              Il est peut-être encore disponible — contactez directement la maison de vente pour négocier un prix.
-            </p>`}
+            ${(() => {
+              const descParas = [];
+              if (lotDesc) descParas.push(`<p style="margin-bottom:0.8rem;">${esc(lotDesc)}</p>`);
+              descParas.push(`<p style="margin-bottom:0.8rem;">Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${dateFr(saleDate)}` : ""}${org ? ` organisée par <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.</p>`);
+              if (est.min != null) descParas.push(`<p style="margin-bottom:0.8rem;">Son estimation était comprise entre <strong>${formatPrice(est.min)} €</strong> et <strong>${formatPrice(est.max)} €</strong>. Les invendus peuvent souvent être acquis en dessous de l'estimation basse — une opportunité à saisir.</p>`);
+              descParas.push(`<p style="margin-bottom:0.8rem;">💡 <strong>Cet objet vous intéresse ?</strong> Il est peut-être encore disponible. Contactez directement la maison de vente pour connaître sa disponibilité et négocier un prix avantageux. Les lots invendus aux enchères représentent souvent d'excellentes opportunités d'achat.</p>`);
+              if (catName) descParas.push(`<p style="margin-bottom:0.8rem;">Retrouvez tous les invendus de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> et d'autres bonnes affaires sur <a href="/invendus.html" style="color:var(--accent);">notre page Invendus</a>.</p>`);
+              return `<div style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;overflow-wrap:break-word;max-width:100%;">${descParas.join("")}</div>`;
+            })()}
             ${est.min != null ? `<div style="margin:0.8rem 0;">
               <span style="font-size:1.3rem;font-weight:700;color:var(--text);">Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €</span>
             </div>` : ""}
@@ -2058,6 +2078,15 @@ function generateUnsoldPage(item, sale) {
           if (org && city) faqs.push({
             q: `Comment contacter ${org} pour ce lot ?`,
             a: `${org} est une maison de vente aux enchères située à ${city}. Vous pouvez les contacter pour vous renseigner sur la disponibilité de « ${faqTitle} » et négocier un prix d'achat.`
+          });
+          // Additional contextual FAQs for unsold lots
+          faqs.push({
+            q: `Comment négocier le prix d'un lot invendu aux enchères ?`,
+            a: `Lorsqu'un lot ne trouve pas preneur en salle, il est souvent possible de l'acquérir après la vente en contactant directement la maison de vente. Le prix de départ est généralement la mise à prix ou l'estimation basse. N'hésitez pas à faire une offre raisonnable — les vendeurs sont souvent ouverts à la négociation pour écouler les invendus.`
+          });
+          if (catName) faqs.push({
+            q: `Où trouver des ${catName.toLowerCase()} aux enchères en France ?`,
+            a: `Adjugé ! référence des milliers de lots de ${catName.toLowerCase()} vendus et invendus aux enchères en France. Consultez notre catégorie dédiée pour comparer les prix, voir les photos et identifier les bonnes affaires parmi les invendus.`
           });
           return faqs.length > 0 ? `<div class="card">
             <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
@@ -4139,10 +4168,10 @@ RÈGLES IMPORTANTES :
 
 Tu dois retourner un JSON avec exactement 7 champs :
 - "title": le NOM RÉEL de l'objet, accrocheur, clair et SEO-friendly (max 70 car). Ex: si la desc parle d'une "CITROEN AMI" avec immatriculation, le titre doit être "Citroën AMI — Véhicule électrique compact". Pas de numéro de lot, pas de plaque d'immat, pas de "A partir de".
-- "desc": une description enrichie de 2-3 phrases (max 300 car) qui décrit l'objet, son intérêt, ses caractéristiques. Ton expert qui donne envie. Pas de mention de la maison de vente ni d'infos expo/retrait.
+- "desc": une description enrichie de 3-5 phrases (max 500 car) qui décrit l'objet, son intérêt, ses caractéristiques, son histoire ou contexte. Ton expert passionné qui donne envie et informe. Pas de mention de la maison de vente ni d'infos expo/retrait.
 - "category": la VRAIE catégorie basée sur l'objet réel. Choisis parmi : Bijoux - Montres, Tableaux - Peintures, Mobilier, Céramiques - Porcelaine, Art asiatique, Livres - Manuscrits, Véhicules, Vins - Spiritueux, Mode - Luxe, Jouets - Figurines, Instruments de musique, Art contemporain, Sculptures, Argenterie - Orfèvrerie, Numismatique, Photographie, Luminaires, Tapis - Textiles, Objets de vitrine, Matériel professionnel, Électroménager, High-tech - Multimédia, Sports - Loisirs, Jardin - Extérieur, Autre
 - "price_analysis": analyse du prix en 2-3 phrases (max 250 car). Compare avec le marché.
-- "faq": array de 3 objets {q, a} — questions contenant le NOM RÉEL DE L'OBJET (pas la catégorie Interenchères !). Format : "Combien coûte un/une [objet réel] aux enchères ?", "Quelle est la valeur d'un/une [objet réel] ?", etc. Réponses factuelles avec prix (max 200 car chacune).
+- "faq": array de 5 objets {q, a} — questions contenant le NOM RÉEL DE L'OBJET (pas la catégorie Interenchères !). Inclure : prix/valeur, comment acheter, authenticité/état, marché/tendance, conseil pratique. Réponses factuelles et détaillées (max 250 car chacune).
 - "tags": array de 3-5 mots-clés pertinents (marque, époque, matériau, style...)
 - "specs": (UNIQUEMENT pour les véhicules/motos) un objet avec les champs disponibles : { "marque", "modele", "motorisation", "puissance", "carburant", "mise_en_service", "kilometrage", "finition", "boite", "portes", "couleur", "type_vehicule" }. Ex: {"marque":"Nissan","modele":"Note 1.5 DCI Visia","motorisation":"1.5 L DCI 68 ch","carburant":"Diesel","mise_en_service":"10/07/2007","finition":"Visia"}. Pour les non-véhicules, mettre null.
 
