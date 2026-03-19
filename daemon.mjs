@@ -87,6 +87,22 @@ function todayFr() {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
+// Convert ISO date "2026-03-18" to French "18 mars 2026"
+function dateFr(isoDate) {
+  if (!isoDate || isoDate.length < 10) return isoDate || "";
+  try {
+    const d = new Date(isoDate + "T12:00:00"); // noon to avoid timezone issues
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  } catch { return isoDate; }
+}
+
+// Convert ISO date "2026-03-18" to "18/03/2026"
+function dateShortFr(isoDate) {
+  if (!isoDate || isoDate.length < 10) return isoDate || "";
+  const [y, m, d] = isoDate.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 function nowStr() {
   return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
@@ -926,7 +942,7 @@ function lotCard(item, sale) {
   const catName = item.category?.name || "";
   const catSlug = catName ? slugify(catName) : "";
   const saleDate = sale?.datetime ? sale.datetime.substring(0, 10) : "";
-  const dateDisplay = saleDate ? saleDate.split("-").reverse().join("/") : "";
+  const dateDisplay = dateShortFr(saleDate);
   const estStr = est.min != null ? `Est. ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
   const priceLabel = sold ? `${formatPrice(price)} €` : (estStr || "Prix non communiqué");
   const statusLabel = sold ? "Adjugé" : "Invendu";
@@ -975,6 +991,26 @@ function cleanRawDesc(raw) {
   }).join("\n");
 }
 
+// Clean a title line: remove ref numbers, lot numbers, leading dashes, "sur désignation" etc.
+function cleanTitleLine(s) {
+  let t = s;
+  // Remove "(Ref. X)" or "(Ref X)" or "(Réf. X)" patterns
+  t = t.replace(/\(r[ée]f\.?\s*[^)]*\)\s*/gi, "").trim();
+  // Remove leading "Ref. X -" or "Réf X :"
+  t = t.replace(/^r[ée]f\.?\s*\S+\s*[-:–—]\s*/i, "").trim();
+  // Remove leading lot/article numbering: "1 -", "N°12 -", "LOT 3 :"
+  t = t.replace(/^(lot\s*)?n?°?\s*\d+\s*[-:–—]\s*/i, "").trim();
+  // Remove leading quantity "1 " for single items (but keep "12 bouteilles")
+  t = t.replace(/^1\s+(?=[a-zàâéèêëïîôùûüç])/i, "").trim();
+  // Remove "sur désignation (VILLE CODE) :" prefix
+  t = t.replace(/^sur\s+d[ée]signation\s*(\([^)]*\))?\s*:?\s*/i, "").trim();
+  // Remove "dans nos locaux à VILLE :" prefix
+  t = t.replace(/^dans\s+nos\s+locaux\s+[àa]\s+[^:]+:\s*/i, "").trim();
+  // Remove leading "- "
+  t = t.replace(/^[-–—]\s+/, "").trim();
+  return t || s; // Return original if cleaning emptied it
+}
+
 // Extract a meaningful title from raw description (skip license plates, lot numbers, etc.)
 function extractTitle(rawDesc) {
   const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
@@ -982,15 +1018,19 @@ function extractTitle(rawDesc) {
   const isLicensePlate = (s) => /^[A-Z]{2}[\s-]?\d{3}[\s-]?[A-Z]{2}$/i.test(s.trim());
   const isLotNumber = (s) => /^(lot\s*n?°?\s*\d|n°?\s*\d)/i.test(s.trim());
   const isJustNumber = (s) => /^\d+$/.test(s.trim());
+  const isRefOnly = (s) => /^\(?\s*r[ée]f\.?\s*[^)]*\)?\s*$/i.test(s.trim());
 
   // Find the first meaningful line
   for (const line of lines) {
-    if (isLicensePlate(line) || isLotNumber(line) || isJustNumber(line)) continue;
+    if (isLicensePlate(line) || isLotNumber(line) || isJustNumber(line) || isRefOnly(line)) continue;
     if (line.length < 3) continue;
-    return line.length > 70 ? line.substring(0, 70) : line;
+    const cleaned = cleanTitleLine(line);
+    if (cleaned.length < 3) continue;
+    return cleaned.length > 70 ? cleaned.substring(0, 70) : cleaned;
   }
   // If all lines are plates/numbers, try joining first two meaningful words
-  return lines[0]?.substring(0, 70) || "Objet de collection";
+  const fallback = lines[0] ? cleanTitleLine(lines[0]) : "Objet de collection";
+  return fallback.substring(0, 70) || "Objet de collection";
 }
 
 function generateLotPage(item, sale) {
@@ -1243,7 +1283,7 @@ function generateLotPage(item, sale) {
               // Auto-generated context paragraph for ALL lots (AI or not)
               const priceVal = auc.price || 0;
               const contextParts = [];
-              contextParts.push(`Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} a été ${auc.sold ? `adjugé <strong>${formatPrice(priceVal)} €</strong>` : "présenté"} aux enchères${saleDate ? ` le ${saleDate}` : ""}${org ? ` par la maison <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.`);
+              contextParts.push(`Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} a été ${auc.sold ? `adjugé <strong>${formatPrice(priceVal)} €</strong>` : "présenté"} aux enchères${saleDate ? ` le ${dateFr(saleDate)}` : ""}${org ? ` par la maison <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.`);
               if (priceWithFees) contextParts.push(`Soit environ <strong>${formatPrice(priceWithFees)} € frais de vente inclus</strong> (estimation basée sur un taux moyen de 25%).`);
               if (est.min != null) contextParts.push(`L'estimation de cet objet était comprise entre <strong>${formatPrice(est.min)} €</strong> et <strong>${formatPrice(est.max)} €</strong>.`);
               if (saleName) contextParts.push(`Il faisait partie de la vente « ${esc(saleName)} ».`);
@@ -1294,7 +1334,7 @@ function generateLotPage(item, sale) {
 
             <table class="meta-table">
               ${catSlug ? `<tr><td>Catégorie</td><td><a href="/categorie/${catSlug}.html">${esc(catName)}</a></td></tr>` : ""}
-              <tr><td>Date</td><td>${saleDate}</td></tr>
+              <tr><td>Date</td><td>${dateFr(saleDate)}</td></tr>
               ${org ? `<tr><td>Maison de vente</td><td><a href="/maison/${orgSlug}.html">${esc(org)}</a>${city ? ` — <a href="/ville/${slugify(city)}.html">${esc(city)}</a>` : ""}</td></tr>` : ""}
               ${saleName ? `<tr><td>Vente</td><td>${esc(saleName)}</td></tr>` : ""}
             </table>
@@ -1329,7 +1369,7 @@ function generateLotPage(item, sale) {
             <div class="card-body">
               <p style="color:var(--text);line-height:1.7;font-size:0.92rem;">
                 Ce lot de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> a été adjugé <strong>${formatPrice(priceVal)} €</strong>
-                ${saleDate ? ` le ${saleDate}` : ""}${org ? ` chez <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.
+                ${saleDate ? ` le ${dateFr(saleDate)}` : ""}${org ? ` chez <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.
                 ${est.min != null ? `L'estimation était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €. ` : ""}
                 Le prix moyen dans cette catégorie est de <strong>${formatPrice(avgCat)} €</strong>.
                 ${diffText}
@@ -1353,11 +1393,11 @@ function generateLotPage(item, sale) {
           const faqs = [];
           if (priceVal > 0) faqs.push({
             q: `Combien a été vendu « ${faqTitle} » aux enchères ?`,
-            a: `Ce lot a été adjugé ${formatPrice(priceVal)} € aux enchères${org ? ` chez ${org}` : ""}${city ? ` à ${city}` : ""}${saleDate ? ` le ${saleDate}` : ""}.${priceWithFees ? ` Soit environ ${formatPrice(priceWithFees)} € frais de vente inclus (estimation).` : ""}${est.min != null ? ` L'estimation initiale était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}`
+            a: `Ce lot a été adjugé ${formatPrice(priceVal)} € aux enchères${org ? ` chez ${org}` : ""}${city ? ` à ${city}` : ""}${saleDate ? ` le ${dateFr(saleDate)}` : ""}.${priceWithFees ? ` Soit environ ${formatPrice(priceWithFees)} € frais de vente inclus (estimation).` : ""}${est.min != null ? ` L'estimation initiale était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}`
           });
           else if (!auc.sold) faqs.push({
             q: `Peut-on encore acheter « ${faqTitle} » ?`,
-            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${saleDate}` : ""}. Il est possible qu'il soit encore disponible.${org ? ` Contactez directement ${org}${city ? ` à ${city}` : ""} pour vérifier la disponibilité et négocier le prix.` : ""}`
+            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${dateFr(saleDate)}` : ""}. Il est possible qu'il soit encore disponible.${org ? ` Contactez directement ${org}${city ? ` à ${city}` : ""} pour vérifier la disponibilité et négocier le prix.` : ""}`
           });
           if (est.min != null) faqs.push({
             q: `Quelle était l'estimation de « ${faqTitle} » ?`,
@@ -1727,7 +1767,7 @@ function generateSalePage(saleId, data) {
   ${navHtml()}
   <div class="breadcrumb">
     <a href="/index.html">Accueil</a> ›
-    <a href="/jour/${saleDate}.html">${saleDate}</a> ›
+    <a href="/jour/${saleDate}.html">${dateShortFr(saleDate)}</a> ›
     Vente ${saleId}
   </div>
   ${adSlot("header", "padding: 0.5rem 2rem;")}
@@ -1737,7 +1777,7 @@ function generateSalePage(saleId, data) {
         <div class="card">
           <div class="card-body">
             <h1 style="font-size:1.3rem;margin-bottom:0.5rem;">${esc(data.saleName)}</h1>
-            <p style="color:var(--text2);"><a href="/maison/${slugify(data.org)}.html">${esc(data.org)}</a> · ${esc(data.city)} · ${saleDate}</p>
+            <p style="color:var(--text2);"><a href="/maison/${slugify(data.org)}.html">${esc(data.org)}</a> · ${esc(data.city)} · ${dateFr(saleDate)}</p>
             <div style="display:flex;gap:2rem;margin:1rem 0;">
               <div class="stat-box"><div class="stat-number">${data.items.length}</div><div class="stat-label">lots vendus</div></div>
               <div class="stat-box"><div class="stat-number">${formatPrice(totalPrice)} €</div><div class="stat-label">total adjugé</div></div>
@@ -1978,7 +2018,7 @@ function generateUnsoldPage(item, sale) {
             <div style="display:inline-block;background:var(--red-bg);color:var(--red);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:700;margin-bottom:0.8rem;">Invendu</div>
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;line-height:1.4;overflow-wrap:break-word;">${esc(lotTitle)}</h1>
             ${lotDesc ? `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;overflow-wrap:break-word;max-width:100%;">${esc(lotDesc)}</p>` : `<p style="color:var(--text);font-size:0.95rem;line-height:1.8;margin-bottom:0.8rem;">
-              Ce lot de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${saleDate}` : ""}${org ? ` organisée par ${esc(org)}` : ""}${city ? ` à ${esc(city)}` : ""}.
+              Ce lot de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a> n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${dateFr(saleDate)}` : ""}${org ? ` organisée par ${esc(org)}` : ""}${city ? ` à ${esc(city)}` : ""}.
               ${est.min != null ? `Son estimation était de ${formatPrice(est.min)} à ${formatPrice(est.max)} €.` : ""}
               Il est peut-être encore disponible — contactez directement la maison de vente pour négocier un prix.
             </p>`}
@@ -1988,7 +2028,7 @@ function generateUnsoldPage(item, sale) {
             ${adSlot("inArticle")}
             <table class="meta-table">
               ${catSlug ? `<tr><td>Catégorie</td><td><a href="/categorie/${catSlug}.html">${esc(catName)}</a></td></tr>` : ""}
-              <tr><td>Date</td><td>${saleDate}</td></tr>
+              <tr><td>Date</td><td>${dateFr(saleDate)}</td></tr>
               ${org ? `<tr><td>Maison</td><td><a href="/maison/${orgSlug}.html">${esc(org)}</a>${city ? ` · <a href="/ville/${slugify(city)}.html">${esc(city)}</a>` : ""}</td></tr>` : ""}
             </table>
           </div>
@@ -2009,7 +2049,7 @@ function generateUnsoldPage(item, sale) {
           const faqs = [];
           faqs.push({
             q: `Peut-on encore acheter « ${faqTitle} » ?`,
-            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${saleDate}` : ""}. Il est possible qu'il soit encore disponible. Contactez directement ${org || "la maison de vente"}${city ? ` à ${city}` : ""} pour connaître sa disponibilité et négocier un prix.`
+            a: `Ce lot n'a pas trouvé preneur lors de la vente aux enchères${saleDate ? ` du ${dateFr(saleDate)}` : ""}. Il est possible qu'il soit encore disponible. Contactez directement ${org || "la maison de vente"}${city ? ` à ${city}` : ""} pour connaître sa disponibilité et négocier un prix.`
           });
           if (est.min != null) faqs.push({
             q: `Quelle était l'estimation de « ${faqTitle} » ?`,
@@ -2071,7 +2111,7 @@ function unsoldLotCard(item, sale) {
   const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
   const catName = item.category?.name || "";
   const saleDate = sale?.datetime ? sale.datetime.substring(0, 10) : "";
-  const dateDisplay = saleDate ? saleDate.split("-").reverse().join("/") : "";
+  const dateDisplay = dateShortFr(saleDate);
   return `<a href="/lot/${lotSlug(item)}.html" class="lot-card">
     ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}" loading="lazy">` : `<div class="no-img">📦</div>`}
     <div class="lot-info">
