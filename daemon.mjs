@@ -769,7 +769,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
 function navHtml() {
   return `<nav class="topnav">
-  <a href="/index.html" class="brand"><svg viewBox="0 0 40 40" width="32" height="32" style="flex-shrink:0;" aria-hidden="true"><defs><linearGradient id="gv1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c5cfc"/></linearGradient><linearGradient id="gv2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs><rect x="6" y="4" width="18" height="8" rx="3" transform="rotate(-45 15 8)" fill="url(#gv1)"/><rect x="13" y="10" width="4" height="16" rx="2" transform="rotate(-45 15 18)" fill="url(#gv1)" opacity="0.85"/><circle cx="26" cy="26" r="2.5" fill="#a78bfa" opacity="0.5"/><rect x="6" y="32" width="28" height="5" rx="2.5" fill="url(#gv2)"/><rect x="10" y="28.5" width="20" height="4.5" rx="1.5" fill="url(#gv2)" opacity="0.5"/></svg><span class="brand-text">Adjugé<span style="color:#34d399;-webkit-text-fill-color:#34d399;font-weight:400;"> !</span></span></a>
+  <a href="/index.html" class="brand"><span style="font-size:1.6rem;line-height:1;" aria-hidden="true">🔨</span><span class="brand-text">Adjugé<span style="color:#34d399;-webkit-text-fill-color:#34d399;font-weight:400;"> !</span></span></a>
   <a href="/index.html" class="desk-link">Accueil</a>
   <a href="/categories.html" class="desk-link">Catégories</a>
   <a href="/villes.html" class="desk-link">Villes</a>
