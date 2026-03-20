@@ -38,6 +38,10 @@ export default {
   // OpenAI (GPT-4o-mini for AI enrichment)
   openaiKey: env("OPENAI_API_KEY"),
 
+  // DataForSEO (reverse image search for deal analysis)
+  dataforseoLogin: env("DATAFORSEO_LOGIN"),
+  dataforseoPassword: env("DATAFORSEO_PASSWORD"),
+
   // Limites
   similarLotsCount: 6,
   lotsPerCategoryPage: 50,

@@ -4334,6 +4334,46 @@ function saveAiCache(cache) {
   fs.writeFileSync(AI_CACHE_FILE, JSON.stringify(cache), "utf-8");
 }
 
+// DataForSEO reverse image search — returns market prices from Google
+async function searchByImage(imageUrl) {
+  if (!config.dataforseoLogin || !config.dataforseoPassword || !imageUrl) return null;
+  try {
+    const auth = Buffer.from(`${config.dataforseoLogin}:${config.dataforseoPassword}`).toString("base64");
+    const body = JSON.stringify([{
+      image_url: imageUrl,
+      language_code: "fr",
+      location_code: 2250, // France
+    }]);
+    const result = execFileSync("curl", [
+      "-s", "--max-time", "15",
+      "https://api.dataforseo.com/v3/serp/google/search_by_image/live/advanced",
+      "-H", "Content-Type: application/json",
+      "-H", `Authorization: Basic ${auth}`,
+      "-d", body,
+    ], { maxBuffer: 2 * 1024 * 1024, timeout: 20000 });
+    const json = JSON.parse(result.toString("utf-8"));
+    const items = json?.tasks?.[0]?.result?.[0]?.items || [];
+    // Extract useful info: titles and prices from shopping/organic results
+    const found = [];
+    for (const it of items.slice(0, 10)) {
+      if (it.type === "shopping" || it.type === "images_search") {
+        const shops = it.items || [it];
+        for (const s of shops.slice(0, 5)) {
+          if (s.price) found.push({ title: s.title || "", price: s.price?.current || 0, source: s.source || s.domain || "" });
+          else if (s.title) found.push({ title: s.title, price: 0, source: s.source || s.domain || "" });
+        }
+      } else if (it.type === "organic" && it.title) {
+        // Extract price from snippet if present
+        const priceMatch = (it.description || "").match(/(\d[\d\s,.]*)\s*€/);
+        found.push({ title: it.title, price: priceMatch ? parseFloat(priceMatch[1].replace(/\s/g, "").replace(",", ".")) : 0, source: it.domain || "" });
+      }
+    }
+    return found.length > 0 ? found : null;
+  } catch (err) {
+    return null; // Silently fail — enrichment continues without market data
+  }
+}
+
 async function callGpt(messages, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -4341,7 +4381,7 @@ async function callGpt(messages, retries = 2) {
         model: "gpt-4o-mini",
         messages,
         temperature: 0.7,
-        max_tokens: 800,
+        max_tokens: 1200,
       });
       const result = execFileSync("curl", [
         "-s", "--max-time", "30",
@@ -4366,6 +4406,8 @@ async function callGpt(messages, retries = 2) {
 const AI_SYSTEM_PROMPT = `Tu es un expert en objets d'art, antiquités et enchères. On te donne la description brute d'un lot vendu aux enchères en France avec son prix d'adjudication.
 
 RÈGLES IMPORTANTES :
+- Tu reçois une PHOTO de l'objet + sa description texte. ANALYSE LA PHOTO pour identifier précisément l'objet : marque visible, modèle, état, matériaux, époque, style. La photo est ta source principale d'identification.
+- Si des PRIX MARCHÉ (Google Image Search) sont fournis, utilise-les pour ton analyse de prix. Ce sont des prix réels trouvés en ligne pour des objets similaires.
 - IDENTIFIE le vrai objet dans la description. La première ligne peut être un numéro d'immatriculation, un code, un numéro de lot — ignore-les. Trouve le NOM RÉEL du produit (marque, modèle, type d'objet).
 - IGNORE les infos logistiques : dates d'expo, adresses de retrait, conditions de vente, frais.
 - La catégorie Interenchères peut être vague ("Secteurs d'activités spécifiques - Divers") — recatégorise correctement.
@@ -4452,12 +4494,38 @@ async function aiEnrichLots(maxPerRun = 0) {
     const estLow = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
     const estHigh = item.pricing?.estimates?.max || 0;
     const startPrice = item.pricing?.starting_price || 0;
-    const userMsg = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€${isUnsold ? `\nSTATUT: INVENDU (pas vendu aux enchères)${estLow ? `\nEstimation: ${estLow}-${estHigh}€` : ""}${startPrice ? `\nMise à prix: ${startPrice}€` : ""}` : ""}\nDescription brute:\n${rawDesc.substring(0, 500)}`;
+
+    // Step 1: Reverse image search via DataForSEO (market prices)
+    const photoUrl = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
+    let marketData = "";
+    if (photoUrl) {
+      const results = await searchByImage(photoUrl);
+      if (results && results.length > 0) {
+        const withPrice = results.filter(r => r.price > 0).slice(0, 5);
+        const withoutPrice = results.filter(r => !r.price).slice(0, 3);
+        if (withPrice.length > 0) {
+          marketData = "\n\nPRIX MARCHÉ (résultats Google Image Search) :\n" + withPrice.map(r => `- ${r.title} : ${r.price}€ (${r.source})`).join("\n");
+        }
+        if (withoutPrice.length > 0) {
+          marketData += "\nProduits similaires trouvés :\n" + withoutPrice.map(r => `- ${r.title} (${r.source})`).join("\n");
+        }
+      }
+    }
+
+    const textContent = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€${isUnsold ? `\nSTATUT: INVENDU (pas vendu aux enchères)${estLow ? `\nEstimation: ${estLow}-${estHigh}€` : ""}${startPrice ? `\nMise à prix: ${startPrice}€` : ""}` : ""}\nDescription brute:\n${rawDesc.substring(0, 500)}${marketData}`;
+
+    // Step 2: Build message with image if available (GPT-4o-mini vision)
+    const userContent = photoUrl
+      ? [
+          { type: "text", text: textContent },
+          { type: "image_url", image_url: { url: photoUrl, detail: "low" } },
+        ]
+      : textContent;
 
     try {
       const response = await callGpt([
         { role: "system", content: AI_SYSTEM_PROMPT },
-        { role: "user", content: userMsg },
+        { role: "user", content: userContent },
       ]);
 
       // Parse JSON response
