@@ -44,7 +44,9 @@ jobs:
         uses: actions/cache@v4
         id: data-cache
         with:
-          path: site/data
+          path: |
+            site/data
+            site/lot
           key: site-data-${{ github.run_number }}
           restore-keys: |
             site-data-
