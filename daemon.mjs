@@ -2201,7 +2201,19 @@ function generateInvendusIndex() {
     const date = sale?.datetime ? sale.datetime.substring(0, 10) : "";
     const city = sale?.address?.city || item.sale?.address?.city || "";
     const coords = cityToCoords(city);
-    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date, v: city, ...(coords ? { lat: coords[0], lng: coords[1] } : {}) };
+    const nPhotos = item.medias?.length || 0;
+    // Deal score: 0=sans intérêt, 1=bonne affaire, 2=super affaire, 3=affaire exceptionnelle
+    let deal = 0;
+    if (estHigh > 0) {
+      deal++; // has estimation = at least interesting
+      if (startPrice > 0 && startPrice < estLow * 0.5) deal++; // starting price < 50% of low estimate
+      else if (estHigh >= 200) deal++; // high-value item unsold = opportunity
+      if (nPhotos >= 3 && estHigh >= 500) deal++; // well-documented high-value
+    } else if (startPrice > 0 && nPhotos >= 2) {
+      deal = 1; // no estimate but has starting price + photos
+    }
+    if (deal > 3) deal = 3;
+    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date, v: city, ba: deal, ...(coords ? { lat: coords[0], lng: coords[1] } : {}) };
   });
 
   const metaDesc = `${unsoldItems.length} lots invendus aux enchères. Filtrez par catégorie et contactez les maisons de vente pour négocier.`;
@@ -2266,6 +2278,7 @@ function generateInvendusIndex() {
               </select>
               <select id="unsoldSort" style="background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;">
                 <option value="recent">Plus récents</option>
+                <option value="deal">Meilleures affaires</option>
                 <option value="price-desc">Estimation décroissante</option>
                 <option value="price-asc">Estimation croissante</option>
               </select>
@@ -2299,12 +2312,16 @@ function generateInvendusIndex() {
     function render(items, append) {
       if (!append) { grid.innerHTML = ''; shown = 0; }
       var batch = items.slice(shown, shown + PAGE);
+      var DEAL_LABELS = ['', '🟢 Bonne affaire', '🔵 Super affaire', '🔥 Affaire exceptionnelle'];
+      var DEAL_COLORS = ['', '#22c55e', '#3b82f6', '#f59e0b'];
       batch.forEach(function(d) {
         var est = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : '';
         var sp = d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '';
-        grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;">'
+        var dealBadge = d.ba > 0 ? '<div style="font-size:0.72rem;font-weight:700;color:' + DEAL_COLORS[d.ba] + ';padding:2px 0;">' + DEAL_LABELS[d.ba] + '</div>' : '';
+        grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;position:relative;">'
+          + (d.ba === 3 ? '<div style="position:absolute;top:8px;right:8px;background:#f59e0b;color:#000;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:4px;z-index:1;">🔥 TOP</div>' : '')
           + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);display:flex;align-items:center;justify-content:center;color:var(--text3);">📷</div>')
-          + '<div class="lot-info"><div class="lot-title">' + d.t + '</div>'
+          + '<div class="lot-info">' + dealBadge + '<div class="lot-title">' + d.t + '</div>'
           + (est ? '<div style="color:var(--accent2);font-weight:700;font-size:0.85rem;">' + est + '</div>' : '')
           + (sp ? '<div style="color:var(--text2);font-size:0.78rem;">' + sp + '</div>' : '')
           + '<div style="color:var(--red);font-weight:600;font-size:0.78rem;">Invendu</div>'
@@ -2345,7 +2362,8 @@ function generateInvendusIndex() {
         if (minDate && d.d < minDate) return false;
         return true;
       });
-      if (sort === 'price-desc') filtered.sort(function(a,b) { return (b.eh||0) - (a.eh||0); });
+      if (sort === 'deal') filtered.sort(function(a,b) { return (b.ba||0) - (a.ba||0) || (b.eh||0) - (a.eh||0); });
+      else if (sort === 'price-desc') filtered.sort(function(a,b) { return (b.eh||0) - (a.eh||0); });
       else if (sort === 'price-asc') filtered.sort(function(a,b) { return (a.eh||0) - (b.eh||0); });
       else filtered.sort(function(a,b) { return (b.d||'').localeCompare(a.d||''); });
       render(filtered, false);
