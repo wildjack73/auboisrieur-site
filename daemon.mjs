@@ -2518,6 +2518,37 @@ function generateHomePage(dateStr) {
   // Nombre de jours distincts
   const uniqueDays = new Set(allValues.map(({ sale }) => sale?.datetime ? sale.datetime.substring(0, 10) : dateStr));
 
+  // ── Ratio mise à prix → prix vendu ────────────────────────────────
+  const withStartAndSold = allValues.filter(({ item }) => {
+    const sp = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+    const price = item.pricing?.auctioned?.price || 0;
+    return sp > 0 && price > 0;
+  });
+  const ratioCount = withStartAndSold.length;
+  const ratios = withStartAndSold.map(({ item }) => {
+    const sp = item.pricing?.starting_price || item.pricing?.reserve_price;
+    const price = item.pricing?.auctioned?.price;
+    return { ratio: price / sp, sp, price, item };
+  });
+  const avgRatio = ratioCount ? (ratios.reduce((s, r) => s + r.ratio, 0) / ratioCount).toFixed(1) : "–";
+  const medianRatio = ratioCount ? ratios.sort((a, b) => a.ratio - b.ratio)[Math.floor(ratioCount / 2)].ratio.toFixed(1) : "–";
+  const aboveEstCount = allValues.filter(({ item }) => {
+    const price = item.pricing?.auctioned?.price || 0;
+    const estHigh = item.pricing?.estimates?.max || 0;
+    return price > 0 && estHigh > 0 && price > estHigh;
+  }).length;
+  const withEstCount = allValues.filter(({ item }) => (item.pricing?.estimates?.max || 0) > 0 && (item.pricing?.auctioned?.price || 0) > 0).length;
+  const aboveEstPct = withEstCount ? Math.round(aboveEstCount / withEstCount * 100) : 0;
+  // Top surprises: biggest multipliers
+  const topSurprises = ratios.sort((a, b) => b.ratio - a.ratio).slice(0, 5).map(r => ({
+    slug: lotSlug(r.item),
+    title: r.item._aiTitle || cleanTitleLine((r.item.description || r.item.title_translations?.["fr-FR"] || "").split("\n")[0] || "Objet"),
+    sp: r.sp,
+    price: r.price,
+    ratio: r.ratio.toFixed(1),
+    thumb: r.item.medias?.[0] ? imgUrl(r.item.medias[0], "lg") : "",
+  }));
+
   // All items sorted by recent, as JSON for infinite scroll
   const allItems = allValues
     .sort((a, b) => (b.item.last_updated || "").localeCompare(a.item.last_updated || ""))
@@ -2598,6 +2629,51 @@ function generateHomePage(dateStr) {
         <div><div class="stat-number" style="font-size:${statFontSize(globalMax)}">${formatPrice(globalMax)} €</div><div class="stat-label">record absolu</div></div>
       </div>${globalMaxSlug ? `</a>` : `</div>`}
     </div>
+
+    <!-- Analyse mise à prix / prix vendu -->
+    <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📊 Mise à prix vs Prix vendu <span style="font-size:0.8rem;font-weight:400;">(${formatPrice(ratioCount)} lots analysés)</span></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1rem;">
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(99,102,241,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📈</div>
+        <div><div class="stat-number" style="font-size:1.3rem;">×${avgRatio}</div><div class="stat-label">ratio moyen</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚡</div>
+        <div><div class="stat-number" style="font-size:1.3rem;">×${medianRatio}</div><div class="stat-label">ratio médian</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🎯</div>
+        <div><div class="stat-number" style="font-size:1.3rem;">${aboveEstPct}%</div><div class="stat-label">au-dessus de l'estimation</div></div>
+      </div></div>
+      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🔥</div>
+        <div><div class="stat-number" style="font-size:1.3rem;">×${topSurprises[0]?.ratio || "–"}</div><div class="stat-label">meilleure surprise</div></div>
+      </div></div>
+    </div>
+    ${topSurprises.length ? `
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-header"><h3 style="font-size:1rem;">🏆 Top 5 des plus grosses surprises</h3></div>
+      <div class="card-body" style="padding:0;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+          <thead><tr style="border-bottom:1px solid var(--border);color:var(--text2);text-align:left;">
+            <th style="padding:0.7rem 1rem;"></th>
+            <th style="padding:0.7rem 0.5rem;">Lot</th>
+            <th style="padding:0.7rem 0.5rem;text-align:right;">Mise à prix</th>
+            <th style="padding:0.7rem 0.5rem;text-align:right;">Prix vendu</th>
+            <th style="padding:0.7rem 1rem;text-align:right;">Ratio</th>
+          </tr></thead>
+          <tbody>${topSurprises.map((s, i) => `
+            <tr style="border-bottom:1px solid var(--border);${i === 0 ? "background:var(--accent-glow);" : ""}">
+              <td style="padding:0.5rem 1rem;width:48px;">${s.thumb ? `<img src="${s.thumb}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" loading="lazy">` : ""}</td>
+              <td style="padding:0.5rem;"><a href="/lot/${s.slug}.html" style="color:var(--accent);text-decoration:none;">${s.title.substring(0, 50)}${s.title.length > 50 ? "…" : ""}</a></td>
+              <td style="padding:0.5rem;text-align:right;color:var(--text2);">${formatPrice(s.sp)} €</td>
+              <td style="padding:0.5rem;text-align:right;color:var(--accent);font-weight:700;">${formatPrice(s.price)} €</td>
+              <td style="padding:0.5rem 1rem;text-align:right;font-weight:700;color:#10b981;">×${s.ratio}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ""}
 
     <div class="grid-2">
       <main>
