@@ -1,9 +1,9 @@
 name: Scrape & Deploy
 
 on:
-  # 2x/jour le temps que le premier deploy complet passe (8h et 18h Paris)
+  # Toutes les 3 heures entre 7h et 22h UTC (9h-minuit Paris)
   schedule:
-    - cron: "0 7,17 * * *"
+    - cron: "0 7,10,13,16,19,22 * * *"
   # Lancement manuel
   workflow_dispatch:
     inputs:
