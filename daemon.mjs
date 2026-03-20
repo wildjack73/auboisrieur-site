@@ -2354,7 +2354,7 @@ function generateInvendusIndex() {
         var est = d.el && d.eh ? 'Est. ' + d.el.toLocaleString('fr-FR') + ' – ' + d.eh.toLocaleString('fr-FR') + ' €' : '';
         var sp = d.sp ? 'Mise à prix : ' + d.sp.toLocaleString('fr-FR') + ' €' : '';
         var dealBadge = d.ba > 0 ? '<div style="font-size:0.72rem;font-weight:700;color:' + DEAL_COLORS[d.ba] + ';padding:2px 0;">' + DEAL_LABELS[d.ba] + '</div>' : '';
-        grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;position:relative;">'
+        grid.innerHTML += '<a href="/lot/' + d.s + '.html" class="lot-card" style="text-decoration:none;position:relative;" onclick="saveState()">'
           + (d.ba === 3 ? '<div style="position:absolute;top:8px;right:8px;background:#f59e0b;color:#000;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:4px;z-index:1;">🔥 TOP</div>' : '')
           + (d.i ? '<img src="' + d.i + '" alt="" loading="lazy">' : '<div style="height:160px;background:var(--surface3);display:flex;align-items:center;justify-content:center;color:var(--text3);">📷</div>')
           + '<div class="lot-info">' + dealBadge + '<div class="lot-title">' + d.t + '</div>'
@@ -2392,7 +2392,14 @@ function generateInvendusIndex() {
         var dd = new Date(); dd.setDate(dd.getDate() - days + 1);
         minDate = dd.toISOString().substring(0, 10);
       }
-      activeCity = '';
+      // If activeCity from URL hash, filter by city instead of resetting
+      if (activeCity) {
+        filtered = DATA.filter(function(d) { return d.v === activeCity; });
+        filtered.sort(function(a,b) { return (b.d||'').localeCompare(a.d||''); });
+        render(filtered, false);
+        countEl.textContent = filtered.length + ' invendu' + (filtered.length > 1 ? 's' : '') + ' à ' + activeCity;
+        return;
+      }
       filtered = DATA.filter(function(d) {
         if (cat && d.c !== cat) return false;
         if (q && d.t.toLowerCase().indexOf(q) === -1) return false;
@@ -2406,11 +2413,66 @@ function generateInvendusIndex() {
       render(filtered, false);
     }
 
-    document.getElementById('unsoldSearch').addEventListener('input', applyFilters);
-    document.getElementById('unsoldCat').addEventListener('change', applyFilters);
-    document.getElementById('unsoldDate').addEventListener('change', applyFilters);
-    document.getElementById('unsoldSort').addEventListener('change', applyFilters);
+    // ─── URL hash ↔ filter state persistence ───────────
+    window.saveState = function() {
+      var params = {};
+      var q = document.getElementById('unsoldSearch').value;
+      var cat = document.getElementById('unsoldCat').value;
+      var sort = document.getElementById('unsoldSort').value;
+      var days = document.getElementById('unsoldDate').value;
+      if (q) params.q = q;
+      if (cat) params.cat = cat;
+      if (sort && sort !== 'recent') params.sort = sort;
+      if (days) params.days = days;
+      if (activeCity) params.city = activeCity;
+      // Save scroll position + number of items shown
+      params.n = shown;
+      var hash = Object.keys(params).map(function(k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+      history.replaceState(null, '', hash ? '#' + hash : location.pathname);
+      // Also save scroll Y in sessionStorage (hash can't hold it reliably)
+      try { sessionStorage.setItem('unsold_scrollY', window.scrollY); } catch(e) {}
+    };
+    // Save state on any scroll (debounced)
+    var scrollTimer;
+    window.addEventListener('scroll', function() {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(function() {
+        try { sessionStorage.setItem('unsold_scrollY', window.scrollY); } catch(e) {}
+      }, 200);
+    });
+
+    function restoreState() {
+      var hash = location.hash.replace(/^#/, '');
+      if (!hash) return false;
+      var params = {};
+      hash.split('&').forEach(function(p) { var kv = p.split('='); if (kv.length === 2) params[kv[0]] = decodeURIComponent(kv[1]); });
+      if (params.q) document.getElementById('unsoldSearch').value = params.q;
+      if (params.cat) document.getElementById('unsoldCat').value = params.cat;
+      if (params.sort) document.getElementById('unsoldSort').value = params.sort;
+      if (params.days) document.getElementById('unsoldDate').value = params.days;
+      if (params.city) activeCity = params.city;
+      return params;
+    }
+    var restored = restoreState();
+
+    document.getElementById('unsoldSearch').addEventListener('input', function() { applyFilters(); saveState(); });
+    document.getElementById('unsoldCat').addEventListener('change', function() { applyFilters(); saveState(); });
+    document.getElementById('unsoldDate').addEventListener('change', function() { applyFilters(); saveState(); });
+    document.getElementById('unsoldSort').addEventListener('change', function() { applyFilters(); saveState(); });
+    window.addEventListener('popstate', function() { restoreState(); applyFilters(); });
     applyFilters();
+    // Restore scroll position: load enough items then scroll back
+    if (restored && restored.n) {
+      var targetN = parseInt(restored.n) || 0;
+      while (shown < targetN && shown < filtered.length) {
+        render(filtered, true);
+      }
+      setTimeout(function() {
+        var savedY = 0;
+        try { savedY = parseInt(sessionStorage.getItem('unsold_scrollY')) || 0; } catch(e) {}
+        if (savedY > 0) window.scrollTo(0, savedY);
+      }, 100);
+    }
 
     // ─── Map ──────────────────────────────────────────
     var CITIES = ${mapCities};
@@ -2447,6 +2509,7 @@ function generateInvendusIndex() {
       filtered.sort(function(a,b) { return (b.d||'').localeCompare(a.d||''); });
       render(filtered, false);
       countEl.textContent = filtered.length + ' invendu' + (filtered.length > 1 ? 's' : '') + ' à ' + city;
+      saveState();
       // Scroll to grid
       grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
