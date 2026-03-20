@@ -2043,8 +2043,13 @@ function generateUnsoldPage(item, sale) {
     <div class="grid-2">
       <main>
         <div class="card">
-          ${medias.length > 0 ? `<div style="background:#111;padding:1rem;display:flex;justify-content:center;border-radius:var(--radius) var(--radius) 0 0;">
-            <img src="${esc(thumb)}" alt="${esc(lotTitle)}" style="max-height:400px;max-width:100%;object-fit:contain;border-radius:var(--radius-sm);">
+          ${medias.length > 0 ? `<div style="background:#111;padding:1rem;border-radius:var(--radius) var(--radius) 0 0;">
+            <div style="display:flex;justify-content:center;">
+              <img id="mainImg" src="${esc(imgUrl(medias[0], "lg"))}" alt="${esc(lotTitle)}" style="max-height:400px;max-width:100%;object-fit:contain;border-radius:var(--radius-sm);cursor:${medias.length > 1 ? "pointer" : "default"};">
+            </div>
+            ${medias.length > 1 ? `<div style="display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding:4px 0;">
+              ${medias.map((m, i) => `<img src="${esc(imgUrl(m, "sm"))}" data-lg="${esc(imgUrl(m, "lg"))}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid ${i === 0 ? "var(--accent)" : "transparent"};opacity:${i === 0 ? "1" : "0.6"};" onclick="document.getElementById('mainImg').src=this.dataset.lg;this.parentNode.querySelectorAll('img').forEach(function(x){x.style.border='2px solid transparent';x.style.opacity='0.6';});this.style.border='2px solid var(--accent)';this.style.opacity='1';">`).join("")}
+            </div>` : ""}
           </div>` : ""}
           <div class="card-body">
             <div style="display:inline-block;background:var(--red-bg);color:var(--red);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:700;margin-bottom:0.8rem;">Invendu</div>
