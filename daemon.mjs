@@ -581,69 +581,45 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     ::selection { background: var(--accent); color: #fff; }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-    /* Nav */
-    .topnav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
-    .topnav .brand { padding: 0.9rem 1.2rem 0.9rem 1.5rem; border-bottom: none !important; display: flex; align-items: center; gap: 8px; }
-    .topnav .brand:hover { background: none; }
-    .topnav .brand svg { flex-shrink: 0; }
-    .brand-text { font-weight: 800; font-size: 1.5rem; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .topnav .brand:hover .brand-text { background: linear-gradient(135deg, #a78bfa, #c4b5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .topnav a { color: var(--text2); font-size: 1.15rem; padding: 0.9rem 1.3rem; font-weight: 600; transition: all 0.2s; border-bottom: 2px solid transparent; }
-    .topnav a:hover { color: #fff; background: var(--accent-glow); border-bottom-color: var(--accent); }
+    /* Nav — handled by Tailwind now, keep minimal fallback */
 
     /* Breadcrumb */
-    .breadcrumb { padding: 0.7rem 2rem; font-size: 0.82rem; color: var(--text3); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .breadcrumb { max-width: 72rem; margin: 0 auto; padding: 0.6rem 1.5rem; font-size: 0.8rem; color: var(--text3); }
     .breadcrumb a { color: var(--text2); }
     .breadcrumb a:hover { color: var(--accent2); }
 
     /* Layout */
-    .container { max-width: 1140px; margin: 1.5rem auto; padding: 0 1.2rem; overflow: hidden; word-break: break-word; }
+    .container { max-width: 72rem; margin: 1.5rem auto; padding: 0 1.5rem; overflow: hidden; word-break: break-word; }
     .grid-2 { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; overflow: hidden; }
     .grid-2 > main { min-width: 0; overflow: hidden; max-width: 100%; }
-    /* Hamburger button */
-    .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; padding: 0.6rem 0.8rem; cursor: pointer; line-height: 1; }
-    .nav-links { display: none; }
     .cat-desc { max-height: 5.5em; overflow: hidden; position: relative; transition: max-height 0.3s ease; }
     .cat-desc.expanded { max-height: none; }
     .cat-desc-toggle { display: block; text-align: center; color: var(--accent); font-size: 0.85rem; padding: 0.5rem; cursor: pointer; }
 
     @media (max-width: 800px) {
       .grid-2 { grid-template-columns: 1fr; }
-      .topnav { padding: 0 0.3rem; flex-wrap: wrap; }
-      .topnav .brand { padding: 0.6rem 0.4rem 0.6rem 0.6rem; font-size: 0.9rem; gap: 5px; }
-      .topnav .brand svg { width: 20px; height: 20px; }
-      .brand-text { font-size: 1.05rem; }
-      .hamburger { display: block; }
-      .nav-links { display: none; flex-direction: column; width: 100%; order: 10; background: var(--surface); border-top: 1px solid var(--border); }
-      .nav-links.open { display: flex; }
-      .nav-links a { padding: 0.9rem 1.2rem; font-size: 1.05rem; border-bottom: 1px solid var(--border); width: 100%; box-sizing: border-box; }
-      .topnav > .search-wrap { order: 5; flex: 1; margin: 0 0.3rem; }
-      .desk-link { display: none !important; }
-      .container { margin: 0.8rem auto; padding: 0 0.6rem; }
-      .breadcrumb { padding: 0.5rem 0.8rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .container { margin: 0.8rem auto; padding: 0 0.8rem; }
+      .breadcrumb { padding: 0.5rem 0.8rem; font-size: 0.75rem; }
       .card-body { padding: 1rem; }
       .card-header { padding: 0.8rem 1rem; }
       .price { font-size: 1.5rem; }
       .estimate { display: block; margin-top: 0.3rem; margin-left: 0 !important; }
       .lot-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; }
-      .lot-card img { height: 140px; }
       .lot-card .lot-info { padding: 0.6rem; }
       .lot-card .lot-title { font-size: 0.75rem; }
       .amazon-btn, .ebay-btn { padding: 10px 16px; font-size: 0.82rem; }
       .stat-number { font-size: 1.4rem; }
       .stat-label { font-size: 0.7rem; }
-      .hero-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
-      .stat-box { padding: 0.8rem 0.3rem; }
       h1 { font-size: 1.15rem !important; }
       .cat-desc { max-height: 4.5em; }
     }
 
     /* Cards */
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; transition: border-color 0.3s; max-width: 100%; box-sizing: border-box; }
-    .card:hover { border-color: var(--border2); }
-    .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
-    .card-header h2, .card-header h3 { color: var(--text); font-weight: 700; }
-    .card-body { padding: 1.5rem; overflow: hidden; word-break: break-word; overflow-wrap: break-word; max-width: 100%; box-sizing: border-box; }
+    .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 1rem; overflow: hidden; margin-bottom: 1.5rem; transition: border-color 0.2s; max-width: 100%; box-sizing: border-box; }
+    .card:hover { border-color: rgba(255,255,255,0.1); }
+    .card-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .card-header h2, .card-header h3 { color: var(--text); font-weight: 600; }
+    .card-body { padding: 1.2rem; overflow: hidden; word-break: break-word; overflow-wrap: break-word; max-width: 100%; box-sizing: border-box; }
 
     /* Images */
     .gallery { display: flex; flex-wrap: wrap; gap: 8px; padding: 1.5rem; background: var(--bg); justify-content: center; max-width: 100%; box-sizing: border-box; }
@@ -652,9 +628,9 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
     /* Price */
     .price { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
-    .price.sold { color: var(--green); text-shadow: 0 0 30px rgba(52,211,153,0.3); }
+    .price.sold { color: var(--accent2); }
     .price.unsold { color: var(--red); }
-    .estimate { color: var(--text3); font-size: 0.9rem; }
+    .estimate { color: var(--text3); font-size: 0.85rem; }
     .tag { background: var(--green-bg); color: var(--green); padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
 
     /* Affiliate buttons */
@@ -671,16 +647,16 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
     .meta-table td:first-child { font-weight: 600; color: var(--text2); width: 120px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
     /* Lot grid */
-    .lot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1.2rem; }
-    .lot-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: all 0.3s; position: relative; }
-    .lot-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
-    .lot-card img { width: 100%; height: 180px; object-fit: cover; transition: transform 0.3s; }
+    .lot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1rem; }
+    .lot-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 1rem; overflow: hidden; transition: all 0.2s; position: relative; }
+    .lot-card:hover { border-color: rgba(139,92,246,0.3); background: rgba(255,255,255,0.05); }
+    .lot-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; transition: transform 0.3s; }
     .lot-card:hover img { transform: scale(1.05); }
-    .lot-card .no-img { width: 100%; height: 180px; background: var(--surface3); display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 2.5rem; }
-    .lot-card .lot-info { padding: 0.9rem; }
+    .lot-card .no-img { width: 100%; aspect-ratio: 4/3; background: var(--surface3); display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 2rem; }
+    .lot-card .lot-info { padding: 0.85rem; }
     .lot-card .lot-title { font-size: 0.82rem; font-weight: 500; line-height: 1.4; height: 2.8em; overflow: hidden; color: var(--text); }
-    .lot-card .lot-price { font-weight: 800; color: var(--green); margin-top: 0.4rem; font-size: 1rem; }
-    .lot-card .lot-cat { font-size: 0.72rem; color: var(--text3); margin-top: 0.3rem; font-weight: 500; }
+    .lot-card .lot-price { font-weight: 800; color: var(--accent2); margin-top: 0.4rem; font-size: 1rem; }
+    .lot-card .lot-cat { font-size: 0.7rem; color: var(--text3); margin-top: 0.3rem; }
 
     /* Lot list row */
     .lot-row { display: flex; align-items: center; gap: 1rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); text-decoration: none; color: inherit; transition: all 0.15s; border-radius: var(--radius-sm); }
@@ -699,20 +675,11 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 
     /* Stats */
     .stat-box { text-align: center; padding: 1.2rem 1.5rem; }
-    .stat-number { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg, var(--accent2), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .stat-label { color: var(--text3); font-size: 0.82rem; font-weight: 500; margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
-
-    /* Hero section for home */
-    .hero-stats { background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%); border: 1px solid var(--border2); border-radius: var(--radius); padding: 0; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
-    .hero-stats::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 40%, var(--accent-glow) 0%, transparent 50%); pointer-events: none; }
-    .hero-stats .stat-box { position: relative; z-index: 1; }
+    .stat-number { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
+    .stat-label { color: var(--text3); font-size: 0.78rem; font-weight: 500; margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
     /* Ad */
     .ad-slot { margin: 1rem 0; text-align: center; min-height: 90px; border-radius: var(--radius-sm); }
-
-    /* Footer */
-    .footer { text-align: center; color: var(--text3); padding: 2.5rem; font-size: 0.78rem; margin-top: 2rem; border-top: 1px solid var(--border); }
-    .footer a { color: var(--text2); }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; }
@@ -731,44 +698,24 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       --border: rgba(0,0,0,0.06); --border2: rgba(0,0,0,0.1);
       --shadow: 0 4px 24px rgba(0,0,0,0.06); --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
     }
-    [data-theme="light"] .stat-number { background: linear-gradient(135deg, var(--accent), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     [data-theme="light"] .price.sold { text-shadow: none; }
-    [data-theme="light"] .brand-text { background: linear-gradient(135deg, var(--accent), #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    [data-theme="light"] .topnav .brand:hover .brand-text { background: linear-gradient(135deg, #7c3aed, #6d28d9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     [data-theme="light"] .lot-card { box-shadow: var(--shadow-sm); }
     [data-theme="light"] .lot-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.1); }
     [data-theme="light"] .carousel { background: #222; }
     [data-theme="light"] .carousel-dots { background: #222; }
     [data-theme="light"] .carousel-thumbs { background: #222; }
 
-    /* Brand logos */
-    .brand-logo { display: block; height: 36px; width: auto; }
-    .brand-logo-light { display: none; }
-    [data-theme="light"] .brand-logo-dark { display: none; }
-    [data-theme="light"] .brand-logo-light { display: block; }
-
-    /* Theme toggle */
-    .theme-toggle { background: var(--surface3); border: 1px solid var(--border2); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s; margin-right: 0.5rem; }
-    .theme-toggle:hover { background: var(--accent-glow); border-color: var(--accent); transform: scale(1.1); }
-
-    /* Search */
-    .search-wrap { position: relative; margin: 0 0.5rem; }
-    .search-input { background: var(--surface3); border: 1px solid var(--border2); color: var(--text); padding: 7px 14px 7px 34px; border-radius: 20px; font-size: 0.84rem; width: 200px; outline: none; transition: all 0.3s; font-family: inherit; }
-    .search-input::placeholder { color: var(--text3); }
-    .search-input:focus { border-color: var(--accent); background: var(--surface); width: 280px; box-shadow: 0 0 0 3px var(--accent-glow); }
-    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; font-size: 0.85rem; }
-    .search-results { position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-sm); box-shadow: var(--shadow); max-height: 400px; overflow-y: auto; z-index: 200; display: none; min-width: 320px; }
+    /* Search dropdown */
+    .search-wrap { position: relative; }
+    .search-results { position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; background: var(--surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; box-shadow: 0 8px 30px rgba(0,0,0,0.4); max-height: 400px; overflow-y: auto; z-index: 200; display: none; min-width: 320px; }
     .search-results.active { display: block; }
-    .search-result { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); transition: background 0.15s; }
-    .search-result:hover { background: var(--accent-glow); }
-    .search-result img { width: 48px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+    .search-result { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); text-decoration: none; color: var(--text); transition: background 0.15s; }
+    .search-result:hover { background: rgba(255,255,255,0.05); }
+    .search-result img { width: 48px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
     .search-result .sr-title { font-size: 0.82rem; line-height: 1.3; flex: 1; }
-    .search-result .sr-price { color: var(--green); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+    .search-result .sr-price { color: var(--accent2); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
     .search-no-result { padding: 1rem; text-align: center; color: var(--text3); font-size: 0.85rem; }
     @media (max-width: 800px) {
-      .search-wrap { flex: 1; margin: 0 0.3rem; max-width: 50%; }
-      .search-input { width: 100%; font-size: 0.8rem; padding: 6px 10px 6px 30px; }
-      .search-input:focus { width: 100%; }
       .search-results { min-width: 0; left: -40px; right: -40px; }
     }
   </style>
@@ -782,32 +729,40 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 }
 
 function navHtml() {
-  return `<nav class="topnav">
-  <a href="/index.html" class="brand"><span style="font-size:1.6rem;line-height:1;" aria-hidden="true">🔨</span><span class="brand-text">Adjugé<span style="color:#34d399;-webkit-text-fill-color:#34d399;font-weight:400;"> !</span></span></a>
-  <a href="/index.html" class="desk-link">Accueil</a>
-  <a href="/categories.html" class="desk-link">Catégories</a>
-  <a href="/villes.html" class="desk-link">Villes</a>
-  <a href="/top-ventes.html" class="desk-link">🏆 Top</a>
-  <a href="/invendus.html" class="desk-link">Invendus</a>
-  <a href="/statistiques.html" class="desk-link">Statistiques</a>
-  <span style="flex:1;"></span>
-  <div class="search-wrap">
-    <span class="search-icon">🔍</span>
-    <input type="text" class="search-input" id="searchInput" placeholder="Rechercher..." autocomplete="off">
-    <div class="search-results" id="searchResults"></div>
+  return `<nav class="sticky top-0 z-50 backdrop-blur-xl bg-[var(--bg)]/80 border-b border-white/5">
+  <div class="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-14">
+    <a href="/index.html" class="flex items-center gap-2 no-underline shrink-0">
+      <svg width="24" height="24" viewBox="0 0 100 100" fill="none"><rect x="35" y="55" width="30" height="8" rx="2" fill="#8b5cf6"/><rect x="46" y="40" width="8" height="20" rx="2" fill="#a78bfa"/><rect x="25" y="28" width="35" height="14" rx="4" fill="#8b5cf6" transform="rotate(-35 42 35)"/></svg>
+      <span class="text-lg font-bold tracking-tight text-[var(--text)]">Adjugé<span class="text-[var(--accent)]">.</span></span>
+    </a>
+    <div class="hidden md:flex items-center gap-1 text-sm">
+      <a href="/index.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Accueil</a>
+      <a href="/categories.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Catégories</a>
+      <a href="/villes.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Villes</a>
+      <a href="/top-ventes.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Top</a>
+      <a href="/invendus.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Invendus</a>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="search-wrap relative">
+        <input type="text" id="searchInput" placeholder="Rechercher..." autocomplete="off"
+          class="bg-white/5 border border-white/10 rounded-lg px-4 py-1.5 text-sm w-36 md:w-48 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] placeholder-[var(--text3)] text-[var(--text)] font-[inherit] transition-all focus:w-48 md:focus:w-64">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <button class="theme-toggle w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-sm hover:bg-white/10 transition" onclick="toggleTheme()" title="Thème" aria-label="Thème">
+        <span class="theme-icon">🌙</span>
+      </button>
+      <button class="md:hidden w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base hover:bg-white/10 transition" onclick="document.getElementById('navLinks').classList.toggle('hidden')" aria-label="Menu">☰</button>
+    </div>
   </div>
-  <button class="theme-toggle" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">
-    <span class="theme-icon">🌙</span>
-  </button>
-  <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')" aria-label="Menu">☰</button>
-  <div class="nav-links" id="navLinks">
-    <a href="/index.html">🏠 Accueil</a>
-    <a href="/categories.html">📂 Catégories</a>
-    <a href="/villes.html">📍 Villes</a>
-    <a href="/top-ventes.html">🏆 Top Ventes</a>
-    <a href="/invendus.html">📦 Invendus</a>
-    <a href="/statistiques.html">📊 Statistiques</a>
-    <a href="/a-propos.html">ℹ️ À propos</a>
+  <div class="hidden md:hidden border-t border-white/5 bg-[var(--bg)]" id="navLinks">
+    <div class="max-w-6xl mx-auto px-4 py-2 flex flex-col">
+      <a href="/index.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Accueil</a>
+      <a href="/categories.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Catégories</a>
+      <a href="/villes.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Villes</a>
+      <a href="/top-ventes.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Top Ventes</a>
+      <a href="/invendus.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Invendus</a>
+      <a href="/recherche.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Recherche</a>
+    </div>
   </div>
 </nav>
 <script>
@@ -864,16 +819,36 @@ function toggleTheme(){
 }
 
 function footerHtml() {
-  return `<footer class="footer">
-  <div style="font-weight:600;color:var(--text2);margin-bottom:0.3rem;">${esc(config.siteName)}</div>
-  Résultats de ventes aux enchères en France · Photos · Prix · Estimations<br>
-  <div style="margin-top:0.5rem;">
-    <a href="/mentions-legales.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Mentions légales</a>·
-    <a href="/politique-confidentialite.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Politique de confidentialité</a>·
-    <a href="/a-propos.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">À propos</a>·
-    <a href="/statistiques.html" style="color:var(--text3);text-decoration:none;font-size:0.75rem;margin:0 0.5rem;">Statistiques</a>
+  return `<footer class="border-t border-white/5 mt-12">
+  <div class="max-w-6xl mx-auto px-6 py-10">
+    <div class="flex flex-col md:flex-row justify-between items-start gap-8">
+      <div>
+        <a href="/index.html" class="text-lg font-bold text-[var(--text)] no-underline">Adjugé<span class="text-[var(--accent)]">.</span></a>
+        <p class="text-sm text-[var(--text3)] mt-2 max-w-xs">Résultats de ventes aux enchères en France. Prix adjugés, photos et estimations.</p>
+      </div>
+      <div class="flex gap-12 text-sm text-[var(--text3)]">
+        <div class="flex flex-col gap-2">
+          <span class="text-[var(--text2)] font-medium mb-1">Navigation</span>
+          <a href="/index.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Accueil</a>
+          <a href="/categories.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Catégories</a>
+          <a href="/villes.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Villes</a>
+          <a href="/top-ventes.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Top ventes</a>
+          <a href="/invendus.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Invendus</a>
+          <a href="/recherche.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Recherche</a>
+        </div>
+        <div class="flex flex-col gap-2">
+          <span class="text-[var(--text2)] font-medium mb-1">Légal</span>
+          <a href="/mentions-legales.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Mentions légales</a>
+          <a href="/politique-confidentialite.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Confidentialité</a>
+          <a href="/a-propos.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">À propos</a>
+          <a href="/statistiques.html" class="hover:text-[var(--text)] transition no-underline text-[var(--text3)]">Statistiques</a>
+        </div>
+      </div>
+    </div>
+    <div class="border-t border-white/5 mt-8 pt-6 text-center text-xs text-[var(--text3)]">
+      © 2026 Adjugé ! — Référencement NICE (SIREN 447 716 218) · Les liens marchands sont des liens affiliés.
+    </div>
   </div>
-  <span style="color:var(--text3);font-size:0.72rem;">Les liens marchands sont des liens affiliés.</span>
 </footer>`;
 }
 
