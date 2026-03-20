@@ -4404,8 +4404,7 @@ async function callGpt(messages, retries = 2) {
 const AI_SYSTEM_PROMPT = `Tu es un expert en objets d'art, antiquités et enchères. On te donne la description brute d'un lot vendu aux enchères en France avec son prix d'adjudication.
 
 RÈGLES IMPORTANTES :
-- Tu reçois une PHOTO de l'objet + sa description texte. ANALYSE LA PHOTO pour identifier précisément l'objet : marque visible, modèle, état, matériaux, époque, style. La photo est ta source principale d'identification.
-- Si des PRIX MARCHÉ (Google Image Search) sont fournis, utilise-les pour ton analyse de prix. Ce sont des prix réels trouvés en ligne pour des objets similaires.
+- Si des PRIX MARCHÉ (Google Shopping) sont fournis dans un second message, utilise-les pour ton analyse de prix. Ce sont des prix réels trouvés en ligne pour des objets similaires.
 - IDENTIFIE le vrai objet dans la description. La première ligne peut être un numéro d'immatriculation, un code, un numéro de lot — ignore-les. Trouve le NOM RÉEL du produit (marque, modèle, type d'objet).
 - IGNORE les infos logistiques : dates d'expo, adresses de retrait, conditions de vente, frais.
 - La catégorie Interenchères peut être vague ("Secteurs d'activités spécifiques - Divers") — recatégorise correctement.
@@ -4493,21 +4492,13 @@ async function aiEnrichLots(maxPerRun = 0) {
     const estHigh = item.pricing?.estimates?.max || 0;
     const startPrice = item.pricing?.starting_price || 0;
 
-    const photoUrl = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
-
-    // Step 1: GPT vision — identify the object from photo + description
-    const textContent = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€${isUnsold ? `\nSTATUT: INVENDU (pas vendu aux enchères)${estLow ? `\nEstimation: ${estLow}-${estHigh}€` : ""}${startPrice ? `\nMise à prix: ${startPrice}€` : ""}` : ""}\nDescription brute:\n${rawDesc.substring(0, 500)}`;
-    const userContent = photoUrl
-      ? [
-          { type: "text", text: textContent },
-          { type: "image_url", image_url: { url: photoUrl, detail: "low" } },
-        ]
-      : textContent;
+    // Step 1: GPT text — identify the object from description
+    const userMsg = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€${isUnsold ? `\nSTATUT: INVENDU (pas vendu aux enchères)${estLow ? `\nEstimation: ${estLow}-${estHigh}€` : ""}${startPrice ? `\nMise à prix: ${startPrice}€` : ""}` : ""}\nDescription brute:\n${rawDesc.substring(0, 500)}`;
 
     try {
       let response = await callGpt([
         { role: "system", content: AI_SYSTEM_PROMPT },
-        { role: "user", content: userContent },
+        { role: "user", content: userMsg },
       ]);
 
       // Step 2: If we got a title, search Google Shopping for market prices
@@ -4527,7 +4518,7 @@ async function aiEnrichLots(maxPerRun = 0) {
 
           const refined = await callGpt([
             { role: "system", content: AI_SYSTEM_PROMPT },
-            { role: "user", content: userContent },
+            { role: "user", content: userMsg },
             { role: "assistant", content: response },
             { role: "user", content: refinedContent },
           ]);
