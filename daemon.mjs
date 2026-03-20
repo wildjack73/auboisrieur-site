@@ -34,6 +34,18 @@ const PAGE_SIZE = 200;
 const SITE_DIR = path.join(__dirname, "site");
 const DATA_DIR = path.join(SITE_DIR, "data");
 
+// ─── communes GPS lookup (build-time only) ──────────────────────────────────
+let communesGps = {};
+try {
+  communesGps = JSON.parse(fs.readFileSync(path.join(__dirname, "communes.json"), "utf-8"));
+} catch { console.log("⚠️ communes.json not found — map disabled"); }
+
+function cityToCoords(cityName) {
+  if (!cityName) return null;
+  const key = cityName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return communesGps[key] || null;
+}
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function curlFetch(url, retries = 2) {
@@ -2182,12 +2194,36 @@ function generateInvendusIndex() {
     const estHigh = item.pricing?.estimates?.max || 0;
     const startPrice = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
     const date = sale?.datetime ? sale.datetime.substring(0, 10) : "";
-    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date };
+    const city = sale?.address?.city || item.sale?.address?.city || "";
+    const coords = cityToCoords(city);
+    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date, v: city, ...(coords ? { lat: coords[0], lng: coords[1] } : {}) };
   });
 
   const metaDesc = `${unsoldItems.length} lots invendus aux enchères. Filtrez par catégorie et contactez les maisons de vente pour négocier.`;
 
+  // Build city aggregates for map markers (group by city to avoid 12K markers)
+  const cityAgg = new Map();
+  for (const d of unsoldData) {
+    if (!d.lat || !d.v) continue;
+    const key = d.v;
+    if (!cityAgg.has(key)) cityAgg.set(key, { v: d.v, lat: d.lat, lng: d.lng, n: 0 });
+    cityAgg.get(key).n++;
+  }
+  const mapCities = JSON.stringify([...cityAgg.values()]);
+
   return `${htmlHead("Lots invendus aux enchères — À négocier | Adjugé !", metaDesc, "", "/invendus.html")}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+#unsoldMap{height:400px;border-radius:12px;border:1px solid var(--border);margin-bottom:1rem;z-index:1;}
+#unsoldMap.hidden{display:none;}
+.map-toggle{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);cursor:pointer;font-size:0.85rem;font-family:inherit;}
+.map-toggle:hover{background:var(--surface2);}
+.map-toggle.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.geo-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;background:var(--accent);border:none;color:#fff;cursor:pointer;font-size:0.85rem;font-family:inherit;}
+.geo-btn:hover{opacity:0.9;}
+.leaflet-popup-content{color:#1a1a2e;font-family:system-ui;}
+</style>
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Invendus</div>
@@ -2216,12 +2252,24 @@ function generateInvendusIndex() {
                 <option value="">Toutes catégories (${unsoldItems.length})</option>
                 ${sortedCats.map(([cat, count]) => `<option value="${esc(cat)}">${esc(cat)} (${count})</option>`).join("")}
               </select>
+              <select id="unsoldDate" style="background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;">
+                <option value="">Toutes dates</option>
+                <option value="1">Aujourd'hui</option>
+                <option value="3">3 derniers jours</option>
+                <option value="7">Cette semaine</option>
+                <option value="30">Ce mois</option>
+              </select>
               <select id="unsoldSort" style="background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;">
                 <option value="recent">Plus récents</option>
                 <option value="price-desc">Estimation décroissante</option>
                 <option value="price-asc">Estimation croissante</option>
               </select>
             </div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+              <button class="map-toggle active" id="mapToggle" onclick="toggleMap()">🗺️ Carte</button>
+              <button class="geo-btn" id="geoBtn" onclick="geolocate()">📍 Près de chez moi</button>
+            </div>
+            <div id="unsoldMap"></div>
             <p style="color:var(--text2);margin-bottom:1rem;font-size:0.85rem;">Ces objets n'ont pas trouvé preneur. Cliquez sur un lot pour contacter la maison de vente.</p>
             <div id="unsoldCount" style="color:var(--text3);font-size:0.8rem;margin-bottom:0.8rem;"></div>
             <div class="lot-grid" id="unsoldGrid"></div>
@@ -2256,6 +2304,7 @@ function generateInvendusIndex() {
           + (sp ? '<div style="color:var(--text2);font-size:0.78rem;">' + sp + '</div>' : '')
           + '<div style="color:var(--red);font-weight:600;font-size:0.78rem;">Invendu</div>'
           + (d.d ? '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">📅 Présenté le ' + d.d.split('-').reverse().join('/') + '</div>' : '')
+          + (d.v ? '<div style="color:var(--text3);font-size:0.7rem;">📍 ' + d.v + '</div>' : '')
           + '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">' + d.c + '</div>'
           + '</div></a>';
       });
@@ -2278,9 +2327,17 @@ function generateInvendusIndex() {
       var q = document.getElementById('unsoldSearch').value.toLowerCase();
       var cat = document.getElementById('unsoldCat').value;
       var sort = document.getElementById('unsoldSort').value;
+      var days = parseInt(document.getElementById('unsoldDate').value) || 0;
+      var minDate = '';
+      if (days > 0) {
+        var dd = new Date(); dd.setDate(dd.getDate() - days + 1);
+        minDate = dd.toISOString().substring(0, 10);
+      }
+      activeCity = '';
       filtered = DATA.filter(function(d) {
         if (cat && d.c !== cat) return false;
         if (q && d.t.toLowerCase().indexOf(q) === -1) return false;
+        if (minDate && d.d < minDate) return false;
         return true;
       });
       if (sort === 'price-desc') filtered.sort(function(a,b) { return (b.eh||0) - (a.eh||0); });
@@ -2291,8 +2348,97 @@ function generateInvendusIndex() {
 
     document.getElementById('unsoldSearch').addEventListener('input', applyFilters);
     document.getElementById('unsoldCat').addEventListener('change', applyFilters);
+    document.getElementById('unsoldDate').addEventListener('change', applyFilters);
     document.getElementById('unsoldSort').addEventListener('change', applyFilters);
     applyFilters();
+
+    // ─── Map ──────────────────────────────────────────
+    var CITIES = ${mapCities};
+    var map = null, markers = [], mapVisible = true, activeCity = '';
+
+    function initMap() {
+      if (map) return;
+      map = L.map('unsoldMap').setView([46.6, 2.5], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 18
+      }).addTo(map);
+
+      CITIES.forEach(function(c) {
+        var m = L.circleMarker([c.lat, c.lng], {
+          radius: Math.min(5 + Math.sqrt(c.n) * 2, 25),
+          fillColor: '#a78bfa',
+          color: '#7c5cfc',
+          weight: 1.5,
+          opacity: 0.9,
+          fillOpacity: 0.6
+        }).addTo(map);
+        m.bindPopup('<strong>' + c.v + '</strong><br>' + c.n + ' invendu' + (c.n > 1 ? 's' : '') + '<br><a href="#" onclick="filterByCity(\\'' + c.v.replace(/'/g, "\\\\'") + '\\');return false;" style="color:#7c5cfc;font-weight:600;">Voir les lots →</a>');
+        m._cityName = c.v;
+        markers.push(m);
+      });
+    }
+
+    window.filterByCity = function(city) {
+      activeCity = city;
+      document.getElementById('unsoldSearch').value = '';
+      document.getElementById('unsoldCat').value = '';
+      filtered = DATA.filter(function(d) { return d.v === city; });
+      filtered.sort(function(a,b) { return (b.d||'').localeCompare(a.d||''); });
+      render(filtered, false);
+      countEl.textContent = filtered.length + ' invendu' + (filtered.length > 1 ? 's' : '') + ' à ' + city;
+      // Scroll to grid
+      grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    window.toggleMap = function() {
+      var el = document.getElementById('unsoldMap');
+      var btn = document.getElementById('mapToggle');
+      mapVisible = !mapVisible;
+      if (mapVisible) {
+        el.classList.remove('hidden');
+        btn.classList.add('active');
+        btn.textContent = '🗺️ Carte';
+        if (!map) initMap();
+        else map.invalidateSize();
+      } else {
+        el.classList.add('hidden');
+        btn.classList.remove('active');
+        btn.textContent = '🗺️ Carte';
+      }
+    };
+
+    window.geolocate = function() {
+      var btn = document.getElementById('geoBtn');
+      btn.textContent = '📍 Localisation...';
+      if (!mapVisible) { toggleMap(); }
+      if (!map) initMap();
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          var lat = pos.coords.latitude, lng = pos.coords.longitude;
+          map.setView([lat, lng], 10);
+          L.marker([lat, lng], {
+            icon: L.divIcon({ className: '', html: '<div style="background:#34d399;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,0.3);"></div>', iconSize: [14,14], iconAnchor: [7,7] })
+          }).addTo(map).bindPopup('📍 Vous êtes ici').openPopup();
+          btn.textContent = '📍 Près de chez moi';
+          // Also filter grid to nearby items (within ~50km)
+          filtered = DATA.filter(function(d) {
+            if (!d.lat) return false;
+            var dlat = d.lat - lat, dlng = d.lng - lng;
+            return (dlat*dlat + dlng*dlng) < 0.25; // ~50km radius
+          });
+          filtered.sort(function(a,b) { return (b.d||'').localeCompare(a.d||''); });
+          render(filtered, false);
+          countEl.textContent = filtered.length + ' invendu' + (filtered.length > 1 ? 's' : '') + ' près de chez vous';
+        }, function() {
+          btn.textContent = '📍 Près de chez moi';
+          alert('Impossible de vous localiser. Vérifiez les autorisations de votre navigateur.');
+        });
+      }
+    };
+
+    // Init map on load
+    initMap();
   })();
   </script>
 </body>
