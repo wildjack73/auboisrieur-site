@@ -4334,43 +4334,41 @@ function saveAiCache(cache) {
   fs.writeFileSync(AI_CACHE_FILE, JSON.stringify(cache), "utf-8");
 }
 
-// DataForSEO reverse image search — returns market prices from Google
-async function searchByImage(imageUrl) {
-  if (!config.dataforseoLogin || !config.dataforseoPassword || !imageUrl) return null;
+// DataForSEO Google Shopping search — returns real market prices
+async function searchMarketPrices(query) {
+  if (!config.dataforseoLogin || !config.dataforseoPassword || !query) return null;
   try {
     const auth = Buffer.from(`${config.dataforseoLogin}:${config.dataforseoPassword}`).toString("base64");
     const body = JSON.stringify([{
-      image_url: imageUrl,
+      keyword: query.substring(0, 120),
       language_code: "fr",
       location_code: 2250, // France
+      device: "desktop",
     }]);
     const result = execFileSync("curl", [
       "-s", "--max-time", "15",
-      "https://api.dataforseo.com/v3/serp/google/search_by_image/live/advanced",
+      "https://api.dataforseo.com/v3/serp/google/shopping/live/advanced",
       "-H", "Content-Type: application/json",
       "-H", `Authorization: Basic ${auth}`,
       "-d", body,
     ], { maxBuffer: 2 * 1024 * 1024, timeout: 20000 });
     const json = JSON.parse(result.toString("utf-8"));
     const items = json?.tasks?.[0]?.result?.[0]?.items || [];
-    // Extract useful info: titles and prices from shopping/organic results
     const found = [];
-    for (const it of items.slice(0, 10)) {
-      if (it.type === "shopping" || it.type === "images_search") {
-        const shops = it.items || [it];
-        for (const s of shops.slice(0, 5)) {
-          if (s.price) found.push({ title: s.title || "", price: s.price?.current || 0, source: s.source || s.domain || "" });
-          else if (s.title) found.push({ title: s.title, price: 0, source: s.source || s.domain || "" });
-        }
-      } else if (it.type === "organic" && it.title) {
-        // Extract price from snippet if present
-        const priceMatch = (it.description || "").match(/(\d[\d\s,.]*)\s*€/);
-        found.push({ title: it.title, price: priceMatch ? parseFloat(priceMatch[1].replace(/\s/g, "").replace(",", ".")) : 0, source: it.domain || "" });
+    for (const it of items.slice(0, 15)) {
+      if (it.price_from || it.price_to || it.price) {
+        found.push({
+          title: (it.title || "").substring(0, 80),
+          price: it.price_from || it.price || 0,
+          priceTo: it.price_to || 0,
+          source: it.seller || it.source || "",
+          condition: it.product_condition || "",
+        });
       }
     }
-    return found.length > 0 ? found : null;
-  } catch (err) {
-    return null; // Silently fail — enrichment continues without market data
+    return found.length > 0 ? found.slice(0, 8) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -4495,26 +4493,10 @@ async function aiEnrichLots(maxPerRun = 0) {
     const estHigh = item.pricing?.estimates?.max || 0;
     const startPrice = item.pricing?.starting_price || 0;
 
-    // Step 1: Reverse image search via DataForSEO (market prices)
     const photoUrl = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
-    let marketData = "";
-    if (photoUrl) {
-      const results = await searchByImage(photoUrl);
-      if (results && results.length > 0) {
-        const withPrice = results.filter(r => r.price > 0).slice(0, 5);
-        const withoutPrice = results.filter(r => !r.price).slice(0, 3);
-        if (withPrice.length > 0) {
-          marketData = "\n\nPRIX MARCHÉ (résultats Google Image Search) :\n" + withPrice.map(r => `- ${r.title} : ${r.price}€ (${r.source})`).join("\n");
-        }
-        if (withoutPrice.length > 0) {
-          marketData += "\nProduits similaires trouvés :\n" + withoutPrice.map(r => `- ${r.title} (${r.source})`).join("\n");
-        }
-      }
-    }
 
-    const textContent = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€${isUnsold ? `\nSTATUT: INVENDU (pas vendu aux enchères)${estLow ? `\nEstimation: ${estLow}-${estHigh}€` : ""}${startPrice ? `\nMise à prix: ${startPrice}€` : ""}` : ""}\nDescription brute:\n${rawDesc.substring(0, 500)}${marketData}`;
-
-    // Step 2: Build message with image if available (GPT-4o-mini vision)
+    // Step 1: GPT vision — identify the object from photo + description
+    const textContent = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€${isUnsold ? `\nSTATUT: INVENDU (pas vendu aux enchères)${estLow ? `\nEstimation: ${estLow}-${estHigh}€` : ""}${startPrice ? `\nMise à prix: ${startPrice}€` : ""}` : ""}\nDescription brute:\n${rawDesc.substring(0, 500)}`;
     const userContent = photoUrl
       ? [
           { type: "text", text: textContent },
@@ -4523,14 +4505,46 @@ async function aiEnrichLots(maxPerRun = 0) {
       : textContent;
 
     try {
-      const response = await callGpt([
+      let response = await callGpt([
         { role: "system", content: AI_SYSTEM_PROMPT },
         { role: "user", content: userContent },
       ]);
 
-      // Parse JSON response
-      const cleaned = response.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      const parsed = JSON.parse(cleaned);
+      // Step 2: If we got a title, search Google Shopping for market prices
+      let cleaned = response.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      let parsed;
+      try { parsed = JSON.parse(cleaned); } catch { parsed = null; }
+
+      if (parsed?.title && config.dataforseoLogin) {
+        const shopResults = await searchMarketPrices(parsed.title);
+        if (shopResults && shopResults.length > 0) {
+          const marketInfo = "PRIX MARCHÉ RÉELS (Google Shopping) :\n" + shopResults.map(r =>
+            `- ${r.title} : ${r.price}€${r.priceTo ? `-${r.priceTo}€` : ""} (${r.source}${r.condition ? `, ${r.condition}` : ""})`
+          ).join("\n");
+
+          // Step 3: Re-ask GPT with market prices for better deal analysis
+          const refinedContent = `L'objet identifié est : "${parsed.title}"\n${isUnsold ? `STATUT: INVENDU${estLow ? ` | Estimation: ${estLow}-${estHigh}€` : ""}${startPrice ? ` | Mise à prix: ${startPrice}€` : ""}` : `Prix adjugé: ${price}€`}\n\n${marketInfo}\n\nMets à jour UNIQUEMENT les champs "price_analysis", "deal_score" et "deal_analysis" en te basant sur ces prix marché réels. Garde les autres champs identiques. Réponds en JSON complet.`;
+
+          const refined = await callGpt([
+            { role: "system", content: AI_SYSTEM_PROMPT },
+            { role: "user", content: userContent },
+            { role: "assistant", content: response },
+            { role: "user", content: refinedContent },
+          ]);
+          const cleanedRefined = refined.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+          try {
+            const parsedRefined = JSON.parse(cleanedRefined);
+            if (parsedRefined.title) {
+              response = refined;
+              cleaned = cleanedRefined;
+              parsed = parsedRefined;
+            }
+          } catch {} // Keep original if refinement fails
+        }
+      }
+
+      // Parse final JSON response (may have been refined with market data)
+      if (!parsed) parsed = JSON.parse(cleaned);
 
       if (parsed.title && parsed.desc) {
         cache[item.id] = {
