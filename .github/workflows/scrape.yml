@@ -1,9 +1,9 @@
 name: Scrape & Deploy
 
 on:
-  # Toutes les 3 heures entre 7h et 22h (heure Paris = UTC+1/+2)
+  # 2x/jour le temps que le premier deploy complet passe (8h et 18h Paris)
   schedule:
-    - cron: "0 7,10,13,16,19,22 * * *"
+    - cron: "0 7,17 * * *"
   # Lancement manuel
   workflow_dispatch:
     inputs:
@@ -26,7 +26,7 @@ concurrency:
 jobs:
   scrape-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
