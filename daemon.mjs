@@ -1094,6 +1094,18 @@ function generateLotPage(item, sale) {
 
   const estHtml = est.min != null ? `Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
 
+  // Ratio mise à prix → prix vendu
+  const startPrice = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+  const soldPrice = auc.sold && auc.price ? auc.price : 0;
+  const priceRatio = startPrice > 0 && soldPrice > 0 ? (soldPrice / startPrice) : 0;
+  const ratioLabel = priceRatio >= 5 ? "🔥 Surprise" : priceRatio >= 3 ? "⚡ Belle enchère" : priceRatio >= 1.5 ? "📈 Bonne dynamique" : priceRatio >= 1 ? "→ Enchère normale" : "";
+  const ratioColor = priceRatio >= 5 ? "#ef4444" : priceRatio >= 3 ? "#f59e0b" : priceRatio >= 1.5 ? "#10b981" : "var(--text2)";
+  const ratioHtml = priceRatio > 0 ? `<div style="margin-top:6px;display:inline-flex;align-items:center;gap:0.5rem;background:${priceRatio >= 3 ? "rgba(239,68,68,0.08)" : priceRatio >= 1.5 ? "rgba(16,185,129,0.08)" : "var(--card2)"};padding:4px 12px;border-radius:8px;font-size:0.85rem;">
+    <span style="font-weight:700;color:${ratioColor};">×${priceRatio.toFixed(1)}</span>
+    <span style="color:var(--text2);">la mise à prix (${formatPrice(startPrice)} €)</span>
+    <span style="font-size:0.78rem;color:${ratioColor};font-weight:600;">${ratioLabel}</span>
+  </div>` : (startPrice > 0 && !auc.sold ? `<div style="margin-top:6px;font-size:0.85rem;color:var(--text2);">Mise à prix : ${formatPrice(startPrice)} €</div>` : "");
+
   const carouselCSS = `
     .carousel { position: relative; background: #111; border-radius: 0 0 10px 10px; overflow: hidden; width: 100%; max-width: 100%; box-sizing: border-box; }
     .carousel-main { display: flex; align-items: center; justify-content: center; min-height: 280px; max-height: 450px; padding: 1rem 50px; overflow: hidden; box-sizing: border-box; }
@@ -1289,6 +1301,7 @@ function generateLotPage(item, sale) {
               ${priceHtml}
               ${estHtml ? `<span class="estimate" style="margin-left:1rem;">${estHtml}</span>` : ""}
               ${feesHtml}
+              ${ratioHtml}
             </div>
             ${adSlot("inArticle", "margin:0.8rem 0;")}
           </div>
