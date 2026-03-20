@@ -2077,6 +2077,24 @@ function generateUnsoldPage(item, sale) {
 
         ${vehicleSpecsHtml(item._aiSpecs || extractVehicleSpecs(rawDesc, catName))}
 
+        ${item._aiDealAnalysis ? (() => {
+          const DEAL_LABELS = ["Sans intérêt", "Bonne affaire", "Super affaire", "Affaire exceptionnelle"];
+          const DEAL_ICONS = ["⚪", "🟢", "🔵", "🔥"];
+          const DEAL_COLORS = ["var(--text3)", "#22c55e", "#3b82f6", "#f59e0b"];
+          const ds = item._aiDealScore >= 0 ? item._aiDealScore : 0;
+          return `<div class="card" style="border-left:4px solid ${DEAL_COLORS[ds]};">
+          <div class="card-header" style="display:flex;align-items:center;gap:0.6rem;">
+            <span style="font-size:1.3rem;">${DEAL_ICONS[ds]}</span>
+            <h3 style="font-size:1rem;margin:0;">${DEAL_LABELS[ds]}</h3>
+            ${ds >= 2 ? `<span style="background:${DEAL_COLORS[ds]};color:${ds === 3 ? "#000" : "#fff"};font-size:0.7rem;font-weight:800;padding:2px 10px;border-radius:4px;">${ds === 3 ? "TOP AFFAIRE" : "RECOMMANDÉ"}</span>` : ""}
+          </div>
+          <div class="card-body">
+            <p style="color:var(--text);font-size:0.92rem;line-height:1.7;margin-bottom:0.5rem;">${esc(item._aiDealAnalysis)}</p>
+            ${item._aiPriceAnalysis ? `<p style="color:var(--text2);font-size:0.85rem;line-height:1.6;font-style:italic;">📊 ${esc(item._aiPriceAnalysis)}</p>` : ""}
+          </div>
+        </div>`;
+        })() : ""}
+
         ${item._aiFaq?.length ? `<div class="card">
           <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
           <div class="card-body">
@@ -2202,18 +2220,23 @@ function generateInvendusIndex() {
     const city = sale?.address?.city || item.sale?.address?.city || "";
     const coords = cityToCoords(city);
     const nPhotos = item.medias?.length || 0;
-    // Deal score: 0=sans intérêt, 1=bonne affaire, 2=super affaire, 3=affaire exceptionnelle
+    // Deal score: prefer AI score, fallback to heuristic
     let deal = 0;
-    if (estHigh > 0) {
-      deal++; // has estimation = at least interesting
-      if (startPrice > 0 && startPrice < estLow * 0.5) deal++; // starting price < 50% of low estimate
-      else if (estHigh >= 200) deal++; // high-value item unsold = opportunity
-      if (nPhotos >= 3 && estHigh >= 500) deal++; // well-documented high-value
-    } else if (startPrice > 0 && nPhotos >= 2) {
-      deal = 1; // no estimate but has starting price + photos
+    if (item._aiDealScore >= 0) {
+      deal = item._aiDealScore;
+    } else {
+      if (estHigh > 0) {
+        deal++;
+        if (startPrice > 0 && startPrice < estLow * 0.5) deal++;
+        else if (estHigh >= 200) deal++;
+        if (nPhotos >= 3 && estHigh >= 500) deal++;
+      } else if (startPrice > 0 && nPhotos >= 2) {
+        deal = 1;
+      }
+      if (deal > 3) deal = 3;
     }
-    if (deal > 3) deal = 3;
-    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date, v: city, ba: deal, ...(coords ? { lat: coords[0], lng: coords[1] } : {}) };
+    const dealText = item._aiDealAnalysis || "";
+    return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date, v: city, ba: deal, da: dealText, ...(coords ? { lat: coords[0], lng: coords[1] } : {}) };
   });
 
   const metaDesc = `${unsoldItems.length} lots invendus aux enchères. Filtrez par catégorie et contactez les maisons de vente pour négocier.`;
@@ -2325,6 +2348,7 @@ function generateInvendusIndex() {
           + (est ? '<div style="color:var(--accent2);font-weight:700;font-size:0.85rem;">' + est + '</div>' : '')
           + (sp ? '<div style="color:var(--text2);font-size:0.78rem;">' + sp + '</div>' : '')
           + '<div style="color:var(--red);font-weight:600;font-size:0.78rem;">Invendu</div>'
+          + (d.da ? '<div style="color:var(--text2);font-size:0.72rem;margin-top:4px;line-height:1.4;border-left:2px solid ' + DEAL_COLORS[d.ba] + ';padding-left:6px;">' + d.da.substring(0, 120) + (d.da.length > 120 ? '…' : '') + '</div>' : '')
           + (d.d ? '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">📅 Présenté le ' + d.d.split('-').reverse().join('/') + '</div>' : '')
           + (d.v ? '<div style="color:var(--text3);font-size:0.7rem;">📍 ' + d.v + '</div>' : '')
           + '<div style="color:var(--text3);font-size:0.7rem;margin-top:2px;">' + d.c + '</div>'
@@ -4346,11 +4370,13 @@ RÈGLES IMPORTANTES :
 - IGNORE les infos logistiques : dates d'expo, adresses de retrait, conditions de vente, frais.
 - La catégorie Interenchères peut être vague ("Secteurs d'activités spécifiques - Divers") — recatégorise correctement.
 
-Tu dois retourner un JSON avec exactement 7 champs :
+Tu dois retourner un JSON avec exactement 9 champs :
 - "title": le NOM RÉEL de l'objet, accrocheur, clair et SEO-friendly (max 70 car). Ex: si la desc parle d'une "CITROEN AMI" avec immatriculation, le titre doit être "Citroën AMI — Véhicule électrique compact". Pas de numéro de lot, pas de plaque d'immat, pas de "A partir de".
 - "desc": une description enrichie de 3-5 phrases (max 500 car) qui décrit l'objet, son intérêt, ses caractéristiques, son histoire ou contexte. Ton expert passionné qui donne envie et informe. Pas de mention de la maison de vente ni d'infos expo/retrait.
 - "category": la VRAIE catégorie basée sur l'objet réel. Choisis parmi : Bijoux - Montres, Tableaux - Peintures, Mobilier, Céramiques - Porcelaine, Art asiatique, Livres - Manuscrits, Véhicules, Vins - Spiritueux, Mode - Luxe, Jouets - Figurines, Instruments de musique, Art contemporain, Sculptures, Argenterie - Orfèvrerie, Numismatique, Photographie, Luminaires, Tapis - Textiles, Objets de vitrine, Matériel professionnel, Électroménager, High-tech - Multimédia, Sports - Loisirs, Jardin - Extérieur, Autre
 - "price_analysis": analyse du prix en 2-3 phrases (max 250 car). Compare avec le marché.
+- "deal_score": note de 0 à 3 indiquant le potentiel d'affaire. 0=sans intérêt (objet abîmé, invendable, lot vrac sans valeur), 1=bonne affaire (objet correct à prix raisonnable), 2=super affaire (objet de qualité accessible sous sa valeur marché), 3=affaire exceptionnelle (objet de grande valeur, très recherché, prix marché bien supérieur à l'estimation).
+- "deal_analysis": (max 400 car) Analyse experte UNIQUEMENT si deal_score >= 1 : explique POURQUOI c'est une bonne affaire. Inclure : estimation du prix sur le marché de l'occasion/neuf, la décote par rapport au prix marché, le potentiel de revente, la rareté, la demande pour ce type d'objet. Sois factuel et précis avec des prix. Exemple : "Ce Renault Trafic 2.0 DCI se négocie entre 12 000 et 18 000 € sur le marché occasion. Avec une estimation de 15 000 €, un invendu peut souvent s'obtenir 20-30% en dessous, soit autour de 10 000-12 000 €. Forte demande pour les utilitaires récents." Pour deal_score=0, mettre "".
 - "faq": array de 5 objets {q, a} — questions contenant le NOM RÉEL DE L'OBJET (pas la catégorie Interenchères !). Inclure : prix/valeur, comment acheter, authenticité/état, marché/tendance, conseil pratique. Réponses factuelles et détaillées (max 250 car chacune).
 - "tags": array de 3-5 mots-clés pertinents (marque, époque, matériau, style...)
 - "specs": (UNIQUEMENT pour les véhicules/motos) un objet avec les champs disponibles : { "marque", "modele", "motorisation", "puissance", "carburant", "mise_en_service", "kilometrage", "finition", "boite", "portes", "couleur", "type_vehicule" }. Ex: {"marque":"Nissan","modele":"Note 1.5 DCI Visia","motorisation":"1.5 L DCI 68 ch","carburant":"Diesel","mise_en_service":"10/07/2007","finition":"Visia"}. Pour les non-véhicules, mettre null.
@@ -4373,6 +4399,11 @@ async function aiEnrichLots(maxPerRun = 0) {
       item._aiTitle = cache[item.id].t;
       item._aiDesc = cache[item.id].d;
       item._aiSpecs = cache[item.id].specs || null;
+      item._aiDealScore = cache[item.id].ds ?? -1;
+      item._aiDealAnalysis = cache[item.id].da || "";
+      item._aiPriceAnalysis = cache[item.id].pa || "";
+      item._aiFaq = cache[item.id].faq || [];
+      item._aiTags = cache[item.id].tags || [];
       if (cache[item.id].cat) {
         item._aiCategory = cache[item.id].cat;
         item.category = { ...item.category, name: cache[item.id].cat };
@@ -4417,7 +4448,11 @@ async function aiEnrichLots(maxPerRun = 0) {
     const catName = item.category?.name || "";
     const price = item.pricing?.auctioned?.price || 0;
 
-    const userMsg = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€\nDescription brute:\n${rawDesc.substring(0, 500)}`;
+    const isUnsold = registry.unsold.has(item.id);
+    const estLow = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
+    const estHigh = item.pricing?.estimates?.max || 0;
+    const startPrice = item.pricing?.starting_price || 0;
+    const userMsg = `Catégorie Interenchères (peut être vague): ${catName}\nPrix adjugé: ${price}€${isUnsold ? `\nSTATUT: INVENDU (pas vendu aux enchères)${estLow ? `\nEstimation: ${estLow}-${estHigh}€` : ""}${startPrice ? `\nMise à prix: ${startPrice}€` : ""}` : ""}\nDescription brute:\n${rawDesc.substring(0, 500)}`;
 
     try {
       const response = await callGpt([
@@ -4435,6 +4470,8 @@ async function aiEnrichLots(maxPerRun = 0) {
           d: parsed.desc,
           cat: parsed.category || "",
           pa: parsed.price_analysis || "",
+          ds: typeof parsed.deal_score === "number" ? parsed.deal_score : -1,
+          da: parsed.deal_analysis || "",
           faq: parsed.faq || [],
           tags: parsed.tags || [],
           specs: parsed.specs || null,
@@ -4443,6 +4480,8 @@ async function aiEnrichLots(maxPerRun = 0) {
         item._aiDesc = parsed.desc;
         item._aiCategory = parsed.category || "";
         item._aiPriceAnalysis = parsed.price_analysis || "";
+        item._aiDealScore = typeof parsed.deal_score === "number" ? parsed.deal_score : -1;
+        item._aiDealAnalysis = parsed.deal_analysis || "";
         item._aiFaq = parsed.faq || [];
         item._aiTags = parsed.tags || [];
         item._aiSpecs = parsed.specs || null;
