@@ -552,6 +552,8 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
   <script src="/search-data.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{400:'#a78bfa',500:'#8b5cf6',600:'#7c3aed'},surface:{800:'#1e1b2e',900:'#13111c',950:'#0c0a14'}}}}}</script>
   <style>
     :root {
       --bg: #0f0f13; --surface: #1a1a24; --surface2: #22222e; --surface3: #2a2a38;
@@ -2658,103 +2660,149 @@ function generateHomePage(dateStr) {
   const homeTitle = "Adjugé ! — Résultats de ventes aux enchères en France | Prix & Photos";
   const homeDesc = `Adjugé ! recense ${formatPrice(totalItems)} lots vendus aux enchères en France pour ${formatPrice(totalPrice)} €. Consultez prix adjugés, photos et estimations par catégorie.`;
   return `${htmlHead(homeTitle, homeDesc, "", `/index.html`)}
-<body>
+<body class="dark">
   ${navHtml()}
   ${adSlot("header", "padding: 0.5rem 2rem;")}
-  <div class="container">
-    <!-- Factual synthesis paragraph (TASK 9) -->
-    <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1.5rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
-      Au ${todayFr()}, <strong>Adjugé !</strong> recense <strong>${formatPrice(totalItems)}</strong> lots vendus aux enchères en France pour un total de <strong>${formatPrice(totalPrice)} €</strong>, soit un prix moyen de <strong>${formatPrice(globalAvg)} €</strong>.
-    </p>
-    <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📅 Enchères du ${dateLabel}</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🔨</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(dayCount)}">${formatPrice(dayCount)}</div><div class="stat-label">objets vendus</div></div>
-      </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💰</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(dayPrice)}">${formatPrice(dayPrice)} €</div><div class="stat-label">total adjugé</div></div>
-      </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:rgba(251,191,36,0.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📊</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(dayAvg)}">${formatPrice(dayAvg)} €</div><div class="stat-label">prix moyen</div></div>
-      </div></div>
-      ${dayMaxSlug ? `<a href="/lot/${dayMaxSlug}.html" class="card" style="margin:0;text-decoration:none;color:inherit;transition:transform 0.15s;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">` : `<div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">`}
-        <div style="width:48px;height:48px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🏆</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(dayMax)}">${formatPrice(dayMax)} €</div><div class="stat-label">record du jour</div></div>
-      </div>${dayMaxSlug ? `</a>` : `</div>`}
-    </div>
 
-    <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📈 Statistiques globales <span style="font-size:0.8rem;font-weight:400;">(${uniqueDays.size} jour${uniqueDays.size > 1 ? "s" : ""} de ventes)</span></h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent-glow),rgba(139,92,246,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🌐</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(totalItems)}">${formatPrice(totalItems)}</div><div class="stat-label">lots au total</div></div>
-      </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--green-bg),rgba(16,185,129,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💎</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(totalPrice)}">${formatPrice(totalPrice)} €</div><div class="stat-label">total cumulé</div></div>
-      </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚖️</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(globalAvg)}">${formatPrice(globalAvg)} €</div><div class="stat-label">prix moyen global</div></div>
-      </div></div>
-      ${globalMaxSlug ? `<a href="/lot/${globalMaxSlug}.html" class="card" style="margin:0;text-decoration:none;color:inherit;transition:transform 0.15s;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">` : `<div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">`}
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--red-bg),rgba(239,68,68,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👑</div>
-        <div><div class="stat-number" style="font-size:${statFontSize(globalMax)}">${formatPrice(globalMax)} €</div><div class="stat-label">record absolu</div></div>
-      </div>${globalMaxSlug ? `</a>` : `</div>`}
-    </div>
-
-    <!-- Analyse mise à prix / prix vendu -->
-    <h2 style="font-size:1.1rem;color:var(--text2);margin-bottom:0.8rem;">📊 Mise à prix vs Prix vendu <span style="font-size:0.8rem;font-weight:400;">(${formatPrice(ratioCount)} lots analysés)</span></h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1rem;">
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(99,102,241,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📈</div>
-        <div><div class="stat-number" style="font-size:1.3rem;">×${avgRatio}</div><div class="stat-label">ratio moyen</div></div>
-      </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚡</div>
-        <div><div class="stat-number" style="font-size:1.3rem;">×${medianRatio}</div><div class="stat-label">ratio médian</div></div>
-      </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🎯</div>
-        <div><div class="stat-number" style="font-size:1.3rem;">${aboveEstPct}%</div><div class="stat-label">au-dessus de l'estimation</div></div>
-      </div></div>
-      <div class="card" style="margin:0;"><div class="card-body" style="display:flex;align-items:center;gap:1rem;padding:1.2rem;">
-        <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🔥</div>
-        <div><div class="stat-number" style="font-size:1.3rem;">×${topSurprises[0]?.ratio || "–"}</div><div class="stat-label">meilleure surprise</div></div>
-      </div></div>
-    </div>
-    ${topSurprises.length ? `
-    <div class="card" style="margin-bottom:1.5rem;">
-      <div class="card-header"><h3 style="font-size:1rem;">🏆 Top 5 des plus grosses surprises</h3></div>
-      <div class="card-body" style="padding:0;">
-        <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
-          <thead><tr style="border-bottom:1px solid var(--border);color:var(--text2);text-align:left;">
-            <th style="padding:0.7rem 1rem;"></th>
-            <th style="padding:0.7rem 0.5rem;">Lot</th>
-            <th style="padding:0.7rem 0.5rem;text-align:right;">Mise à prix</th>
-            <th style="padding:0.7rem 0.5rem;text-align:right;">Prix vendu</th>
-            <th style="padding:0.7rem 1rem;text-align:right;">Ratio</th>
-          </tr></thead>
-          <tbody>${topSurprises.map((s, i) => `
-            <tr style="border-bottom:1px solid var(--border);${i === 0 ? "background:var(--accent-glow);" : ""}">
-              <td style="padding:0.5rem 1rem;width:48px;">${s.thumb ? `<img src="${s.thumb}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" loading="lazy">` : ""}</td>
-              <td style="padding:0.5rem;"><a href="/lot/${s.slug}.html" style="color:var(--accent);text-decoration:none;">${s.title.substring(0, 50)}${s.title.length > 50 ? "…" : ""}</a></td>
-              <td style="padding:0.5rem;text-align:right;color:var(--text2);">${formatPrice(s.sp)} €</td>
-              <td style="padding:0.5rem;text-align:right;color:var(--accent);font-weight:700;">${formatPrice(s.price)} €</td>
-              <td style="padding:0.5rem 1rem;text-align:right;font-weight:700;color:#10b981;">×${s.ratio}</td>
-            </tr>`).join("")}
-          </tbody>
-        </table>
+  <!-- Hero -->
+  <section class="relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-[var(--bg)]/50 to-[var(--bg)]"></div>
+    <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=1600&q=80')] bg-cover bg-center opacity-10"></div>
+    <div class="relative max-w-6xl mx-auto px-6 py-16 md:py-20">
+      <div class="max-w-2xl">
+        <div class="inline-flex items-center gap-2 bg-[var(--accent-glow)] border border-[var(--accent)]/20 rounded-full px-4 py-1.5 text-sm text-[var(--accent2)] mb-6">
+          <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+          Mis à jour le ${todayFr()}
+        </div>
+        <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-4 text-[var(--text)]">
+          Résultats de ventes aux<br>enchères en <span class="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent2)] to-purple-300">France</span>
+        </h1>
+        <p class="text-base md:text-lg text-[var(--text2)] leading-relaxed mb-8">
+          Consultez les prix adjugés, photos et estimations de <span class="text-[var(--text)] font-semibold">${formatPrice(totalItems)}</span> lots vendus aux enchères pour un total de <span class="text-[var(--text)] font-semibold">${formatPrice(totalPrice)} €</span>.
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="#lots" class="bg-[var(--accent)] hover:bg-[var(--accent2)] text-white px-6 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-[var(--accent)]/25">Explorer les ventes →</a>
+          <a href="/invendus.html" class="bg-white/5 hover:bg-white/10 border border-white/10 text-[var(--text)] px-6 py-3 rounded-xl font-semibold text-sm transition">Invendus à négocier</a>
+        </div>
       </div>
-    </div>` : ""}
+    </div>
+  </section>
 
+  <!-- Stats du jour -->
+  <section class="max-w-6xl mx-auto px-6 -mt-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div class="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-5 hover:bg-white/[0.05] transition">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Objets vendus aujourd'hui</p>
+        <p class="text-2xl md:text-3xl font-bold tracking-tight text-[var(--text)]">${formatPrice(dayCount)}</p>
+      </div>
+      <div class="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-5 hover:bg-white/[0.05] transition">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Total adjugé</p>
+        <p class="text-2xl md:text-3xl font-bold tracking-tight text-[var(--text)]">${dayPrice >= 1000000 ? (dayPrice / 1000000).toFixed(1) + " M€" : formatPrice(dayPrice) + " €"}</p>
+      </div>
+      <div class="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-5 hover:bg-white/[0.05] transition">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Prix moyen</p>
+        <p class="text-2xl md:text-3xl font-bold tracking-tight text-[var(--text)]">${formatPrice(dayAvg)} €</p>
+      </div>
+      ${dayMaxSlug ? `<a href="/lot/${dayMaxSlug}.html"` : `<div`} class="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-5 hover:bg-white/[0.05] transition group no-underline">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Record du jour</p>
+        <p class="text-2xl md:text-3xl font-bold tracking-tight text-[var(--accent2)] group-hover:text-[var(--accent)]">${formatPrice(dayMax)} €</p>
+      ${dayMaxSlug ? `</a>` : `</div>`}
+    </div>
+  </section>
+
+  <!-- Stats globales -->
+  <section class="max-w-6xl mx-auto px-6 mt-10">
+    <h2 class="text-base md:text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
+      <span class="w-1 h-6 bg-[var(--accent)] rounded-full"></span>
+      Statistiques globales <span class="text-xs font-normal text-[var(--text3)]">(${uniqueDays.size} jour${uniqueDays.size > 1 ? "s" : ""} de ventes)</span>
+    </h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Lots au total</p>
+        <p class="text-2xl md:text-3xl font-bold text-[var(--text)]">${formatPrice(totalItems)}</p>
+      </div>
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Total cumulé</p>
+        <p class="text-2xl md:text-3xl font-bold text-[var(--text)]">${totalPrice >= 1000000 ? (totalPrice / 1000000).toFixed(1) + " M€" : formatPrice(totalPrice) + " €"}</p>
+      </div>
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Prix moyen global</p>
+        <p class="text-2xl md:text-3xl font-bold text-[var(--text)]">${formatPrice(globalAvg)} €</p>
+      </div>
+      ${globalMaxSlug ? `<a href="/lot/${globalMaxSlug}.html"` : `<div`} class="bg-white/[0.03] border border-white/5 rounded-2xl p-5 group no-underline">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Record absolu</p>
+        <p class="text-2xl md:text-3xl font-bold text-[var(--accent2)]">${formatPrice(globalMax)} €</p>
+      ${globalMaxSlug ? `</a>` : `</div>`}
+    </div>
+  </section>
+
+  <!-- Mise à prix vs Prix vendu -->
+  <section class="max-w-6xl mx-auto px-6 mt-10">
+    <h2 class="text-base md:text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
+      <span class="w-1 h-6 bg-[var(--accent)] rounded-full"></span>
+      Mise à prix vs Prix vendu <span class="text-xs font-normal text-[var(--text3)]">(${formatPrice(ratioCount)} lots analysés)</span>
+    </h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Ratio moyen</p>
+        <p class="text-2xl md:text-3xl font-bold text-[var(--text)]">×${avgRatio}</p>
+      </div>
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Ratio médian</p>
+        <p class="text-2xl md:text-3xl font-bold text-[var(--text)]">×${medianRatio}</p>
+      </div>
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Au-dessus estimation</p>
+        <p class="text-2xl md:text-3xl font-bold text-emerald-400">${aboveEstPct}%</p>
+      </div>
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Meilleure surprise</p>
+        <p class="text-2xl md:text-3xl font-bold text-amber-400">×${topSurprises[0]?.ratio || "–"}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Top 10 + Top surprises côte à côte -->
+  <section class="max-w-6xl mx-auto px-6 mt-10">
+    <div class="grid md:grid-cols-2 gap-4 md:gap-6">
+      <!-- Top 10 -->
+      <div class="bg-white/[0.03] border border-white/5 rounded-2xl overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-white/5"><h3 class="font-semibold text-sm text-[var(--text)]">Top 10 ventes</h3></div>
+        <div class="divide-y divide-white/5">
+          ${top10.map(({ item }, i) => {
+            const p = item.pricing?.auctioned?.price || 0;
+            const t = item._aiTitle || cleanTitleLine((item.description || "").split("\\n")[0] || "Objet");
+            const th = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
+            const sl = lotSlug(item);
+            const cn = item.category?.name || "";
+            return `<a href="/lot/${sl}.html" class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.03] transition no-underline">
+            <span class="text-sm font-bold text-[var(--accent2)] w-5">${i + 1}</span>
+            ${th ? `<img src="${th}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0" loading="lazy">` : `<div class="w-10 h-10 rounded-lg bg-[var(--surface3)] flex-shrink-0"></div>`}
+            <div class="flex-1 min-w-0"><p class="text-sm truncate text-[var(--text)]">${esc(t.substring(0, 45))}</p><p class="text-xs text-[var(--text3)]">${esc(cn)}</p></div>
+            <span class="text-sm font-bold text-emerald-400 whitespace-nowrap">${formatPrice(p)} €</span>
+          </a>`;
+          }).join("")}
+        </div>
+      </div>
+      <!-- Top surprises -->
+      ${topSurprises.length ? `<div class="bg-white/[0.03] border border-white/5 rounded-2xl overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-white/5"><h3 class="font-semibold text-sm text-[var(--text)]">Plus grosses surprises</h3></div>
+        <div class="divide-y divide-white/5">
+          ${topSurprises.map(s => `<a href="/lot/${s.slug}.html" class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.03] transition no-underline">
+            <span class="text-xl md:text-2xl font-black text-amber-400 w-12 text-center">×${s.ratio}</span>
+            <div class="flex-1 min-w-0"><p class="text-sm truncate text-[var(--text)]">${esc(s.title.substring(0, 45))}</p><p class="text-xs text-[var(--text3)]">${formatPrice(s.sp)} € → <span class="text-emerald-400 font-semibold">${formatPrice(s.price)} €</span></p></div>
+          </a>`).join("")}
+        </div>
+      </div>` : ""}
+    </div>
+  </section>
+
+  <!-- Lots vendus -->
+  <div class="max-w-6xl mx-auto px-6 mt-10" id="lots">
     <div class="grid-2">
       <main>
         <div class="card">
-          <div class="card-header"><h2 style="font-size:1.1rem;">Derniers lots vendus</h2></div>
+          <div class="card-header flex items-center justify-between"><h2 style="font-size:1.1rem;">Derniers lots vendus</h2></div>
           <div class="card-body">
             <div class="lot-grid" id="lotGrid"></div>
             <div id="adContainer"></div>
@@ -2770,7 +2818,8 @@ function generateHomePage(dateStr) {
       </main>
       ${sidebarHtml()}
     </div>
-  </div>
+  </div><!-- /grid-2 -->
+  </div><!-- /max-w-6xl -->
   ${footerHtml()}
 
   <script>
