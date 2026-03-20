@@ -855,6 +855,10 @@ function toggleTheme(){
   });
   document.addEventListener('click',function(e){if(!e.target.closest('.search-wrap'))results.classList.remove('active');});
   input.addEventListener('focus',function(){if(results.innerHTML)results.classList.add('active');});
+  // Enter → redirect to full search page
+  input.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();var q=this.value.trim();if(q)window.location.href='/recherche.html?q='+encodeURIComponent(q);}
+  });
 })();
 </script>`;
 }
@@ -4033,16 +4037,146 @@ async function rebuildAllPages(dateStr) {
 
   // Search index as JS — includes both sold AND unsold items
   const allSearchItems = [...registry.items.values(), ...registry.unsold.values()];
-  const searchIndex = allSearchItems.map(({ item }) => {
+  const searchIndex = allSearchItems.map(({ item, sale }) => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
     const fallbackTitle = (lns.length > 1 && lns[0].length < 60) ? lns[0] + " " + lns.slice(1).join(" ") : lns.join(" ");
     const title = item._aiTitle || fallbackTitle;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "sm") : "";
-    const price = item.pricing?.auctioned?.price ? formatPrice(item.pricing.auctioned.price) : "Invendu";
-    return { id: lotSlug(item), t: title.substring(0, 150), p: price, img: thumb };
+    const priceNum = item.pricing?.auctioned?.price || 0;
+    const price = priceNum ? formatPrice(priceNum) : "Invendu";
+    const cat = item.category?.name || "";
+    const city = sale?.address?.city || item.sale?.address?.city || "";
+    const sold = item.pricing?.auctioned?.sold ? 1 : 0;
+    return { id: lotSlug(item), t: title.substring(0, 150), p: price, pn: priceNum, img: thumb, c: cat, v: city, so: sold };
   });
   fs.writeFileSync(path.join(SITE_DIR, "search-data.js"), `window.__SI=${JSON.stringify(searchIndex)};`, "utf-8");
+  pageCount++;
+
+  // ─── Search page ────────────────────────────────────────────────────
+  const searchCats = [...new Set(searchIndex.map(i => i.c).filter(Boolean))].sort();
+  writeIfChanged(path.join(SITE_DIR, "recherche.html"), `${htmlHead("Recherche — Adjugé !", "Recherchez parmi ${formatPrice(searchIndex.length)} lots vendus et invendus aux enchères en France.", "", "/recherche.html")}
+<body>
+  ${navHtml()}
+  <div class="breadcrumb"><a href="/index.html">Accueil</a> › Recherche</div>
+  <div class="max-w-6xl mx-auto px-4 md:px-6 py-8">
+    <h1 class="text-2xl md:text-3xl font-bold mb-6 text-[var(--text)]">Rechercher un lot</h1>
+    <div class="flex flex-col md:flex-row gap-3 mb-6">
+      <input type="text" id="sq" placeholder="Ex: Rolex, tableau impressionniste, Citroën 2CV..." autofocus
+        class="flex-1 bg-[var(--surface3)] border border-[var(--border2)] text-[var(--text)] px-5 py-3 rounded-xl text-base outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] placeholder-[var(--text3)] font-[inherit]">
+      <select id="sc" class="bg-[var(--surface3)] border border-[var(--border2)] text-[var(--text)] px-4 py-3 rounded-xl text-sm font-[inherit] outline-none">
+        <option value="">Toutes catégories</option>
+        ${searchCats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
+      </select>
+      <select id="ss" class="bg-[var(--surface3)] border border-[var(--border2)] text-[var(--text)] px-4 py-3 rounded-xl text-sm font-[inherit] outline-none">
+        <option value="">Tous statuts</option>
+        <option value="1">Vendus</option>
+        <option value="0">Invendus</option>
+      </select>
+      <select id="sso" class="bg-[var(--surface3)] border border-[var(--border2)] text-[var(--text)] px-4 py-3 rounded-xl text-sm font-[inherit] outline-none">
+        <option value="rel">Pertinence</option>
+        <option value="ph">Prix décroissant</option>
+        <option value="pl">Prix croissant</option>
+      </select>
+    </div>
+    <div id="scount" class="text-sm text-[var(--text3)] mb-4"></div>
+    <div class="lot-grid" id="sgrid"></div>
+    <div id="smore" style="text-align:center;padding:2rem;display:none;">
+      <div style="color:var(--text3);font-size:0.85rem;">Chargement...</div>
+    </div>
+  </div>
+  ${footerHtml()}
+  <script>
+  (function(){
+    var DATA = window.__SI || [];
+    var PAGE = 48, shown = 0, filtered = [];
+    var grid = document.getElementById('sgrid');
+    var more = document.getElementById('smore');
+    var countEl = document.getElementById('scount');
+
+    function render(append) {
+      if (!append) { grid.innerHTML = ''; shown = 0; }
+      var batch = filtered.slice(shown, shown + PAGE);
+      batch.forEach(function(d) {
+        grid.innerHTML += '<a href="/lot/' + d.id + '.html" class="lot-card" style="text-decoration:none;">'
+          + (d.img ? '<img src="' + d.img.replace(/\\/sm\\//,'/lg/') + '" alt="" loading="lazy">' : '<div class="no-img">📷</div>')
+          + '<div class="lot-info"><div class="lot-title">' + d.t.substring(0, 80) + '</div>'
+          + '<div class="lot-price">' + d.p + (d.so ? ' €' : '') + '</div>'
+          + (d.c ? '<div class="lot-cat">' + d.c + '</div>' : '')
+          + (d.v ? '<div style="color:var(--text3);font-size:0.68rem;">📍 ' + d.v + '</div>' : '')
+          + '</div></a>';
+      });
+      shown += batch.length;
+      countEl.textContent = filtered.length.toLocaleString('fr-FR') + ' résultat' + (filtered.length > 1 ? 's' : '');
+      more.style.display = shown < filtered.length ? 'block' : 'none';
+    }
+
+    var observer = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting && shown < filtered.length) render(true);
+    }, { rootMargin: '400px' });
+    observer.observe(more);
+
+    function search() {
+      var q = document.getElementById('sq').value.trim().toLowerCase();
+      var cat = document.getElementById('sc').value;
+      var status = document.getElementById('ss').value;
+      var sort = document.getElementById('sso').value;
+      var words = q.split(/\\s+/).filter(function(w) { return w.length > 0; });
+
+      // Update URL
+      var params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (cat) params.set('cat', cat);
+      if (status) params.set('status', status);
+      if (sort !== 'rel') params.set('sort', sort);
+      history.replaceState(null, '', params.toString() ? '?' + params.toString() : location.pathname);
+
+      filtered = DATA;
+      if (words.length) {
+        filtered = filtered.filter(function(d) {
+          var tl = d.t.toLowerCase();
+          return words.every(function(w) { return tl.indexOf(w) !== -1; });
+        });
+        // Score for relevance
+        filtered = filtered.map(function(d) {
+          var tl = d.t.toLowerCase();
+          var score = 0;
+          words.forEach(function(w) { if (tl.indexOf(w) !== -1) score += 10; });
+          if (tl.indexOf(q) === 0) score += 30;
+          else if (tl.indexOf(q) !== -1) score += 15;
+          d._score = score;
+          return d;
+        });
+      }
+      if (cat) filtered = filtered.filter(function(d) { return d.c === cat; });
+      if (status !== '') filtered = filtered.filter(function(d) { return String(d.so) === status; });
+
+      if (sort === 'ph') filtered.sort(function(a,b) { return (b.pn||0) - (a.pn||0); });
+      else if (sort === 'pl') filtered.sort(function(a,b) { return (a.pn||0) - (b.pn||0); });
+      else if (words.length) filtered.sort(function(a,b) { return (b._score||0) - (a._score||0); });
+
+      render(false);
+    }
+
+    // Restore from URL params
+    var params = new URLSearchParams(location.search);
+    if (params.get('q')) document.getElementById('sq').value = params.get('q');
+    if (params.get('cat')) document.getElementById('sc').value = params.get('cat');
+    if (params.get('status')) document.getElementById('ss').value = params.get('status');
+    if (params.get('sort')) document.getElementById('sso').value = params.get('sort');
+
+    var timer;
+    document.getElementById('sq').addEventListener('input', function() { clearTimeout(timer); timer = setTimeout(search, 250); });
+    document.getElementById('sc').addEventListener('change', search);
+    document.getElementById('ss').addEventListener('change', search);
+    document.getElementById('sso').addEventListener('change', search);
+
+    // Auto-search if query present
+    if (params.get('q') || params.get('cat') || params.get('status')) search();
+    else { filtered = DATA; render(false); }
+  })();
+  </script>
+</body></html>`);
   pageCount++;
 
   // Sitemap.xml
@@ -4267,7 +4401,7 @@ async function ftpUpload() {
   let alreadyUploaded = {};
   try { alreadyUploaded = JSON.parse(fs.readFileSync(uploadedTracker, "utf-8")); } catch {}
 
-  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html", "a-propos.html", "statistiques.html", "llms.txt", "llms-full.txt", "stats.json", "maisons.html", "villes.html", "404.html"]);
+  const alwaysUpload = new Set(["index.html", "categories.html", "top-ventes.html", "invendus.html", "recherche.html", "sitemap.xml", "ads.txt", "robots.txt", ".htaccess", "search-index.json", "search-data.js", "mentions-legales.html", "politique-confidentialite.html", "a-propos.html", "statistiques.html", "llms.txt", "llms-full.txt", "stats.json", "maisons.html", "villes.html", "404.html"]);
 
   const files = allFiles.filter(f => {
     const basename = path.basename(f.local);
