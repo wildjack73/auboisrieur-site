@@ -996,8 +996,10 @@ function cleanTitleLine(s) {
   t = t.replace(/\(r[ée]f\.?\s*[^)]*\)\s*/gi, "").trim();
   // Remove leading "Ref. X -" or "Réf X :"
   t = t.replace(/^r[ée]f\.?\s*\S+\s*[-:–—]\s*/i, "").trim();
-  // Remove leading lot/article numbering: "1 -", "N°12 -", "LOT 3 :"
+  // Remove leading lot/article numbering: "1 -", "N°12 -", "LOT 3 :", "LOT 59 UNE..."
   t = t.replace(/^(lot\s*)?n?°?\s*\d+\s*[-:–—]\s*/i, "").trim();
+  // Remove "LOT XX " without separator (e.g. "LOT 59 UNE POUSSETTE")
+  t = t.replace(/^lot\s+\d+\s+/i, "").trim();
   // Remove leading quantity "1 " for single items (but keep "12 bouteilles")
   t = t.replace(/^1\s+(?=[a-zàâéèêëïîôùûüç])/i, "").trim();
   // Remove "sur désignation (VILLE CODE) :" prefix
@@ -1392,7 +1394,7 @@ function generateLotPage(item, sale) {
         </div>` : (() => {
           // Auto-generated FAQ for lots not yet AI-enriched
           const priceVal = auc.price || 0;
-          const faqTitle = shortTitle.length > 10 ? shortTitle : (catName || "cet objet");
+          const faqTitle = shortTitle.length > 5 ? shortTitle : "cet objet";
           const faqs = [];
           if (priceVal > 0) faqs.push({
             q: `Combien a été vendu « ${faqTitle} » aux enchères ?`,
@@ -2067,7 +2069,7 @@ function generateUnsoldPage(item, sale) {
             </details>`).join("")}
           </div>
         </div>` : (() => {
-          const faqTitle = lotTitle.length > 10 ? lotTitle : (catName || "cet objet");
+          const faqTitle = lotTitle.length > 5 ? lotTitle : "cet objet";
           const faqs = [];
           faqs.push({
             q: `Peut-on encore acheter « ${faqTitle} » ?`,
