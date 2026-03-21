@@ -4111,6 +4111,14 @@ async function rebuildAllPages(dateStr) {
   ensureDir(path.join(SITE_DIR, "ville"));
   ensureDir(path.join(SITE_DIR, "prix"));
   ensureDir(path.join(SITE_DIR, "maison"));
+  ensureDir(path.join(SITE_DIR, "img"));
+
+  // Copy static assets (logo)
+  const logoSrc = path.join(__dirname, "gavel-logo.png");
+  const logoDst = path.join(SITE_DIR, "img", "gavel.png");
+  if (fs.existsSync(logoSrc) && !fs.existsSync(logoDst)) {
+    fs.copyFileSync(logoSrc, logoDst);
+  }
 
   let pageCount = 0;
   let skipped = 0;
