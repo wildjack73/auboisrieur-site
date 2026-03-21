@@ -99,6 +99,12 @@ function todayFr() {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
+// Normalize city names: "NANTES" → "Nantes", "SAINT-MARIENS" → "Saint-Mariens"
+function titleCaseCity(name) {
+  if (!name) return "";
+  return name.toLowerCase().replace(/(^|[\s-])(\w)/g, (m, sep, c) => sep + c.toUpperCase());
+}
+
 // Convert ISO date "2026-03-18" to French "18 mars 2026"
 function dateFr(isoDate) {
   if (!isoDate || isoDate.length < 10) return isoDate || "";
@@ -442,7 +448,7 @@ function registerItem(item, sale) {
       sale,
       saleName: sale?.name || "",
       org: sale?.organization?.names?.voluntary || sale?.organization?.names?.judicial || "",
-      city: sale?.address?.city || "",
+      city: titleCaseCity(sale?.address?.city || ""),
       items: [],
     });
   }
@@ -468,7 +474,7 @@ function registerItem(item, sale) {
   const orgName = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
   if (orgName) {
     const orgSlug = slugify(orgName);
-    const city = sale?.address?.city || item.sale?.address?.city || "";
+    const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
     if (!registry.maisons.has(orgSlug)) {
       registry.maisons.set(orgSlug, {
         name: orgName,
@@ -729,39 +735,40 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
 }
 
 function navHtml() {
-  return `<nav class="sticky top-0 z-50 backdrop-blur-xl bg-[var(--bg)]/80 border-b border-white/5">
-  <div class="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-14">
-    <a href="/index.html" class="flex items-center gap-2 no-underline shrink-0">
-      <svg width="24" height="24" viewBox="0 0 100 100" fill="none"><rect x="35" y="55" width="30" height="8" rx="2" fill="#8b5cf6"/><rect x="46" y="40" width="8" height="20" rx="2" fill="#a78bfa"/><rect x="25" y="28" width="35" height="14" rx="4" fill="#8b5cf6" transform="rotate(-35 42 35)"/></svg>
-      <span class="text-lg font-bold tracking-tight text-[var(--text)]">Adjugé<span class="text-[var(--accent)]">.</span></span>
+  return `<nav class="sticky top-0 z-50 backdrop-blur-xl bg-[var(--surface)]/95 border-b border-white/10 shadow-lg shadow-black/10">
+  <div class="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-16">
+    <a href="/index.html" class="flex items-center gap-2.5 no-underline shrink-0 group">
+      <img src="/img/gavel.png" alt="" width="32" height="32" class="drop-shadow-md group-hover:scale-110 transition-transform">
+      <span class="text-xl font-extrabold tracking-tight text-[var(--text)]">Adjugé<span class="text-[var(--accent2)]">.</span></span>
     </a>
-    <div class="hidden md:flex items-center gap-1 text-sm">
-      <a href="/index.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Accueil</a>
-      <a href="/categories.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Catégories</a>
-      <a href="/villes.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Villes</a>
-      <a href="/top-ventes.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Top</a>
-      <a href="/invendus.html" class="px-3 py-2 rounded-lg text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 transition no-underline font-medium">Invendus</a>
+    <div class="hidden md:flex items-center gap-0.5 text-[0.85rem]">
+      <a href="/index.html" class="px-3.5 py-2 rounded-lg text-[var(--text)] hover:text-white hover:bg-[var(--accent)]/10 transition no-underline font-semibold">Accueil</a>
+      <a href="/categories.html" class="px-3.5 py-2 rounded-lg text-[var(--text2)] hover:text-white hover:bg-[var(--accent)]/10 transition no-underline font-medium">Catégories</a>
+      <a href="/villes.html" class="px-3.5 py-2 rounded-lg text-[var(--text2)] hover:text-white hover:bg-[var(--accent)]/10 transition no-underline font-medium">Villes</a>
+      <a href="/top-ventes.html" class="px-3.5 py-2 rounded-lg text-[var(--text2)] hover:text-white hover:bg-[var(--accent)]/10 transition no-underline font-medium">Top</a>
+      <a href="/invendus.html" class="px-3.5 py-2 rounded-lg text-[var(--text2)] hover:text-white hover:bg-[var(--accent)]/10 transition no-underline font-medium">Invendus</a>
+      <a href="/recherche.html" class="px-3.5 py-2 rounded-lg text-[var(--text2)] hover:text-white hover:bg-[var(--accent)]/10 transition no-underline font-medium">Recherche</a>
     </div>
     <div class="flex items-center gap-2">
       <div class="search-wrap relative">
-        <input type="text" id="searchInput" placeholder="Rechercher..." autocomplete="off"
-          class="bg-white/5 border border-white/10 rounded-lg px-4 py-1.5 text-sm w-36 md:w-48 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] placeholder-[var(--text3)] text-[var(--text)] font-[inherit] transition-all focus:w-48 md:focus:w-64">
+        <input type="text" id="searchInput" placeholder="Rechercher un lot..." autocomplete="off"
+          class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm w-36 md:w-52 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] placeholder-[var(--text3)] text-[var(--text)] font-[inherit] transition-all focus:w-48 md:focus:w-72">
         <div class="search-results" id="searchResults"></div>
       </div>
-      <button class="theme-toggle w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-sm hover:bg-white/10 transition" onclick="toggleTheme()" title="Thème" aria-label="Thème">
+      <button class="theme-toggle w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/30 transition" onclick="toggleTheme()" title="Thème" aria-label="Thème">
         <span class="theme-icon">🌙</span>
       </button>
-      <button class="md:hidden w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base hover:bg-white/10 transition" onclick="document.getElementById('navLinks').classList.toggle('hidden')" aria-label="Menu">☰</button>
+      <button class="md:hidden w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg hover:bg-white/10 transition" onclick="document.getElementById('navLinks').classList.toggle('hidden')" aria-label="Menu">☰</button>
     </div>
   </div>
-  <div class="hidden md:hidden border-t border-white/5 bg-[var(--bg)]" id="navLinks">
+  <div class="hidden md:hidden border-t border-white/5 bg-[var(--surface)]" id="navLinks">
     <div class="max-w-6xl mx-auto px-4 py-2 flex flex-col">
-      <a href="/index.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Accueil</a>
-      <a href="/categories.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Catégories</a>
-      <a href="/villes.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Villes</a>
-      <a href="/top-ventes.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Top Ventes</a>
-      <a href="/invendus.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Invendus</a>
-      <a href="/recherche.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:text-[var(--text)] hover:bg-white/5 rounded-lg transition no-underline">Recherche</a>
+      <a href="/index.html" class="px-4 py-3 text-sm text-[var(--text)] hover:bg-[var(--accent)]/10 rounded-lg transition no-underline font-semibold">Accueil</a>
+      <a href="/categories.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:bg-[var(--accent)]/10 rounded-lg transition no-underline">Catégories</a>
+      <a href="/villes.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:bg-[var(--accent)]/10 rounded-lg transition no-underline">Villes</a>
+      <a href="/top-ventes.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:bg-[var(--accent)]/10 rounded-lg transition no-underline">Top Ventes</a>
+      <a href="/invendus.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:bg-[var(--accent)]/10 rounded-lg transition no-underline">Invendus</a>
+      <a href="/recherche.html" class="px-4 py-3 text-sm text-[var(--text2)] hover:bg-[var(--accent)]/10 rounded-lg transition no-underline">Recherche</a>
     </div>
   </div>
 </nav>
@@ -866,7 +873,7 @@ function sidebarHtml() {
   // Top cities
   const cityMap = new Map();
   for (const [, { item, sale }] of registry.items) {
-    const city = sale?.address?.city || item.sale?.address?.city || "";
+    const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
     if (city) {
       const cs = slugify(city);
       if (!cityMap.has(cs)) cityMap.set(cs, { name: city, count: 0 });
@@ -1049,7 +1056,7 @@ function generateLotPage(item, sale) {
   const est = item.pricing?.estimates || {};
   const org = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
   const orgSlug = slugify(org);
-  const city = sale?.address?.city || item.sale?.address?.city || "";
+  const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
   const saleDate = (sale?.datetime || item.sale?.datetime || "").substring(0, 10);
   const saleName = sale?.name || item.sale?.name || "";
   const saleId = sale?.id || item.sale?.id || "";
@@ -1473,9 +1480,9 @@ function generateCategoryPage(slug, data) {
 
   // Schema.org FAQPage for GEO
   const catFaqQuestions = [
-    { q: `Combien coûte un ${catName} aux enchères en France ?`, a: `En moyenne, un lot de ${catName} se vend ${formatPrice(avgPrice)} € aux enchères en France. Le record observé est de ${formatPrice(maxPrice)} €.` },
-    { q: `Où acheter des ${catName} aux enchères ?`, a: `Adjugé ! recense ${data.items.length} lots de ${catName} vendus aux enchères dans toute la France. Consultez les résultats avec photos et prix adjugés.` },
-    { q: `Quel est le prix moyen des ${catName} aux enchères ?`, a: `Le prix moyen constaté pour la catégorie ${catName} est de ${formatPrice(avgPrice)} €, pour un total de ${formatPrice(totalPrice)} € sur ${data.items.length} lots vendus.` },
+    { q: `Quel est le prix moyen pour la catégorie « ${catName} » aux enchères ?`, a: `Sur ${data.items.length} lots vendus, le prix moyen constaté en catégorie « ${catName} » est de ${formatPrice(avgPrice)} €. Le record observé atteint ${formatPrice(maxPrice)} €.` },
+    { q: `Où trouver des lots « ${catName} » vendus aux enchères en France ?`, a: `Adjugé ! recense ${data.items.length} lots « ${catName} » vendus aux enchères dans toute la France, avec photos, prix adjugés et estimations.` },
+    { q: `Le marché « ${catName} » est-il dynamique aux enchères ?`, a: `La catégorie « ${catName} » totalise ${formatPrice(totalPrice)} € de ventes pour ${data.items.length} lots, soit un prix moyen de ${formatPrice(avgPrice)} €.` },
   ];
   const catFaqSchema = {
     "@context": "https://schema.org",
@@ -1512,6 +1519,7 @@ function generateCategoryPage(slug, data) {
         <div class="card">
           <div class="card-body">
             <h1 style="font-size:1.4rem;margin-bottom:0.5rem;">${esc(catName)} aux enchères</h1>
+            ${catDesc ? `<p style="color:var(--text2);font-size:0.9rem;line-height:1.7;margin-bottom:1rem;">${esc(catDesc)}</p>` : ""}
 
             <!-- Factual synthesis (TASK 9) -->
             <p style="color:var(--text);font-size:0.95rem;line-height:1.7;margin-bottom:1rem;background:var(--accent-glow);padding:1rem;border-radius:var(--radius-sm);border-left:3px solid var(--accent);">
@@ -2004,7 +2012,7 @@ function generateUnsoldPage(item, sale) {
   const est = item.pricing?.estimates || {};
   const org = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
   const orgSlug = slugify(org);
-  const city = sale?.address?.city || item.sale?.address?.city || "";
+  const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
   const saleDate = (sale?.datetime || item.sale?.datetime || "").substring(0, 10);
   const catName = item.category?.name || "";
   const catSlug = slugify(catName);
@@ -2071,11 +2079,27 @@ function generateUnsoldPage(item, sale) {
 
         ${vehicleSpecsHtml(item._aiSpecs || extractVehicleSpecs(rawDesc, catName))}
 
-        ${item._aiDealAnalysis ? (() => {
+        ${(() => {
           const DEAL_LABELS = ["Sans intérêt", "Bonne affaire", "Super affaire", "Affaire exceptionnelle"];
           const DEAL_ICONS = ["⚪", "🟢", "🔵", "🔥"];
           const DEAL_COLORS = ["var(--text3)", "#22c55e", "#3b82f6", "#f59e0b"];
           const ds = item._aiDealScore >= 0 ? item._aiDealScore : 0;
+          const estL = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
+          const estH = item.pricing?.estimates?.max || 0;
+          const spU = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
+          const nPh = item.medias?.length || 0;
+          // Build explanation if no AI analysis
+          let explanation = item._aiDealAnalysis || "";
+          if (!explanation && !auc.sold) {
+            const reasons = [];
+            if (estH > 0) reasons.push(`estimation de ${formatPrice(estL)} à ${formatPrice(estH)} €`);
+            if (spU > 0 && estL > 0 && spU < estL * 0.5) reasons.push(`mise à prix (${formatPrice(spU)} €) nettement inférieure à l'estimation`);
+            else if (spU > 0) reasons.push(`mise à prix de ${formatPrice(spU)} €`);
+            if (nPh >= 3) reasons.push(`${nPh} photos disponibles`);
+            if (ds === 0) explanation = "Ce lot n'a pas de caractéristiques particulières qui en font une bonne affaire.";
+            else if (reasons.length) explanation = `Score basé sur : ${reasons.join(", ")}.`;
+          }
+          if (ds === 0 && !explanation) return "";
           return `<div class="card" style="border-left:4px solid ${DEAL_COLORS[ds]};">
           <div class="card-header" style="display:flex;align-items:center;gap:0.6rem;">
             <span style="font-size:1.3rem;">${DEAL_ICONS[ds]}</span>
@@ -2083,11 +2107,11 @@ function generateUnsoldPage(item, sale) {
             ${ds >= 2 ? `<span style="background:${DEAL_COLORS[ds]};color:${ds === 3 ? "#000" : "#fff"};font-size:0.7rem;font-weight:800;padding:2px 10px;border-radius:4px;">${ds === 3 ? "TOP AFFAIRE" : "RECOMMANDÉ"}</span>` : ""}
           </div>
           <div class="card-body">
-            <p style="color:var(--text);font-size:0.92rem;line-height:1.7;margin-bottom:0.5rem;">${esc(item._aiDealAnalysis)}</p>
+            <p style="color:var(--text);font-size:0.92rem;line-height:1.7;margin-bottom:0.5rem;">${esc(explanation)}</p>
             ${item._aiPriceAnalysis ? `<p style="color:var(--text2);font-size:0.85rem;line-height:1.6;font-style:italic;">📊 ${esc(item._aiPriceAnalysis)}</p>` : ""}
           </div>
         </div>`;
-        })() : ""}
+        })()}
 
         ${item._aiFaq?.length ? `<div class="card">
           <div class="card-header"><h3 style="font-size:1rem;">❓ Questions fréquentes</h3></div>
@@ -2211,7 +2235,7 @@ function generateInvendusIndex() {
     const estHigh = item.pricing?.estimates?.max || 0;
     const startPrice = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
     const date = sale?.datetime ? sale.datetime.substring(0, 10) : "";
-    const city = sale?.address?.city || item.sale?.address?.city || "";
+    const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
     const coords = cityToCoords(city);
     const nPhotos = item.medias?.length || 0;
     // Deal score: prefer AI score, fallback to heuristic
@@ -2725,18 +2749,22 @@ function generateHomePage(dateStr) {
       <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
         <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Ratio moyen</p>
         <p class="text-2xl md:text-3xl font-bold text-[var(--text)]">×${avgRatio}</p>
+        <p class="text-[0.7rem] text-[var(--text3)] mt-2 leading-snug">En moyenne, un lot se vend ${avgRatio}× sa mise à prix de départ</p>
       </div>
       <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
         <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Ratio médian</p>
         <p class="text-2xl md:text-3xl font-bold text-[var(--text)]">×${medianRatio}</p>
+        <p class="text-[0.7rem] text-[var(--text3)] mt-2 leading-snug">La moitié des lots se vend plus de ${medianRatio}× la mise à prix</p>
       </div>
       <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
-        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Au-dessus estimation</p>
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Au-dessus de l'estimation</p>
         <p class="text-2xl md:text-3xl font-bold text-emerald-400">${aboveEstPct}%</p>
+        <p class="text-[0.7rem] text-[var(--text3)] mt-2 leading-snug">${aboveEstPct}% des lots dépassent l'estimation haute du commissaire-priseur</p>
       </div>
       <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
-        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Meilleure surprise</p>
+        <p class="text-xs md:text-sm text-[var(--text3)] mb-1">Plus grosse surprise</p>
         <p class="text-2xl md:text-3xl font-bold text-amber-400">×${topSurprises[0]?.ratio || "–"}</p>
+        <p class="text-[0.7rem] text-[var(--text3)] mt-2 leading-snug">Le lot le plus surprenant a atteint ${topSurprises[0]?.ratio || "–"}× sa mise à prix</p>
       </div>
     </div>
   </section>
@@ -2750,26 +2778,32 @@ function generateHomePage(dateStr) {
         <div class="divide-y divide-white/5">
           ${top10.map(({ item }, i) => {
             const p = item.pricing?.auctioned?.price || 0;
-            const t = item._aiTitle || cleanTitleLine((item.description || "").split("\\n")[0] || "Objet");
+            const rawD = item.description || item.title_translations?.["fr-FR"] || "";
+            const fallback = extractTitle(rawD);
+            const t = item._aiTitle || fallback;
             const th = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
             const sl = lotSlug(item);
             const cn = item.category?.name || "";
-            return `<a href="/lot/${sl}.html" class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.03] transition no-underline">
-            <span class="text-sm font-bold text-[var(--accent2)] w-5">${i + 1}</span>
-            ${th ? `<img src="${th}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0" loading="lazy">` : `<div class="w-10 h-10 rounded-lg bg-[var(--surface3)] flex-shrink-0"></div>`}
-            <div class="flex-1 min-w-0"><p class="text-sm truncate text-[var(--text)]">${esc(t.substring(0, 45))}</p><p class="text-xs text-[var(--text3)]">${esc(cn)}</p></div>
+            return `<a href="/lot/${sl}.html" class="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.03] transition no-underline">
+            <span class="text-sm font-bold text-[var(--accent2)] w-6">${i + 1}</span>
+            ${th ? `<img src="${th}" class="w-14 h-14 rounded-xl object-cover flex-shrink-0" loading="lazy">` : `<div class="w-14 h-14 rounded-xl bg-[var(--surface3)] flex-shrink-0"></div>`}
+            <div class="flex-1 min-w-0"><p class="text-sm font-medium text-[var(--text)] line-clamp-2 leading-snug">${esc(t.substring(0, 60))}</p><p class="text-xs text-[var(--text3)] mt-0.5">${esc(cn)}</p></div>
             <span class="text-sm font-bold text-emerald-400 whitespace-nowrap">${formatPrice(p)} €</span>
           </a>`;
           }).join("")}
         </div>
       </div>
-      <!-- Top surprises -->
-      ${topSurprises.length ? `<div class="bg-white/[0.03] border border-white/5 rounded-2xl overflow-hidden">
-        <div class="px-5 py-3.5 border-b border-white/5"><h3 class="font-semibold text-sm text-[var(--text)]">Plus grosses surprises</h3></div>
-        <div class="divide-y divide-white/5">
-          ${topSurprises.map(s => `<a href="/lot/${s.slug}.html" class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.03] transition no-underline">
-            <span class="text-xl md:text-2xl font-black text-amber-400 w-12 text-center">×${s.ratio}</span>
-            <div class="flex-1 min-w-0"><p class="text-sm truncate text-[var(--text)]">${esc(s.title.substring(0, 45))}</p><p class="text-xs text-[var(--text3)]">${formatPrice(s.sp)} € → <span class="text-emerald-400 font-semibold">${formatPrice(s.price)} €</span></p></div>
+      <!-- Top surprises — cards avec photos -->
+      ${topSurprises.length ? `<div>
+        <div class="mb-3"><h3 class="font-semibold text-sm text-[var(--text)]">Plus grosses surprises</h3></div>
+        <div class="flex flex-col gap-3">
+          ${topSurprises.map(s => `<a href="/lot/${s.slug}.html" class="flex items-center gap-3 bg-white/[0.03] border border-white/5 rounded-xl p-3 hover:border-amber-500/30 hover:bg-white/[0.05] transition no-underline group">
+            ${s.thumb ? `<img src="${s.thumb}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0" loading="lazy">` : `<div class="w-16 h-16 rounded-lg bg-[var(--surface3)] flex-shrink-0"></div>`}
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-[var(--text)] line-clamp-1 leading-snug">${esc(s.title.substring(0, 55))}</p>
+              <p class="text-xs text-[var(--text3)] mt-1">Mise à prix : ${formatPrice(s.sp)} € → Vendu : <span class="text-emerald-400 font-semibold">${formatPrice(s.price)} €</span></p>
+            </div>
+            <span class="text-xl md:text-2xl font-black text-amber-400 shrink-0">×${s.ratio}</span>
           </a>`).join("")}
         </div>
       </div>` : ""}
@@ -3064,7 +3098,7 @@ function generateStatistiquesPage(dateStr) {
 function buildCityRegistry() {
   const cities = new Map();
   for (const [, { item, sale }] of registry.items) {
-    const city = sale?.address?.city || item.sale?.address?.city || "";
+    const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
     if (!city) continue;
     const cs = slugify(city);
     if (!cities.has(cs)) cities.set(cs, { name: city, items: [], totalPrice: 0 });
@@ -4021,7 +4055,7 @@ async function rebuildAllPages(dateStr) {
     const priceNum = item.pricing?.auctioned?.price || 0;
     const price = priceNum ? formatPrice(priceNum) : "Invendu";
     const cat = item.category?.name || "";
-    const city = sale?.address?.city || item.sale?.address?.city || "";
+    const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
     const sold = item.pricing?.auctioned?.sold ? 1 : 0;
     return { id: lotSlug(item), t: title.substring(0, 150), p: price, pn: priceNum, img: thumb, c: cat, v: city, so: sold };
   });
