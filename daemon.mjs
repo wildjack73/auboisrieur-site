@@ -734,7 +734,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
   ${config.adsenseId ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsenseId}" crossorigin="anonymous"></script>` : ""}
   <script data-goatcounter="https://wildjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   ${extraHead}
-  <script src="/search-data.js" defer></script>
+  <script src="/search-data.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -2234,11 +2234,19 @@ function generateUnsoldPage(item, sale) {
           const DEAL_LABELS = ["Sans intérêt", "Bonne affaire", "Super affaire", "Affaire exceptionnelle"];
           const DEAL_ICONS = ["⚪", "🟢", "🔵", "🔥"];
           const DEAL_COLORS = ["var(--text3)", "#22c55e", "#3b82f6", "#f59e0b"];
-          const ds = item._aiDealScore >= 0 ? item._aiDealScore : 0;
           const estL = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
           const estH = item.pricing?.estimates?.max || 0;
           const spU = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
           const nPh = item.medias?.length || 0;
+          // Deal score: prefer AI, fallback to same heuristic as invendus grid
+          let ds = 0;
+          if (item._aiDealScore >= 0) {
+            ds = item._aiDealScore;
+          } else {
+            if (estH > 0) { ds++; if (spU > 0 && spU < estL * 0.5) ds++; else if (estH >= 200) ds++; if (nPh >= 3 && estH >= 500) ds++; }
+            else if (spU > 0 && nPh >= 2) ds = 1;
+            if (ds > 3) ds = 3;
+          }
           // Build explanation if no AI analysis
           let explanation = item._aiDealAnalysis || "";
           if (!explanation) { // unsold page — always build explanation
@@ -4034,6 +4042,8 @@ function rebuildCategories() {
         name: catName,
         id: item.category.id,
         description: item.category.description || "",
+        parent: item._parentCatSlug || "divers-nature",
+        parentName: item._parentCat || "Divers & Nature",
         items: [],
       });
     }
@@ -4117,10 +4127,10 @@ async function rebuildAllPages(dateStr) {
   ensureDir(path.join(SITE_DIR, "maison"));
   ensureDir(path.join(SITE_DIR, "img"));
 
-  // Copy static assets (logo)
+  // Copy static assets (logo) — always copy to ensure it's up to date
   const logoSrc = path.join(__dirname, "gavel-logo.png");
   const logoDst = path.join(SITE_DIR, "img", "gavel.png");
-  if (fs.existsSync(logoSrc) && !fs.existsSync(logoDst)) {
+  if (fs.existsSync(logoSrc)) {
     fs.copyFileSync(logoSrc, logoDst);
   }
 
