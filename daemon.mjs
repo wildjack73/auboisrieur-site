@@ -2237,7 +2237,7 @@ function generateUnsoldPage(item, sale) {
           const nPh = item.medias?.length || 0;
           // Build explanation if no AI analysis
           let explanation = item._aiDealAnalysis || "";
-          if (!explanation && !auc.sold) {
+          if (!explanation) { // unsold page — always build explanation
             const reasons = [];
             if (estH > 0) reasons.push(`estimation de ${formatPrice(estL)} à ${formatPrice(estH)} €`);
             if (spU > 0 && estL > 0 && spU < estL * 0.5) reasons.push(`mise à prix (${formatPrice(spU)} €) nettement inférieure à l'estimation`);
