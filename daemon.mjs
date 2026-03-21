@@ -2238,14 +2238,12 @@ function generateUnsoldPage(item, sale) {
           const estH = item.pricing?.estimates?.max || 0;
           const spU = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
           const nPh = item.medias?.length || 0;
-          // Deal score: prefer AI, fallback to same heuristic as invendus grid
+          // Deal score: only trust AI score, heuristic max = 1
           let ds = 0;
           if (item._aiDealScore >= 0) {
             ds = item._aiDealScore;
-          } else {
-            if (estH > 0) { ds++; if (spU > 0 && spU < estL * 0.5) ds++; else if (estH >= 200) ds++; if (nPh >= 3 && estH >= 500) ds++; }
-            else if (spU > 0 && nPh >= 2) ds = 1;
-            if (ds > 3) ds = 3;
+          } else if (spU > 0 && estL > 0 && spU < estL * 0.5) {
+            ds = 1; // mise à prix nettement sous l'estimation
           }
           // Build explanation if no AI analysis
           let explanation = item._aiDealAnalysis || "";
@@ -2404,20 +2402,17 @@ function generateInvendusIndex() {
     const city = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
     const coords = cityToCoords(city);
     const nPhotos = item.medias?.length || 0;
-    // Deal score: prefer AI score, fallback to heuristic
+    // Deal score: only trust AI score or strong heuristic signals
+    // Without market price data, we can NOT know if it's a good deal
+    // Heuristic max = 1 (conservative), only AI can give 2 or 3
     let deal = 0;
     if (item._aiDealScore >= 0) {
       deal = item._aiDealScore;
     } else {
-      if (estHigh > 0) {
-        deal++;
-        if (startPrice > 0 && startPrice < estLow * 0.5) deal++;
-        else if (estHigh >= 200) deal++;
-        if (nPhotos >= 3 && estHigh >= 500) deal++;
-      } else if (startPrice > 0 && nPhotos >= 2) {
-        deal = 1;
+      // Only "Bonne affaire" (1) when starting price is well below estimation
+      if (startPrice > 0 && estLow > 0 && startPrice < estLow * 0.5) {
+        deal = 1; // mise à prix nettement sous l'estimation = signal d'affaire
       }
-      if (deal > 3) deal = 3;
     }
     const dealText = item._aiDealAnalysis || "";
     return { s: lotSlug(item), t: title, i: thumb, c: cat, el: estLow, eh: estHigh, sp: startPrice, d: date, v: city, ba: deal, da: dealText, ...(coords ? { lat: coords[0], lng: coords[1] } : {}) };
