@@ -599,6 +599,23 @@ function registerItem(item, sale) {
   item._parentCatSlug = taxonomy.parent;
   item.category = { ...item.category, name: taxonomy.subcat };
 
+  // Store real commission rate from API (instead of guessing 25%)
+  const saleData = sale || item.sale || {};
+  const commissionRate = saleData.options?.commission_rate?.voluntary || saleData.options?.commission_rate?.judicial || 0;
+  if (commissionRate > 0) item._commissionRate = commissionRate;
+  // Store sale contact info for unsold lots
+  const saleContact = saleData.contact || {};
+  if (saleContact.contacts?.email || saleContact.contacts?.phone_number) {
+    item._saleContact = {
+      name: saleContact.name || "",
+      email: saleContact.contacts?.email || "",
+      phone: saleContact.contacts?.phone_number || "",
+    };
+  }
+  // Store withdrawal conditions
+  const withdrawal = item.shipping?.withdrawal_conditions || "";
+  if (withdrawal) item._withdrawal = withdrawal;
+
   registry.items.set(item.id, { item, sale });
 
   // Register sale
@@ -1237,10 +1254,12 @@ function generateLotPage(item, sale) {
   const priceHtml = auc.sold
     ? `<span class="price sold">${formatPrice(auc.price)} €</span>`
     : `<span class="price unsold">Non vendu</span>`;
-  // Prix frais inclus estimé (~25% de frais acheteur en moyenne)
-  const BUYER_FEE_RATE = 0.25;
+  // Prix frais inclus — utilise le taux réel de la vente si disponible, sinon estime à 25%
+  const realRate = item._commissionRate || 0;
+  const BUYER_FEE_RATE = realRate > 0 ? realRate / 100 : 0.25;
+  const isRealRate = realRate > 0;
   const priceWithFees = auc.sold && auc.price ? Math.round(auc.price * (1 + BUYER_FEE_RATE)) : 0;
-  const feesHtml = priceWithFees ? `<div style="color:var(--text2);font-size:0.82rem;margin-top:4px;">≈ ${formatPrice(priceWithFees)} € frais inclus <span style="font-size:0.7rem;color:var(--text3);" title="Estimation basée sur un taux moyen de frais acheteur de 25%. Les frais réels varient selon la maison de vente (20-30%).">(estimé*)</span></div>` : "";
+  const feesHtml = priceWithFees ? `<div style="color:var(--text2);font-size:0.82rem;margin-top:4px;">${isRealRate ? "" : "≈ "}${formatPrice(priceWithFees)} € frais inclus <span style="font-size:0.7rem;color:var(--text3);" title="${isRealRate ? `Frais acheteur de ${realRate}% appliqués par la maison de vente.` : "Estimation basée sur un taux moyen de frais acheteur de 25%. Les frais réels varient selon la maison de vente."}">(${isRealRate ? `${realRate}% de frais` : "estimé*"})</span></div>` : "";
 
   const estHtml = est.min != null ? `Estimation : ${formatPrice(est.min)} – ${formatPrice(est.max)} €` : "";
 
@@ -1464,9 +1483,10 @@ function generateLotPage(item, sale) {
               const priceVal = auc.price || 0;
               const contextParts = [];
               contextParts.push(`Ce lot${catName ? ` de la catégorie <a href="/categorie/${catSlug}.html" style="color:var(--accent);">${esc(catName)}</a>` : ""} a été ${auc.sold ? `adjugé <strong>${formatPrice(priceVal)} €</strong>` : "présenté"} aux enchères${saleDate ? ` le ${dateFr(saleDate)}` : ""}${org ? ` par la maison <a href="/maison/${orgSlug}.html" style="color:var(--accent);">${esc(org)}</a>` : ""}${city ? ` à <a href="/ville/${slugify(city)}.html" style="color:var(--accent);">${esc(city)}</a>` : ""}.`);
-              if (priceWithFees) contextParts.push(`Soit environ <strong>${formatPrice(priceWithFees)} € frais de vente inclus</strong> (estimation basée sur un taux moyen de 25%).`);
+              if (priceWithFees) contextParts.push(`Soit ${isRealRate ? "" : "environ "}<strong>${formatPrice(priceWithFees)} € frais de vente inclus</strong> (${isRealRate ? `taux de ${realRate}% appliqué par la maison de vente` : "estimation basée sur un taux moyen de 25%"}).`);
               if (est.min != null) contextParts.push(`L'estimation de cet objet était comprise entre <strong>${formatPrice(est.min)} €</strong> et <strong>${formatPrice(est.max)} €</strong>.`);
               if (saleName) contextParts.push(`Il faisait partie de la vente « ${esc(saleName)} ».`);
+              if (item._withdrawal) contextParts.push(`<strong>Enlèvement :</strong> ${esc(item._withdrawal.substring(0, 200))}.`);
 
               // AI description (rich)
               if (item._aiDesc) {
@@ -2308,6 +2328,13 @@ function generateUnsoldPage(item, sale) {
           <div class="card-header"><h3 style="font-size:1.1rem;">📞 Contacter la maison de vente</h3></div>
           <div class="card-body">
             <p style="color:var(--text);margin-bottom:1rem;font-size:0.95rem;">Cet objet n'a pas trouvé preneur. Il est peut-être encore disponible ! Contactez directement la maison de vente pour négocier.</p>
+            ${item._saleContact?.email || item._saleContact?.phone ? `<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px 16px;margin-bottom:0.8rem;">
+              <div style="font-size:0.82rem;color:var(--green);font-weight:700;margin-bottom:4px;">Contact direct de la vente${item._saleContact.name ? ` — ${esc(item._saleContact.name)}` : ""}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:0.8rem;">
+                ${item._saleContact.phone ? `<a href="tel:${esc(item._saleContact.phone)}" style="color:var(--green);font-weight:700;text-decoration:none;">📞 ${esc(item._saleContact.phone)}</a>` : ""}
+                ${item._saleContact.email ? `<a href="mailto:${esc(item._saleContact.email)}?subject=${encodeURIComponent("Lot invendu : " + lotTitle)}" style="color:var(--accent2);font-weight:600;text-decoration:none;">✉️ ${esc(item._saleContact.email)}</a>` : ""}
+              </div>
+            </div>` : ""}
             <div style="display:flex;flex-direction:column;gap:0.8rem;">
               ${org ? `<div style="display:flex;align-items:center;gap:10px;">
                 <span style="font-size:1.2rem;">🏛️</span>
