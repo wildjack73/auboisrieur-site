@@ -3461,31 +3461,118 @@ function generateVillePage(slug, data) {
 function generateVillesIndex() {
   const cities = buildCityRegistry();
   const sorted = [...cities.entries()].filter(([, c]) => c.items.length >= 3).sort((a, b) => b[1].items.length - a[1].items.length);
+  const totalLots = sorted.reduce((s, [, c]) => s + c.items.length, 0);
+  const totalPrice = sorted.reduce((s, [, c]) => s + c.totalPrice, 0);
+  const top5 = sorted.slice(0, 5);
 
-  return `${htmlHead("Enchères par ville en France — Résultats | Adjugé !", "Retrouvez les résultats de ventes aux enchères ville par ville en France. Prix adjugés, photos, statistiques.", "", "/villes.html")}
+  // Build map data
+  const mapCities = sorted.map(([slug, c]) => {
+    const coords = cityToCoords(c.name);
+    if (!coords) return null;
+    return { v: c.name, s: slug, lat: coords[0], lng: coords[1], n: c.items.length, t: c.totalPrice };
+  }).filter(Boolean);
+
+  // All cities as JSON for client-side search/sort
+  const citiesJson = sorted.map(([slug, c]) => {
+    const avg = c.items.length ? Math.round(c.totalPrice / c.items.length) : 0;
+    const maxP = c.items.length ? Math.max(...c.items.map(i => i.pricing?.auctioned?.price || 0)) : 0;
+    return { s: slug, n: c.name, l: c.items.length, t: c.totalPrice, a: avg, m: maxP };
+  });
+
+  return `${htmlHead("Enchères par ville en France — Résultats | Adjugé !", `Résultats de ventes aux enchères dans ${sorted.length} villes en France. ${formatPrice(totalLots)} lots pour ${formatPrice(totalPrice)} €.`, "", "/villes.html")}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <body>
   ${navHtml()}
   <div class="breadcrumb"><a href="/index.html">Accueil</a> › Villes</div>
   ${adSlot("header", "padding: 0.5rem 2rem;")}
-  <div class="container">
-    <h1 style="font-size:1.5rem;margin-bottom:1.5rem;">Enchères par ville (${sorted.length} villes)</h1>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
-      ${sorted.map(([slug, c]) => {
+  <div class="max-w-6xl mx-auto px-4 md:px-6 py-6">
+
+    <h1 class="text-2xl md:text-3xl font-bold mb-2 text-[var(--text)]">Enchères par ville</h1>
+    <p class="text-sm text-[var(--text2)] mb-6">${formatPrice(totalLots)} lots vendus dans ${sorted.length} villes pour un total de ${formatPrice(totalPrice)} €</p>
+
+    <!-- Carte -->
+    <div id="villesMap" style="height:400px;border-radius:1rem;border:1px solid rgba(255,255,255,0.05);margin-bottom:1.5rem;z-index:1;"></div>
+
+    <!-- Top 5 hero -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+      ${top5.map(([slug, c], i) => {
         const avg = c.items.length ? Math.round(c.totalPrice / c.items.length) : 0;
-        return `<a href="/ville/${slug}.html" class="card" style="margin:0;text-decoration:none;color:inherit;transition:transform 0.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
-          <div class="card-body" style="padding:1rem 1.2rem;">
-            <div style="font-weight:700;font-size:1.05rem;margin-bottom:0.3rem;">${esc(c.name)}</div>
-            <div style="display:flex;gap:1.5rem;font-size:0.85rem;color:var(--text2);">
-              <span><strong style="color:var(--accent2);">${c.items.length}</strong> lots</span>
-              <span><strong style="color:var(--green);">${formatPrice(c.totalPrice)} €</strong> total</span>
-              <span>Moy. <strong>${formatPrice(avg)} €</strong></span>
-            </div>
-          </div>
+        const maxP = Math.max(...c.items.map(it => it.pricing?.auctioned?.price || 0));
+        return `<a href="/ville/${slug}.html" class="bg-white/[0.03] border border-white/5 rounded-2xl p-4 hover:border-[var(--accent)]/30 hover:bg-white/[0.05] transition no-underline group ${i === 0 ? "col-span-2 md:col-span-1" : ""}">
+          <div class="text-xs text-[var(--accent2)] font-bold mb-1">#${i + 1}</div>
+          <div class="text-base md:text-lg font-bold text-[var(--text)] group-hover:text-[var(--accent2)] transition">${esc(c.name)}</div>
+          <div class="text-xl md:text-2xl font-extrabold text-[var(--accent2)] mt-1">${formatPrice(c.items.length)}</div>
+          <div class="text-xs text-[var(--text3)]">lots · moy. ${formatPrice(avg)} €</div>
+          <div class="text-xs text-emerald-400 font-semibold mt-1">Record : ${formatPrice(maxP)} €</div>
         </a>`;
-      }).join("\n      ")}
+      }).join("")}
     </div>
+
+    <!-- Recherche + tri -->
+    <div class="flex flex-wrap gap-3 mb-4">
+      <input type="text" id="citySearch" placeholder="Rechercher une ville..." class="flex-1 min-w-[200px] bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-[var(--text)] placeholder-[var(--text3)] outline-none focus:ring-2 focus:ring-[var(--accent)]/50 font-[inherit]">
+      <select id="citySort" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-[var(--text)] font-[inherit] outline-none">
+        <option value="lots">Plus de lots</option>
+        <option value="total">Total € décroissant</option>
+        <option value="avg">Prix moyen décroissant</option>
+        <option value="alpha">Alphabétique</option>
+      </select>
+    </div>
+
+    <!-- Grille de villes -->
+    <div id="cityCount" class="text-xs text-[var(--text3)] mb-3"></div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="cityGrid"></div>
   </div>
   ${footerHtml()}
+  <script>
+  (function(){
+    var DATA = ${JSON.stringify(citiesJson)};
+    var grid = document.getElementById('cityGrid');
+    var countEl = document.getElementById('cityCount');
+
+    function render(items) {
+      grid.innerHTML = items.map(function(c) {
+        var badge = c.l >= 500 ? '<span class="inline-block text-[0.6rem] font-bold bg-[var(--accent)]/20 text-[var(--accent2)] px-2 py-0.5 rounded-full ml-1">TOP</span>' : '';
+        return '<a href="/ville/' + c.s + '.html" class="bg-white/[0.03] border border-white/5 rounded-xl p-4 hover:border-[var(--accent)]/30 hover:bg-white/[0.05] transition no-underline block">'
+          + '<div class="font-bold text-[var(--text)] text-sm mb-2">' + c.n + badge + '</div>'
+          + '<div class="text-2xl font-extrabold text-[var(--accent2)]">' + c.l.toLocaleString('fr-FR') + '</div>'
+          + '<div class="text-xs text-[var(--text3)] mb-1">lots vendus</div>'
+          + '<div class="flex justify-between text-xs text-[var(--text2)] mt-2 pt-2 border-t border-white/5">'
+          + '<span>' + c.t.toLocaleString('fr-FR') + ' € total</span>'
+          + '<span>moy. ' + c.a.toLocaleString('fr-FR') + ' €</span>'
+          + '</div></a>';
+      }).join('');
+      countEl.textContent = items.length + ' ville' + (items.length > 1 ? 's' : '');
+    }
+
+    function applyFilters() {
+      var q = document.getElementById('citySearch').value.trim().toLowerCase();
+      var sort = document.getElementById('citySort').value;
+      var filtered = DATA;
+      if (q) filtered = filtered.filter(function(c) { return c.n.toLowerCase().indexOf(q) !== -1; });
+      if (sort === 'total') filtered = filtered.slice().sort(function(a,b) { return b.t - a.t; });
+      else if (sort === 'avg') filtered = filtered.slice().sort(function(a,b) { return b.a - a.a; });
+      else if (sort === 'alpha') filtered = filtered.slice().sort(function(a,b) { return a.n.localeCompare(b.n); });
+      render(filtered);
+    }
+
+    document.getElementById('citySearch').addEventListener('input', applyFilters);
+    document.getElementById('citySort').addEventListener('change', applyFilters);
+    applyFilters();
+
+    // Map
+    var MAP_DATA = ${JSON.stringify(mapCities)};
+    var map = L.map('villesMap').setView([46.6, 2.5], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
+    MAP_DATA.forEach(function(c) {
+      var r = Math.min(5 + Math.sqrt(c.n) * 1.5, 30);
+      L.circleMarker([c.lat, c.lng], { radius: r, fillColor: '#a78bfa', color: '#7c5cfc', weight: 1.5, opacity: 0.9, fillOpacity: 0.6 })
+        .addTo(map)
+        .bindPopup('<strong>' + c.v + '</strong><br>' + c.n + ' lots · ' + c.t.toLocaleString('fr-FR') + ' €<br><a href="/ville/' + c.s + '.html" style="color:#7c5cfc;font-weight:600;">Voir les résultats →</a>');
+    });
+  })();
+  </script>
 </body>
 </html>`;
 }
