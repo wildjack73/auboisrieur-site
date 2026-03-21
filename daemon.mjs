@@ -904,12 +904,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
       .search-results { min-width: 0; left: -40px; right: -40px; }
     }
   </style>
-  <script>
-    (function(){
-      const t = localStorage.getItem('theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <script>document.documentElement.setAttribute('data-theme','dark');</script>
 </head>`;
 }
 
@@ -934,9 +929,7 @@ function navHtml() {
           class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm w-36 md:w-52 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] placeholder-[var(--text3)] text-[var(--text)] font-[inherit] transition-all focus:w-48 md:focus:w-72">
         <div class="search-results" id="searchResults"></div>
       </div>
-      <button class="theme-toggle w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/30 transition" onclick="toggleTheme()" title="Thème" aria-label="Thème">
-        <span class="theme-icon">🌙</span>
-      </button>
+      <!-- Theme toggle disabled — dark mode only for now -->
       <button class="md:hidden w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg hover:bg-white/10 transition" onclick="document.getElementById('navLinks').classList.toggle('hidden')" aria-label="Menu">☰</button>
     </div>
   </div>
@@ -952,18 +945,8 @@ function navHtml() {
   </div>
 </nav>
 <script>
-function toggleTheme(){
-  const h=document.documentElement;
-  const c=h.getAttribute('data-theme')==='light'?'dark':'light';
-  h.setAttribute('data-theme',c);
-  localStorage.setItem('theme',c);
-  document.querySelector('.theme-icon').textContent=c==='light'?'☀️':'🌙';
-}
-(function(){
-  const t=localStorage.getItem('theme')||'dark';
-  const i=document.querySelector('.theme-icon');
-  if(i)i.textContent=t==='light'?'☀️':'🌙';
-})();
+// Dark mode only — light mode disabled for now
+(function(){ document.documentElement.setAttribute('data-theme','dark'); })();
 // Search (uses window.__SI loaded via search-data.js)
 (function(){
   const input=document.getElementById('searchInput');
