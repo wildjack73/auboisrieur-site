@@ -118,9 +118,8 @@ jobs:
             sleep 10
           done
 
-      # Mettre à jour l'archive bootstrap dans le repo (1x par semaine le dimanche)
-      - name: Update data-cache archive (weekly)
-        if: github.event.schedule && contains('0', github.run_number) || github.event_name == 'workflow_dispatch'
+      # Mettre à jour l'archive bootstrap à chaque run réussi
+      - name: Update data-cache archive
         run: |
           DATA_COUNT=$(ls site/data/*.json 2>/dev/null | wc -l)
           CURRENT_COUNT=0
@@ -128,8 +127,8 @@ jobs:
             CURRENT_COUNT=$(tar -tzf data-cache.tar.gz 2>/dev/null | grep '\.json$' | wc -l)
           fi
           echo "📊 Data: $DATA_COUNT lots | Archive: $CURRENT_COUNT lots"
-          # Only update if we have significantly more data than the archive
-          if [ "$DATA_COUNT" -gt "$((CURRENT_COUNT + 1000))" ]; then
+          # Update if data has grown by 100+ lots OR archive is outdated
+          if [ "$DATA_COUNT" -gt "$((CURRENT_COUNT + 100))" ] || [ "$DATA_COUNT" -gt 0 -a "$CURRENT_COUNT" -eq 0 ]; then
             echo "📦 Updating archive ($CURRENT_COUNT → $DATA_COUNT lots)..."
             tar -czf data-cache.tar.gz -C site/data .
             git config user.name "github-actions[bot]"

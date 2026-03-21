@@ -1644,10 +1644,14 @@ function generateCategoryPage(slug, data) {
   const catTitle = `${catName} aux enchères en France — Prix adjugés & Résultats | Adjugé !`;
 
   // Schema.org FAQPage for GEO
+  // Natural French FAQ — adapt article/preposition to category name
+  const startsWithVowel = /^[aeéèêiîoôuùûyh]/i.test(catName);
+  const artDe = startsWithVowel ? `d'${catName}` : `de ${catName}`;
+  const artUn = startsWithVowel ? `un objet ${catName}` : `un lot de ${catName}`;
   const catFaqQuestions = [
-    { q: `Quel est le prix moyen pour la catégorie « ${catName} » aux enchères ?`, a: `Sur ${data.items.length} lots vendus, le prix moyen constaté en catégorie « ${catName} » est de ${formatPrice(avgPrice)} €. Le record observé atteint ${formatPrice(maxPrice)} €.` },
-    { q: `Où trouver des lots « ${catName} » vendus aux enchères en France ?`, a: `Adjugé ! recense ${data.items.length} lots « ${catName} » vendus aux enchères dans toute la France, avec photos, prix adjugés et estimations.` },
-    { q: `Le marché « ${catName} » est-il dynamique aux enchères ?`, a: `La catégorie « ${catName} » totalise ${formatPrice(totalPrice)} € de ventes pour ${data.items.length} lots, soit un prix moyen de ${formatPrice(avgPrice)} €.` },
+    { q: `Combien coûte ${artUn} aux enchères en France ?`, a: `Sur ${data.items.length} lots ${artDe} vendus aux enchères, le prix moyen constaté est de ${formatPrice(avgPrice)} €. Le record observé atteint ${formatPrice(maxPrice)} €.` },
+    { q: `Où acheter ${artDe} aux enchères ?`, a: `Adjugé ! recense ${data.items.length} lots ${artDe} vendus aux enchères dans toute la France, avec photos, prix adjugés et estimations.` },
+    { q: `Le marché ${artDe} est-il dynamique aux enchères ?`, a: `La catégorie ${catName} totalise ${formatPrice(totalPrice)} € de ventes pour ${data.items.length} lots, soit un prix moyen de ${formatPrice(avgPrice)} €.` },
   ];
   const catFaqSchema = {
     "@context": "https://schema.org",
