@@ -369,75 +369,235 @@ const registry = {
   maisons: new Map(),     // orgSlug -> { name, city, id, items: [], sales: Set }
 };
 
-// ─── Smart re-categorization rules ──────────────────────────────────────────
-const RECAT_RULES = [
-  // Véhicules
-  { pattern: /\b(moto|scooter|cyclo|quad|trottinette|harley.davidson|yamaha.*moto|honda.*moto|kawasaki|suzuki.*moto|ducati|triumph|bmw.*moto|ktm|aprilia|vespa)\b/i, category: "Motos - Scooters - Quads" },
-  { pattern: /\b(vélo|bicyclette|vtt|vtc|e-bike|ebike|bike)\b/i, category: "Vélos" },
-  { pattern: /\b(bateau|voilier|catamaran|jet.ski|zodiac|semi-rigide|hors.bord)\b/i, category: "Bateaux - Nautisme" },
-  { pattern: /\b(tracteur|moissonneuse|engin.*chantier|pelleteuse|chargeuse|manitou|fendt|john.deere|case.*ih|chariot.*élévateur|nacelle)\b/i, category: "Matériel agricole - Espaces verts" },
-  // Bijoux & Horlogerie
-  { pattern: /\b(bague|collier|bracelet.*or|pendentif|broche|solitaire|diamant|rubis|saphir|émeraude|perle|chaîne.*or|parure|bijou)\b/i, category: "Bijoux - Montres" },
-  { pattern: /\b(rolex|omega|cartier.*montre|patek|breitling|tag.*heuer|jaeger|longines|montre.*gousset|montre.*poche|montre.*homme|montre.*femme|chronograph)\b/i, category: "Bijoux - Montres" },
-  { pattern: /\b(pendule|horloge|comtoise|cartel|régulateur|garniture.*cheminée)\b/i, category: "Pendules - Horloges - Montres" },
+// ─── Taxonomie officielle Interenchères ──────────────────────────────────────
+const CATEGORY_TAXONOMY = {
+  "art-decoration-collections": {
+    name: "Art, Décoration & Collections",
+    subcats: [
+      "Tableaux, Dessins & Estampes", "Sculptures", "Art Contemporain & Urbain",
+      "Mobilier Ancien", "Design & Mobilier du XXe", "Arts de la Table", "Luminaires",
+      "Bijoux & Pierres Précieuses", "Montres de Collection", "Maroquinerie de Luxe", "Mode & Accessoires",
+      "Arts d'Asie", "Arts d'Orient & Islamiques", "Archéologie & Arts Premiers",
+      "Vins & Spiritueux", "Militaria", "Jouets & Modélisme", "BD, Mangas & Comics",
+      "Instruments de Musique", "Livres & Manuscrits", "Numismatique", "Philatélie",
+      "Lingots & Pièces d'Or", "Argent Métal",
+      "Céramiques & Porcelaine", "Verrerie & Cristallerie", "Argenterie & Orfèvrerie",
+      "Tapis & Textiles", "Photographie", "Objets d'art & Curiosités", "Art populaire",
+      "Pendules & Horloges"
+    ]
+  },
+  "vehicules": {
+    name: "Véhicules",
+    subcats: [
+      "Voitures de Collection", "Voitures Particulières",
+      "Motos & Scooters", "Utilitaires & Véhicules de Société",
+      "Bateaux & Nautisme", "Camping-cars & Caravanes",
+      "Pièces détachées & Accessoires"
+    ]
+  },
+  "biens-equipement": {
+    name: "Biens d'équipement",
+    subcats: [
+      "BTP & Construction", "Matériel Agricole & Viticole",
+      "Machines-outils & Industrie", "Manutention & Levage",
+      "Matériel de Restauration & Hôtellerie", "Matériel Médical",
+      "Informatique & Téléphonie", "Électroménager",
+      "Destockage & Invendus", "Mobilier & Matériel de Bureau",
+      "Bricolage & Jardinage", "High-tech & Multimédia",
+      "Fonds de Commerce & Licences", "Photo & Audiovisuel"
+    ]
+  },
+  "divers-nature": {
+    name: "Divers & Nature",
+    subcats: [
+      "Chevaux & Équitation", "Objets du Quotidien", "Sports & Loisirs", "Autre"
+    ]
+  }
+};
+
+// Map Interenchères category IDs → { parent, subcat }
+const CATEGORY_ID_MAP = {
+  // mo = Art & Objets mobiliers
+  200: { parent: "art-decoration-collections", subcat: "Objets d'art & Curiosités" },
+  201: { parent: "art-decoration-collections", subcat: "Argenterie & Orfèvrerie" },
+  202: { parent: "art-decoration-collections", subcat: "Art populaire" },
+  203: { parent: "art-decoration-collections", subcat: "Arts d'Asie" },
+  204: { parent: "art-decoration-collections", subcat: "Art populaire" },
+  205: { parent: "art-decoration-collections", subcat: "Bijoux & Pierres Précieuses" },
+  206: { parent: "art-decoration-collections", subcat: "Livres & Manuscrits" },
+  207: { parent: "art-decoration-collections", subcat: "Céramiques & Porcelaine" },
+  208: { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  209: { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  210: { parent: "art-decoration-collections", subcat: "Instruments de Musique" },
+  211: { parent: "art-decoration-collections", subcat: "Objets d'art & Curiosités" },
+  212: { parent: "art-decoration-collections", subcat: "Jouets & Modélisme" },
+  213: { parent: "art-decoration-collections", subcat: "Numismatique" },
+  214: { parent: "art-decoration-collections", subcat: "Philatélie" },
+  215: { parent: "art-decoration-collections", subcat: "Mobilier Ancien" },
+  216: { parent: "art-decoration-collections", subcat: "Mobilier Ancien" },
+  217: { parent: "art-decoration-collections", subcat: "Design & Mobilier du XXe" },
+  218: { parent: "art-decoration-collections", subcat: "Mode & Accessoires" },
+  219: { parent: "art-decoration-collections", subcat: "Numismatique" },
+  220: { parent: "art-decoration-collections", subcat: "Pendules & Horloges" },
+  221: { parent: "art-decoration-collections", subcat: "Design & Mobilier du XXe" },
+  222: { parent: "art-decoration-collections", subcat: "Verrerie & Cristallerie" },
+  223: { parent: "art-decoration-collections", subcat: "Verrerie & Cristallerie" },
+  224: { parent: "art-decoration-collections", subcat: "Vins & Spiritueux" },
+  225: { parent: "art-decoration-collections", subcat: "Photographie" },
+  226: { parent: "art-decoration-collections", subcat: "Sculptures" },
+  227: { parent: "art-decoration-collections", subcat: "Arts d'Orient & Islamiques" },
+  228: { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  229: { parent: "art-decoration-collections", subcat: "Tapis & Textiles" },
+  230: { parent: "art-decoration-collections", subcat: "Archéologie & Arts Premiers" },
+  231: { parent: "art-decoration-collections", subcat: "Militaria" },
+  232: { parent: "art-decoration-collections", subcat: "Luminaires" },
+  // pr = Professionnel & Stocks
+  234: { parent: "biens-equipement", subcat: "BTP & Construction" },
+  236: { parent: "biens-equipement", subcat: "Machines-outils & Industrie" },
+  238: { parent: "biens-equipement", subcat: "Destockage & Invendus" },
+  239: { parent: "biens-equipement", subcat: "Matériel Agricole & Viticole" },
+  240: { parent: "biens-equipement", subcat: "Manutention & Levage" },
+  242: { parent: "biens-equipement", subcat: "Matériel de Restauration & Hôtellerie" },
+  243: { parent: "biens-equipement", subcat: "Destockage & Invendus" },
+  244: { parent: "biens-equipement", subcat: "Matériel Médical" },
+  248: { parent: "biens-equipement", subcat: "Électroménager" },
+  249: { parent: "biens-equipement", subcat: "Mobilier & Matériel de Bureau" },
+  250: { parent: "biens-equipement", subcat: "Photo & Audiovisuel" },
+  251: { parent: "biens-equipement", subcat: "Informatique & Téléphonie" },
+  // vh = Véhicules
+  254: { parent: "vehicules", subcat: "Camping-cars & Caravanes" },
+  256: { parent: "vehicules", subcat: "Bateaux & Nautisme" },
+  261: { parent: "vehicules", subcat: "Utilitaires & Véhicules de Société" },
+  262: { parent: "vehicules", subcat: "Voitures Particulières" },
+  265: { parent: "vehicules", subcat: "Voitures de Collection" },
+};
+
+// Map Interenchères category names (normalized) → { parent, subcat }
+const CATEGORY_MAP = {
   // Art
-  { pattern: /\b(huile.*toile|huile.*panneau|huile.*carton|aquarelle|gouache|pastel|sanguine|tableau.*sign|peinture.*sign)\b/i, category: "Tableaux - Peintures" },
-  { pattern: /\b(lithographie|estampe|gravure|eau-forte|sérigraphie|xylographie)\b/i, category: "Estampes - Dessins - Gravures" },
-  { pattern: /\b(sculpture|bronze|marbre.*sculpt|buste|statue|terre.*cuite.*sculpt|sujet.*bronze)\b/i, category: "Sculptures" },
-  // Mobilier
-  { pattern: /\b(commode|armoire|buffet|secrétaire|bureau.*ancien|console|guéridon|table.*louis|fauteuil.*louis|bergère|canapé.*ancien|lit.*baldaquin|bonheur.*jour)\b/i, category: "Mobilier" },
-  { pattern: /\b(lustre|lampe.*art.*déco|applique.*bronze|bougeoir|chandelier|lampadaire.*ancien|girandole)\b/i, category: "Luminaires" },
-  { pattern: /\b(tapis.*persan|tapis.*orient|kilim|tapisserie.*aubusson|tapisserie.*verdure)\b/i, category: "Tapis - Textiles" },
+  "tableaux - peintures": { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  "tableaux modernes et contemporains": { parent: "art-decoration-collections", subcat: "Art Contemporain & Urbain" },
+  "estampes - dessins - gravures": { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  "estampes - affiches - gravure - lithographie - eau-forte": { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  "dessins - pastel - aquarelle - gouache - fusain - encre": { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  "sculptures": { parent: "art-decoration-collections", subcat: "Sculptures" },
+  // Mobilier & Décoration
+  "mobilier": { parent: "art-decoration-collections", subcat: "Mobilier Ancien" },
+  "vente de mobilier courant": { parent: "art-decoration-collections", subcat: "Mobilier Ancien" },
+  "mobilier moderne, contemporain et design": { parent: "art-decoration-collections", subcat: "Design & Mobilier du XXe" },
+  "luminaires": { parent: "art-decoration-collections", subcat: "Luminaires" },
+  "objets d'art et de decoration du xxe siecle": { parent: "art-decoration-collections", subcat: "Design & Mobilier du XXe" },
+  "tapis - textiles": { parent: "art-decoration-collections", subcat: "Tapis & Textiles" },
+  "tapis - tapisseries - tentures": { parent: "art-decoration-collections", subcat: "Tapis & Textiles" },
+  // Bijoux & Mode
+  "bijoux": { parent: "art-decoration-collections", subcat: "Bijoux & Pierres Précieuses" },
+  "bijoux - montres": { parent: "art-decoration-collections", subcat: "Bijoux & Pierres Précieuses" },
+  "pendules - horloges - montres": { parent: "art-decoration-collections", subcat: "Pendules & Horloges" },
+  "mode - luxe": { parent: "art-decoration-collections", subcat: "Mode & Accessoires" },
+  "mode - vintage - maroquinerie": { parent: "art-decoration-collections", subcat: "Maroquinerie de Luxe" },
   // Céramiques & Verre
-  { pattern: /\b(vase.*sèvres|porcelaine.*chine|faïence|majolique|grès.*ancien|poterie.*ancien|barbotine|biscuit|compagnie.*indes)\b/i, category: "Céramiques - Faïence - Porcelaine" },
-  { pattern: /\b(cristal|lalique|daum|gallé|baccarat|murano|pâte.*verre|verre.*émaillé)\b/i, category: "Verrerie - Cristallerie" },
-  // Argenterie
-  { pattern: /\b(argenterie|argent.*massif|ménagère.*argent|couverts.*argent|orfèvrerie|christofle|puiforcat)\b/i, category: "Argenterie - Orfèvrerie" },
-  // Livres & Collections
-  { pattern: /\b(livre.*ancien|manuscrit|incunable|édition.*originale|reliure|atlas.*ancien|carte.*ancienne|bible.*ancien)\b/i, category: "Livres - Manuscrits" },
-  { pattern: /\b(bande.*dessinée|bd.*originale|planche.*originale|tintin|astérix|lucky.*luke)\b/i, category: "Bandes dessinées" },
-  { pattern: /\b(jouet.*ancien|dinky|solido|train.*miniature|poupée.*ancien|ours.*peluche|automate|jeu.*société.*ancien|playmobil|lego)\b/i, category: "Jouets - Figurines" },
-  { pattern: /\b(pièce.*or|pièce.*argent|napoléon.*or|louis.*or|médaille|numismatique|monnaie.*ancienne)\b/i, category: "Numismatique - Monnaies" },
-  { pattern: /\b(timbre|philatélie|carnet.*timbre|lettre.*ancienne)\b/i, category: "Philatélie - Timbres" },
-  // Mode & Luxe
-  { pattern: /\b(hermès|chanel|louis.*vuitton|birkin|kelly.*hermès|gucci|dior|prada|yves.*saint.*laurent|balenciaga|givenchy|valentino|celine)\b/i, category: "Mode - Luxe" },
-  { pattern: /\b(sac.*main|sac.*cuir|manteau.*fourrure|vison|étole|foulard.*soie|cravate.*soie)\b/i, category: "Mode - Luxe" },
-  // Vins
-  { pattern: /\b(bordeaux|bourgogne|champagne|romanée|pétrus|mouton.*rothschild|lafite|margaux|haut-brion|cheval.*blanc|whisky|cognac|armagnac|rhum.*ancien)\b/i, category: "Vins - Spiritueux" },
-  // High-tech
-  { pattern: /\b(iphone|ipad|macbook|samsung.*galaxy|playstation|xbox|nintendo|aspirateur.*robot|drone|gopro|sony.*alpha|nikon|canon.*eos)\b/i, category: "High-tech - Multimédia" },
-  { pattern: /\b(télévision|tv.*oled|tv.*qled|enceinte.*bluetooth|casque.*audio|ordinateur|écran)\b/i, category: "High-tech - Multimédia" },
-  // Électroménager
-  { pattern: /\b(lave.*linge|lave.*vaisselle|réfrigérateur|congélateur|four|micro-onde|cafetière|robot.*cuisine|thermomix|dyson|kitchenaid)\b/i, category: "Électroménager" },
-  // Sports & Loisirs
-  { pattern: /\b(golf|tennis|ski|plongée|fitness|musculation|vélo.*appartement|tapis.*course|raquette)\b/i, category: "Sports - Loisirs" },
-  // Art asiatique
-  { pattern: /\b(chine.*ancien|japon.*ancien|netsuke|jade|céladon|tang|ming|qing|bouddha|gandhara|ivoire.*chine|laque.*japon|estampe.*japon|ukiyo)\b/i, category: "Art d'Asie" },
-  // Instruments de musique
-  { pattern: /\b(piano|violon|guitare|saxophone|trompette|accordéon|violoncelle|flûte|clarinette|harpe|orgue)\b/i, category: "Instruments de musique" },
-  // Armes & Militaria
-  { pattern: /\b(fusil|pistolet|carabine|revolver|sabre|épée|baïonnette|casque.*militaire|médaille.*militaire|décorations.*militaire|uniforme.*militaire)\b/i, category: "Armes - Militaria" },
-  // Photographie
-  { pattern: /\b(photographie.*ancienne|daguerréotype|tirage.*argentique|photo.*vintage|leica|rolleiflex)\b/i, category: "Photographie" },
+  "ceramiques - faience - porcelaine": { parent: "art-decoration-collections", subcat: "Céramiques & Porcelaine" },
+  "ceramiques - faience - porcelaine - gres - terre cuite": { parent: "art-decoration-collections", subcat: "Céramiques & Porcelaine" },
+  "verrerie - cristallerie": { parent: "art-decoration-collections", subcat: "Verrerie & Cristallerie" },
+  "objets de vitrine - verreries - flacons - sulfures": { parent: "art-decoration-collections", subcat: "Verrerie & Cristallerie" },
+  "argenterie - orfevrerie": { parent: "art-decoration-collections", subcat: "Argenterie & Orfèvrerie" },
+  "argenterie - orfevrerie - metal argente": { parent: "art-decoration-collections", subcat: "Argenterie & Orfèvrerie" },
+  // Collections
+  "vins - spiritueux": { parent: "art-decoration-collections", subcat: "Vins & Spiritueux" },
+  "instruments de musique": { parent: "art-decoration-collections", subcat: "Instruments de Musique" },
+  "instruments scientifiques - objets de marine - curiosites": { parent: "art-decoration-collections", subcat: "Objets d'art & Curiosités" },
+  "numismatique - monnaies": { parent: "art-decoration-collections", subcat: "Numismatique" },
+  "jouets - figurines": { parent: "art-decoration-collections", subcat: "Jouets & Modélisme" },
+  "armes - militaria": { parent: "art-decoration-collections", subcat: "Militaria" },
+  "art populaire": { parent: "art-decoration-collections", subcat: "Art populaire" },
+  "art d'asie": { parent: "art-decoration-collections", subcat: "Arts d'Asie" },
+  "photographies - cinema - appareils photo": { parent: "art-decoration-collections", subcat: "Photographie" },
+  "cartes postales - vieux papiers": { parent: "art-decoration-collections", subcat: "Livres & Manuscrits" },
+  "high-tech - multimedia": { parent: "biens-equipement", subcat: "High-tech & Multimédia" },
+  "sports - loisirs": { parent: "divers-nature", subcat: "Sports & Loisirs" },
+  // Véhicules
+  "voitures de sport et de collection": { parent: "vehicules", subcat: "Voitures de Collection" },
+  "vehicules particuliers": { parent: "vehicules", subcat: "Voitures Particulières" },
+  "utilitaires legers - vehicules de societe": { parent: "vehicules", subcat: "Utilitaires & Véhicules de Société" },
+  "bateaux - nautisme": { parent: "vehicules", subcat: "Bateaux & Nautisme" },
+  "motos - scooters - quads": { parent: "vehicules", subcat: "Motos & Scooters" },
+  // Biens d'équipement
+  "materiel agricole - espaces verts": { parent: "biens-equipement", subcat: "Matériel Agricole & Viticole" },
+  "materiel et stocks de fonds de commerce": { parent: "biens-equipement", subcat: "Destockage & Invendus" },
+  "electromenager": { parent: "biens-equipement", subcat: "Électroménager" },
+  "mobilier et materiel de bureau - informatique": { parent: "biens-equipement", subcat: "Mobilier & Matériel de Bureau" },
+  "materiel medical - laboratoire": { parent: "biens-equipement", subcat: "Matériel Médical" },
+  "photo - audiovisuel - sonorisation - eclairage": { parent: "biens-equipement", subcat: "Photo & Audiovisuel" },
+};
+
+// Regex fallback for items with no category or unmapped categories
+const CATEGORY_REGEX_FALLBACK = [
+  { pattern: /\b(moto|scooter|quad|harley|ducati|yamaha|kawasaki|vespa|triumph)\b/i, parent: "vehicules", subcat: "Motos & Scooters" },
+  { pattern: /\b(bateau|voilier|catamaran|jet.ski|zodiac|nautisme)\b/i, parent: "vehicules", subcat: "Bateaux & Nautisme" },
+  { pattern: /\b(bague|collier|pendentif|diamant|saphir|émeraude|rubis|bijou|parure|bracelet.*or)\b/i, parent: "art-decoration-collections", subcat: "Bijoux & Pierres Précieuses" },
+  { pattern: /\b(rolex|omega|patek|breitling|cartier.*montre|tag.*heuer|montre.*gousset|chronograph)\b/i, parent: "art-decoration-collections", subcat: "Montres de Collection" },
+  { pattern: /\b(huile.*toile|aquarelle|gouache|tableau.*sign|peinture.*sign|lithographie|estampe|gravure)\b/i, parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
+  { pattern: /\b(sculpture|bronze.*sculpt|buste|statue|terre.*cuite.*sculpt)\b/i, parent: "art-decoration-collections", subcat: "Sculptures" },
+  { pattern: /\b(commode|armoire|buffet|secrétaire|console|guéridon|fauteuil.*louis|bergère)\b/i, parent: "art-decoration-collections", subcat: "Mobilier Ancien" },
+  { pattern: /\b(hermès|chanel|vuitton|birkin|gucci|dior|prada|sac.*main|maroquinerie)\b/i, parent: "art-decoration-collections", subcat: "Maroquinerie de Luxe" },
+  { pattern: /\b(bordeaux|bourgogne|champagne|romanée|pétrus|whisky|cognac|armagnac)\b/i, parent: "art-decoration-collections", subcat: "Vins & Spiritueux" },
+  { pattern: /\b(tracteur|moissonneuse|pelleteuse|chargeuse|manitou|john.deere|chariot.*élévateur|nacelle)\b/i, parent: "biens-equipement", subcat: "Matériel Agricole & Viticole" },
+  { pattern: /\b(iphone|ipad|macbook|samsung.*galaxy|playstation|xbox|nintendo|drone)\b/i, parent: "biens-equipement", subcat: "High-tech & Multimédia" },
+  { pattern: /\b(lave.*linge|lave.*vaisselle|réfrigérateur|congélateur|robot.*cuisine|thermomix|dyson)\b/i, parent: "biens-equipement", subcat: "Électroménager" },
+  { pattern: /\b(piano|violon|guitare|saxophone|trompette|accordéon)\b/i, parent: "art-decoration-collections", subcat: "Instruments de Musique" },
+  { pattern: /\b(fusil|carabine|revolver|sabre|épée|baïonnette|militaire)\b/i, parent: "art-decoration-collections", subcat: "Militaria" },
+  { pattern: /\b(jade|céladon|ming|qing|bouddha|netsuke|laque.*japon)\b/i, parent: "art-decoration-collections", subcat: "Arts d'Asie" },
+  { pattern: /\b(porcelaine|faïence|majolique|barbotine|biscuit)\b/i, parent: "art-decoration-collections", subcat: "Céramiques & Porcelaine" },
+  { pattern: /\b(cristal|lalique|daum|gallé|baccarat|murano)\b/i, parent: "art-decoration-collections", subcat: "Verrerie & Cristallerie" },
+  { pattern: /\b(argenterie|argent.*massif|orfèvrerie|christofle)\b/i, parent: "art-decoration-collections", subcat: "Argenterie & Orfèvrerie" },
+  { pattern: /\b(livre.*ancien|manuscrit|édition.*originale)\b/i, parent: "art-decoration-collections", subcat: "Livres & Manuscrits" },
+  { pattern: /\b(pièce.*or|napoléon.*or|louis.*or|numismatique)\b/i, parent: "art-decoration-collections", subcat: "Numismatique" },
 ];
 
-function smartCategory(item) {
+// Get parent name from slug
+function getParentName(parentSlug) {
+  return CATEGORY_TAXONOMY[parentSlug]?.name || "";
+}
+
+function mapToTaxonomy(item) {
+  const catName = item.category?.name || "";
+  const catId = item.category?.id || 0;
+  const field = item.category?.field || "";
   const desc = (item.description || item.title_translations?.["fr-FR"] || "").toLowerCase();
-  const currentCat = item.category?.name || "";
-  for (const rule of RECAT_RULES) {
-    if (rule.pattern.test(desc) && slugify(currentCat) !== slugify(rule.category)) {
-      return rule.category;
+
+  // 1. Try mapping by category ID (most reliable)
+  if (catId && CATEGORY_ID_MAP[catId]) return CATEGORY_ID_MAP[catId];
+
+  // 2. Try mapping by normalized category name
+  const normalizedName = catName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s*\(.*\)/, "").replace(/\n/g, " ").trim();
+  if (normalizedName) {
+    for (const [key, val] of Object.entries(CATEGORY_MAP)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName.substring(0, 15))) {
+        return val;
+      }
     }
   }
-  return currentCat;
+
+  // 3. Try by field code (mo=art/mobilier, vh=vehicules, pr=professionnel)
+  if (field === "vh") return { parent: "vehicules", subcat: "Voitures Particulières" };
+  if (field === "pr") return { parent: "biens-equipement", subcat: "Destockage & Invendus" };
+
+  // 4. Regex fallback on description
+  for (const rule of CATEGORY_REGEX_FALLBACK) {
+    if (rule.pattern.test(desc)) return { parent: rule.parent, subcat: rule.subcat };
+  }
+
+  // 5. Default: field "mo" → art, otherwise divers
+  if (field === "mo") return { parent: "art-decoration-collections", subcat: "Objets d'art & Curiosités" };
+  return { parent: "divers-nature", subcat: "Autre" };
 }
 
 function registerItem(item, sale) {
-  // Apply smart re-categorization
-  const correctedCat = smartCategory(item);
-  if (correctedCat && correctedCat !== item.category?.name) {
-    item.category = { ...item.category, name: correctedCat };
-  }
+  // Apply taxonomy mapping
+  const taxonomy = mapToTaxonomy(item);
+  item._parentCat = getParentName(taxonomy.parent);
+  item._parentCatSlug = taxonomy.parent;
+  item.category = { ...item.category, name: taxonomy.subcat };
 
   registry.items.set(item.id, { item, sale });
 
@@ -464,6 +624,8 @@ function registerItem(item, sale) {
         id: item.category.id,
         description: item.category.description || item.category.summary || "",
         field: item.category.field || "",
+        parent: item._parentCatSlug || "divers-nature",
+        parentName: item._parentCat || "Divers & Nature",
         items: [],
       });
     }
@@ -492,11 +654,11 @@ function registerItem(item, sale) {
 }
 
 function registerUnsoldItem(item, sale) {
-  // Apply smart re-categorization
-  const correctedCat = smartCategory(item);
-  if (correctedCat && correctedCat !== item.category?.name) {
-    item.category = { ...item.category, name: correctedCat };
-  }
+  // Apply taxonomy mapping
+  const taxonomy = mapToTaxonomy(item);
+  item._parentCat = getParentName(taxonomy.parent);
+  item._parentCatSlug = taxonomy.parent;
+  item.category = { ...item.category, name: taxonomy.subcat };
   registry.unsold.set(item.id, { item, sale });
 }
 
@@ -1510,6 +1672,7 @@ function generateCategoryPage(slug, data) {
   <div class="breadcrumb">
     <a href="/index.html">Accueil</a> ›
     <a href="/categories.html">Catégories</a> ›
+    ${data.parentName ? `${esc(data.parentName)} ›` : ""}
     ${esc(catName)}
   </div>
   ${adSlot("header", "padding: 0.5rem 2rem;")}
@@ -1839,43 +2002,21 @@ function generateSalePage(saleId, data) {
 function generateCategoriesIndex() {
   const cats = [...registry.categories.entries()].sort((a, b) => b[1].items.length - a[1].items.length);
 
-  // Group categories into thematic families
-  const FAMILIES = {
-    "🚗 Véhicules & Transport": ["véhicule", "voiture", "auto", "moto", "utilitaire", "camping", "bateau", "nautique", "sport automobile", "collection automobile", "agricole"],
-    "💎 Bijoux & Horlogerie": ["bijou", "montre", "pendule", "horloge", "horlog", "orfèvrerie", "argenterie"],
-    "🎨 Art & Antiquités": ["tableau", "peinture", "sculpt", "estampe", "gravure", "dessin", "lithographie", "art moderne", "art contemporain", "art ancien", "art d'asie", "art d'afrique", "art premier", "archéologie"],
-    "🏠 Mobilier & Décoration": ["mobilier", "meuble", "hauteur d'appui", "décoration", "luminaire", "tapis", "tapisserie", "vente mobilière"],
-    "📚 Livres & Collections": ["livre", "manuscrit", "bande dessinée", "bd", "jouet", "train", "poupée", "automate", "philatélie", "timbre", "numismatique", "monnaie", "carte postale", "collection"],
-    "🍷 Vins & Gastronomie": ["vin", "spiritueux", "alcool", "champagne"],
-    "👗 Mode & Luxe": ["mode", "vintage", "maroquinerie", "couture", "luxe"],
-    "🏺 Céramiques & Objets d'art": ["céramique", "faïence", "porcelaine", "verre", "cristal", "objet d'art"],
-    "📸 Photographie & Instruments": ["photo", "instrument", "musique", "scientifique", "optique", "marine"],
-    "🏢 Matériel & Stocks": ["marchandise", "stock", "matériel", "bureau", "informatique", "fonds de commerce", "secteur"],
-    "🏡 Immobilier & Autres": ["immobilier", "terrain", "appartement", "maison"]
-  };
-
-  // Classify each category
+  // Group categories by parent using CATEGORY_TAXONOMY
   const grouped = new Map();
-  const OTHER_KEY = "📦 Autres catégories";
-  for (const [key] of Object.entries(FAMILIES)) grouped.set(key, []);
-  grouped.set(OTHER_KEY, []);
+  for (const [parentSlug, parentData] of Object.entries(CATEGORY_TAXONOMY)) {
+    grouped.set(parentSlug, { name: parentData.name, items: [] });
+  }
 
   for (const [slug, c] of cats) {
-    const catName = (c._aiName || c.name).toLowerCase();
-    let found = false;
-    for (const [family, keywords] of Object.entries(FAMILIES)) {
-      if (keywords.some(kw => catName.includes(kw))) {
-        grouped.get(family).push([slug, c]);
-        found = true;
-        break;
-      }
-    }
-    if (!found) grouped.get(OTHER_KEY).push([slug, c]);
+    const parentSlug = c.parent || "divers-nature";
+    if (!grouped.has(parentSlug)) grouped.set(parentSlug, { name: getParentName(parentSlug) || "Divers", items: [] });
+    grouped.get(parentSlug).items.push([slug, c]);
   }
 
   // Remove empty groups
   for (const [key, val] of grouped) {
-    if (val.length === 0) grouped.delete(key);
+    if (val.items.length === 0) grouped.delete(key);
   }
 
   // Total stats
@@ -1919,11 +2060,14 @@ function generateCategoriesIndex() {
       </div>
     </div>
 
-    ${[...grouped.entries()].map(([family, items]) => `
+    ${[...grouped.entries()].map(([parentSlug, group]) => `
       <div style="margin-bottom:2rem;">
-        <h2 style="font-size:1.2rem;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:2px solid var(--border);">${family} <span style="font-size:0.85rem;font-weight:400;color:var(--text3);">(${items.reduce((s, [, c]) => s + c.items.length, 0)} lots)</span></h2>
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
+          <span class="w-1 h-6 bg-[var(--accent)] rounded-full"></span>
+          ${esc(group.name)} <span class="text-xs font-normal text-[var(--text3)]">(${group.items.reduce((s, [, c]) => s + c.items.length, 0)} lots)</span>
+        </h2>
         <div class="lot-grid">
-          ${items.map(([slug, c]) => catCard(slug, c)).join("\n          ")}
+          ${group.items.sort((a, b) => b[1].items.length - a[1].items.length).map(([slug, c]) => catCard(slug, c)).join("\n          ")}
         </div>
       </div>
     `).join("")}
@@ -4756,7 +4900,7 @@ RÈGLES IMPORTANTES :
 Tu dois retourner un JSON avec exactement 9 champs :
 - "title": le NOM RÉEL de l'objet, accrocheur, clair et SEO-friendly (max 70 car). Ex: si la desc parle d'une "CITROEN AMI" avec immatriculation, le titre doit être "Citroën AMI — Véhicule électrique compact". Pas de numéro de lot, pas de plaque d'immat, pas de "A partir de".
 - "desc": une description enrichie de 3-5 phrases (max 500 car) qui décrit l'objet, son intérêt, ses caractéristiques, son histoire ou contexte. Ton expert passionné qui donne envie et informe. Pas de mention de la maison de vente ni d'infos expo/retrait.
-- "category": la VRAIE catégorie basée sur l'objet réel. Choisis parmi : Bijoux - Montres, Tableaux - Peintures, Mobilier, Céramiques - Porcelaine, Art asiatique, Livres - Manuscrits, Véhicules, Vins - Spiritueux, Mode - Luxe, Jouets - Figurines, Instruments de musique, Art contemporain, Sculptures, Argenterie - Orfèvrerie, Numismatique, Photographie, Luminaires, Tapis - Textiles, Objets de vitrine, Matériel professionnel, Électroménager, High-tech - Multimédia, Sports - Loisirs, Jardin - Extérieur, Autre
+- "category": la VRAIE sous-catégorie basée sur l'objet réel. Choisis EXACTEMENT parmi : Tableaux, Dessins & Estampes, Sculptures, Art Contemporain & Urbain, Mobilier Ancien, Design & Mobilier du XXe, Arts de la Table, Luminaires, Bijoux & Pierres Précieuses, Montres de Collection, Maroquinerie de Luxe, Mode & Accessoires, Arts d'Asie, Arts d'Orient & Islamiques, Archéologie & Arts Premiers, Vins & Spiritueux, Militaria, Jouets & Modélisme, BD Mangas & Comics, Instruments de Musique, Livres & Manuscrits, Numismatique, Philatélie, Lingots & Pièces d'Or, Céramiques & Porcelaine, Verrerie & Cristallerie, Argenterie & Orfèvrerie, Tapis & Textiles, Photographie, Objets d'art & Curiosités, Art populaire, Pendules & Horloges, Voitures de Collection, Voitures Particulières, Motos & Scooters, Utilitaires & Véhicules de Société, Bateaux & Nautisme, BTP & Construction, Matériel Agricole & Viticole, Machines-outils & Industrie, Informatique & Téléphonie, Électroménager, Destockage & Invendus, High-tech & Multimédia, Bricolage & Jardinage, Sports & Loisirs, Autre
 - "price_analysis": analyse du prix en 2-3 phrases (max 250 car). Compare avec le marché.
 - "deal_score": note de 0 à 3 indiquant le potentiel d'affaire. 0=sans intérêt (objet abîmé, invendable, lot vrac sans valeur), 1=bonne affaire (objet correct à prix raisonnable), 2=super affaire (objet de qualité accessible sous sa valeur marché), 3=affaire exceptionnelle (objet de grande valeur, très recherché, prix marché bien supérieur à l'estimation).
 - "deal_analysis": (max 400 car) Analyse experte UNIQUEMENT si deal_score >= 1 : explique POURQUOI c'est une bonne affaire. Inclure : estimation du prix sur le marché de l'occasion/neuf, la décote par rapport au prix marché, le potentiel de revente, la rareté, la demande pour ce type d'objet. Sois factuel et précis avec des prix. Exemple : "Ce Renault Trafic 2.0 DCI se négocie entre 12 000 et 18 000 € sur le marché occasion. Avec une estimation de 15 000 €, un invendu peut souvent s'obtenir 20-30% en dessous, soit autour de 10 000-12 000 €. Forte demande pour les utilitaires récents." Pour deal_score=0, mettre "".
