@@ -1230,11 +1230,28 @@ function generateLotPage(item, sale) {
   const fallbackTitle = extractTitle(rawDesc);
   // Use remaining lines as fallback description
   const titleLine = fallbackTitle;
-  const descLines = lines.filter(l => l !== titleLine);
-  const fallbackDesc = descLines.join(" ").trim();
+  const descLines = lines.filter(l => cleanTitleLine(l) !== fallbackTitle);
+  const fallbackDesc = descLines.join(" ").substring(0, 800).trim();
+  // Build a better fallback description from available data
+  const fbCat = item.category?.name || "";
+  const fbOrg = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
+  const fbCity = titleCaseCity(sale?.address?.city || item.sale?.address?.city || "");
+  const fbPrice = item.pricing?.auctioned?.price || 0;
+  const fbEstLow = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
+  const fbEstHigh = item.pricing?.estimates?.max || 0;
+  let enhancedFallback = fallbackDesc;
+  if (!item._aiDesc && fallbackDesc.length < 100) {
+    // Build a more informative fallback
+    const parts = [];
+    if (fallbackDesc) parts.push(fallbackDesc);
+    if (fbCat) parts.push(`Ce lot de la catégorie ${fbCat} a été présenté aux enchères${fbCity ? ` à ${fbCity}` : ""}${fbOrg ? ` par ${fbOrg}` : ""}.`);
+    if (fbEstLow > 0 && fbEstHigh > 0) parts.push(`L'estimation de cet objet était comprise entre ${formatPrice(fbEstLow)} et ${formatPrice(fbEstHigh)} €.`);
+    if (fbPrice > 0) parts.push(`Il a été adjugé ${formatPrice(fbPrice)} €.`);
+    enhancedFallback = parts.join(" ");
+  }
   // Use AI-enriched title/desc if available
   const lotTitle = item._aiTitle || fallbackTitle;
-  const lotDesc = item._aiDesc || fallbackDesc;
+  const lotDesc = item._aiDesc || enhancedFallback;
   const title = rawDesc;
   const shortTitle = lotTitle;
   const auc = item.pricing?.auctioned || {};
