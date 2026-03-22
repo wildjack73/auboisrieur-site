@@ -46,6 +46,29 @@ function cityToCoords(cityName) {
   return communesGps[key] || null;
 }
 
+// Approximate region from GPS coordinates (13 metropolitan regions)
+function coordsToRegion(lat, lng) {
+  // Rough bounding boxes for French regions
+  if (lat > 49.5) return "Hauts-de-France";
+  if (lat > 48.5 && lng < -1) return "Bretagne";
+  if (lat > 48.5 && lng < 1) return "Normandie";
+  if (lat > 48.2 && lng >= 1 && lng < 3.5) return "Île-de-France";
+  if (lat > 48.2 && lng >= 3.5) return "Grand Est";
+  if (lat > 47.5 && lng < 0) return "Pays de la Loire";
+  if (lat > 47.5 && lng >= 0 && lng < 3) return "Centre-Val de Loire";
+  if (lat > 47 && lng >= 3 && lng < 5.5) return "Bourgogne-Franche-Comté";
+  if (lat > 47 && lng >= 5.5) return "Bourgogne-Franche-Comté";
+  if (lat > 46 && lng < 0.5) return "Nouvelle-Aquitaine";
+  if (lat > 45.5 && lng >= 4) return "Auvergne-Rhône-Alpes";
+  if (lat > 45 && lng >= 0.5 && lng < 4) return "Auvergne-Rhône-Alpes";
+  if (lat > 44 && lng < 0.5) return "Nouvelle-Aquitaine";
+  if (lat > 43.5 && lng >= 0.5 && lng < 3) return "Occitanie";
+  if (lat > 43 && lng >= 3) return "Provence-Alpes-Côte d'Azur";
+  if (lat > 42 && lng < 3) return "Occitanie";
+  if (lat > 41) return "Corse";
+  return "Autre";
+}
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function curlFetch(url, retries = 2) {
@@ -593,11 +616,11 @@ function mapToTaxonomy(item) {
 }
 
 function registerItem(item, sale) {
-  // Apply taxonomy mapping
+  // Apply taxonomy mapping — keep original Interencheres category name, only add parent grouping
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
   item._parentCatSlug = taxonomy.parent;
-  item.category = { ...item.category, name: taxonomy.subcat };
+  // Keep Interencheres original category name (e.g. "Bijoux - Montres"), don't override
 
   // Store real commission rate from API (instead of guessing 25%)
   const saleData = sale || item.sale || {};
@@ -671,11 +694,11 @@ function registerItem(item, sale) {
 }
 
 function registerUnsoldItem(item, sale) {
-  // Apply taxonomy mapping
+  // Apply taxonomy mapping — keep original Interencheres category name, only add parent grouping
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
   item._parentCatSlug = taxonomy.parent;
-  item.category = { ...item.category, name: taxonomy.subcat };
+  // Keep Interencheres original category name (e.g. "Bijoux - Montres"), don't override
   registry.unsold.set(item.id, { item, sale });
 }
 
@@ -2256,7 +2279,7 @@ function generateUnsoldPage(item, sale) {
             if (ds === 0) explanation = "Ce lot n'a pas de caractéristiques particulières qui en font une bonne affaire.";
             else if (reasons.length) explanation = `Score basé sur : ${reasons.join(", ")}.`;
           }
-          if (ds === 0 && !explanation) return "";
+          if (!explanation) return ""; // Don't show deal block without explanation
           return `<div class="card" style="border-left:4px solid ${DEAL_COLORS[ds]};">
           <div class="card-header" style="display:flex;align-items:center;gap:0.6rem;">
             <span style="font-size:1.3rem;">${DEAL_ICONS[ds]}</span>
@@ -3462,11 +3485,13 @@ function generateVillesIndex() {
     return { v: c.name, s: slug, lat: coords[0], lng: coords[1], n: c.items.length, t: c.totalPrice };
   }).filter(Boolean);
 
-  // All cities as JSON for client-side search/sort
+  // All cities as JSON for client-side search/sort, with region
   const citiesJson = sorted.map(([slug, c]) => {
     const avg = c.items.length ? Math.round(c.totalPrice / c.items.length) : 0;
     const maxP = c.items.length ? Math.max(...c.items.map(i => i.pricing?.auctioned?.price || 0)) : 0;
-    return { s: slug, n: c.name, l: c.items.length, t: c.totalPrice, a: avg, m: maxP };
+    const coords = cityToCoords(c.name);
+    const region = coords ? coordsToRegion(coords[0], coords[1]) : "Autre";
+    return { s: slug, n: c.name, l: c.items.length, t: c.totalPrice, a: avg, m: maxP, r: region };
   });
 
   return `${htmlHead("Enchères par ville en France — Résultats | Adjugé !", `Résultats de ventes aux enchères dans ${sorted.length} villes en France. ${formatPrice(totalLots)} lots pour ${formatPrice(totalPrice)} €.`, "", "/villes.html")}
@@ -3499,9 +3524,25 @@ function generateVillesIndex() {
       }).join("")}
     </div>
 
-    <!-- Recherche + tri -->
+    <!-- Recherche + tri + filtre région -->
     <div class="flex flex-wrap gap-3 mb-4">
       <input type="text" id="citySearch" placeholder="Rechercher une ville..." class="flex-1 min-w-[200px] bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-[var(--text)] placeholder-[var(--text3)] outline-none focus:ring-2 focus:ring-[var(--accent)]/50 font-[inherit]">
+      <select id="regionFilter" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-[var(--text)] font-[inherit] outline-none">
+        <option value="">Toutes les régions</option>
+        <option value="Île-de-France">Île-de-France</option>
+        <option value="Auvergne-Rhône-Alpes">Auvergne-Rhône-Alpes</option>
+        <option value="Nouvelle-Aquitaine">Nouvelle-Aquitaine</option>
+        <option value="Occitanie">Occitanie</option>
+        <option value="Provence-Alpes-Côte d'Azur">PACA</option>
+        <option value="Grand Est">Grand Est</option>
+        <option value="Hauts-de-France">Hauts-de-France</option>
+        <option value="Bretagne">Bretagne</option>
+        <option value="Normandie">Normandie</option>
+        <option value="Pays de la Loire">Pays de la Loire</option>
+        <option value="Centre-Val de Loire">Centre-Val de Loire</option>
+        <option value="Bourgogne-Franche-Comté">Bourgogne-Franche-Comté</option>
+        <option value="Corse">Corse</option>
+      </select>
       <select id="citySort" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-[var(--text)] font-[inherit] outline-none">
         <option value="lots">Plus de lots</option>
         <option value="total">Total € décroissant</option>
@@ -3525,7 +3566,8 @@ function generateVillesIndex() {
       grid.innerHTML = items.map(function(c) {
         var badge = c.l >= 500 ? '<span class="inline-block text-[0.6rem] font-bold bg-[var(--accent)]/20 text-[var(--accent2)] px-2 py-0.5 rounded-full ml-1">TOP</span>' : '';
         return '<a href="/ville/' + c.s + '.html" class="bg-white/[0.03] border border-white/5 rounded-xl p-4 hover:border-[var(--accent)]/30 hover:bg-white/[0.05] transition no-underline block">'
-          + '<div class="font-bold text-[var(--text)] text-sm mb-2">' + c.n + badge + '</div>'
+          + '<div class="font-bold text-[var(--text)] text-sm mb-1">' + c.n + badge + '</div>'
+          + '<div class="text-[0.65rem] text-[var(--text3)] mb-2">' + (c.r || '') + '</div>'
           + '<div class="text-2xl font-extrabold text-[var(--accent2)]">' + c.l.toLocaleString('fr-FR') + '</div>'
           + '<div class="text-xs text-[var(--text3)] mb-1">lots vendus</div>'
           + '<div class="flex justify-between text-xs text-[var(--text2)] mt-2 pt-2 border-t border-white/5">'
@@ -3539,8 +3581,10 @@ function generateVillesIndex() {
     function applyFilters() {
       var q = document.getElementById('citySearch').value.trim().toLowerCase();
       var sort = document.getElementById('citySort').value;
+      var region = document.getElementById('regionFilter').value;
       var filtered = DATA;
       if (q) filtered = filtered.filter(function(c) { return c.n.toLowerCase().indexOf(q) !== -1; });
+      if (region) filtered = filtered.filter(function(c) { return c.r === region; });
       if (sort === 'total') filtered = filtered.slice().sort(function(a,b) { return b.t - a.t; });
       else if (sort === 'avg') filtered = filtered.slice().sort(function(a,b) { return b.a - a.a; });
       else if (sort === 'alpha') filtered = filtered.slice().sort(function(a,b) { return a.n.localeCompare(b.n); });
@@ -3549,6 +3593,7 @@ function generateVillesIndex() {
 
     document.getElementById('citySearch').addEventListener('input', applyFilters);
     document.getElementById('citySort').addEventListener('change', applyFilters);
+    document.getElementById('regionFilter').addEventListener('change', applyFilters);
     applyFilters();
 
     // Map
@@ -5016,7 +5061,7 @@ Tu dois retourner un JSON avec exactement 9 champs :
 - "desc": RÉÉCRIS et ENRICHIS la description brute fournie en 6-10 phrases (max 900 car). INTERDICTION de phrases creuses type "bijou intemporel", "saura séduire les amateurs", "pièce d'exception". Sois FACTUEL et TECHNIQUE : poids exact, dimensions, poinçons, carat, calibre, numéro de série, année de fabrication, tirage, techniques utilisées. Ajoute des INFOS que l'acheteur ne trouve pas dans la description brute : cote actuelle sur le marché, historique de la marque/artiste, rareté, points à vérifier avant achat. Pour une bague or 750 : poids en grammes, type de sertissage, taille du diamant en carats, couleur/pureté si visible. Pour une montre : calibre, fréquence, réserve de marche, diamètre boîtier. Pour un meuble : essence du bois, époque exacte, dimensions, restaurations. Pour un véhicule : motorisation, puissance, km, CT, options. Pas de mention de la maison de vente ni d'infos expo/retrait.
 - "category": NE PAS CHANGER. Recopie EXACTEMENT la catégorie Interenchères fournie dans le message. Ne la modifie pas, ne la recatégorise pas.
 - "price_analysis": analyse du prix en 2-3 phrases (max 250 car). Compare avec le marché.
-- "deal_score": note de 0 à 3 indiquant le potentiel d'affaire. 0=sans intérêt (objet abîmé, invendable, lot vrac sans valeur), 1=bonne affaire (objet correct à prix raisonnable), 2=super affaire (objet de qualité accessible sous sa valeur marché), 3=affaire exceptionnelle (objet de grande valeur, très recherché, prix marché bien supérieur à l'estimation).
+- "deal_score": note de 0 à 3. SOIS TRÈS STRICT — la majorité des lots sont 0. Score 2 ou 3 = EXCEPTIONNEL et RARE. 0=sans intérêt (objet banal, lot vrac, valeur faible, pas de marché secondaire actif — c'est le score par DÉFAUT pour 70% des lots), 1=bonne affaire (objet de marque identifiable, estimation raisonnable, demande existante sur le marché occasion), 2=super affaire (objet de qualité reconnue dont le prix marché occasion est VÉRIFIABLEMENT 2x+ l'estimation — UNIQUEMENT si tu as des données de prix marché concrètes), 3=affaire exceptionnelle (réservé aux objets iconiques/collector avec cote établie bien supérieure — Rolex Daytona, Hermès Birkin, Ferrari, etc.).
 - "deal_analysis": (max 400 car) Analyse experte UNIQUEMENT si deal_score >= 1 : explique POURQUOI c'est une bonne affaire. Inclure : estimation du prix sur le marché de l'occasion/neuf, la décote par rapport au prix marché, le potentiel de revente, la rareté, la demande pour ce type d'objet. Sois factuel et précis avec des prix. Exemple : "Ce Renault Trafic 2.0 DCI se négocie entre 12 000 et 18 000 € sur le marché occasion. Avec une estimation de 15 000 €, un invendu peut souvent s'obtenir 20-30% en dessous, soit autour de 10 000-12 000 €. Forte demande pour les utilitaires récents." Pour deal_score=0, mettre "".
 - "faq": array de 5 objets {q, a} — questions contenant le NOM RÉEL DE L'OBJET (pas la catégorie Interenchères !). Inclure : prix/valeur, comment acheter, authenticité/état, marché/tendance, conseil pratique. Réponses factuelles et détaillées (max 250 car chacune).
 - "tags": array de 3-5 mots-clés pertinents (marque, époque, matériau, style...)
