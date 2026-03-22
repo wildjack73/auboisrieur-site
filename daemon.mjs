@@ -734,7 +734,7 @@ function htmlHead(title, description, extraHead = "", canonicalPath = "") {
   ${config.adsenseId ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsenseId}" crossorigin="anonymous"></script>` : ""}
   <script data-goatcounter="https://wildjack.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   ${extraHead}
-  <script src="/search-data.js"></script>
+  <script src="/search-data.js?v=${Date.now()}"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -5013,8 +5013,8 @@ RÈGLES IMPORTANTES :
 
 Tu dois retourner un JSON avec exactement 9 champs :
 - "title": le NOM RÉEL de l'objet, accrocheur, clair et SEO-friendly (max 70 car). Ex: si la desc parle d'une "CITROEN AMI" avec immatriculation, le titre doit être "Citroën AMI — Véhicule électrique compact". Pas de numéro de lot, pas de plaque d'immat, pas de "A partir de".
-- "desc": une description enrichie de 3-5 phrases (max 500 car) qui décrit l'objet, son intérêt, ses caractéristiques, son histoire ou contexte. Ton expert passionné qui donne envie et informe. Pas de mention de la maison de vente ni d'infos expo/retrait.
-- "category": la VRAIE sous-catégorie basée sur l'objet réel. Choisis EXACTEMENT parmi : Tableaux, Dessins & Estampes, Sculptures, Art Contemporain & Urbain, Mobilier Ancien, Design & Mobilier du XXe, Arts de la Table, Luminaires, Bijoux & Pierres Précieuses, Montres de Collection, Maroquinerie de Luxe, Mode & Accessoires, Arts d'Asie, Arts d'Orient & Islamiques, Archéologie & Arts Premiers, Vins & Spiritueux, Militaria, Jouets & Modélisme, BD Mangas & Comics, Instruments de Musique, Livres & Manuscrits, Numismatique, Philatélie, Lingots & Pièces d'Or, Céramiques & Porcelaine, Verrerie & Cristallerie, Argenterie & Orfèvrerie, Tapis & Textiles, Photographie, Objets d'art & Curiosités, Art populaire, Pendules & Horloges, Voitures de Collection, Voitures Particulières, Motos & Scooters, Utilitaires & Véhicules de Société, Bateaux & Nautisme, BTP & Construction, Matériel Agricole & Viticole, Machines-outils & Industrie, Informatique & Téléphonie, Électroménager, Destockage & Invendus, High-tech & Multimédia, Bricolage & Jardinage, Sports & Loisirs, Autre
+- "desc": RÉÉCRIS et ENRICHIS la description brute fournie. Ne l'invente pas, pars du texte original et améliore-le : reformule en français soigné, ajoute des détails techniques que tu connais (marque, modèle, matériaux, époque, dimensions, cote sur le marché). Pour une montre : calibre, complications, boîtier. Pour un meuble : bois, style, époque. Pour un véhicule : motorisation, km, options. 4-6 phrases, max 600 car. VALEUR AJOUTÉE = infos que l'acheteur ne trouve pas dans la description brute. Pas de mention de la maison de vente ni d'infos expo/retrait.
+- "category": NE PAS CHANGER. Recopie EXACTEMENT la catégorie Interenchères fournie dans le message. Ne la modifie pas, ne la recatégorise pas.
 - "price_analysis": analyse du prix en 2-3 phrases (max 250 car). Compare avec le marché.
 - "deal_score": note de 0 à 3 indiquant le potentiel d'affaire. 0=sans intérêt (objet abîmé, invendable, lot vrac sans valeur), 1=bonne affaire (objet correct à prix raisonnable), 2=super affaire (objet de qualité accessible sous sa valeur marché), 3=affaire exceptionnelle (objet de grande valeur, très recherché, prix marché bien supérieur à l'estimation).
 - "deal_analysis": (max 400 car) Analyse experte UNIQUEMENT si deal_score >= 1 : explique POURQUOI c'est une bonne affaire. Inclure : estimation du prix sur le marché de l'occasion/neuf, la décote par rapport au prix marché, le potentiel de revente, la rareté, la demande pour ce type d'objet. Sois factuel et précis avec des prix. Exemple : "Ce Renault Trafic 2.0 DCI se négocie entre 12 000 et 18 000 € sur le marché occasion. Avec une estimation de 15 000 €, un invendu peut souvent s'obtenir 20-30% en dessous, soit autour de 10 000-12 000 €. Forte demande pour les utilitaires récents." Pour deal_score=0, mettre "".
@@ -5045,17 +5045,13 @@ async function aiEnrichLots(maxPerRun = 0) {
       item._aiPriceAnalysis = cache[item.id].pa || "";
       item._aiFaq = cache[item.id].faq || [];
       item._aiTags = cache[item.id].tags || [];
-      if (cache[item.id].cat) {
-        item._aiCategory = cache[item.id].cat;
-        item.category = { ...item.category, name: cache[item.id].cat };
-      }
+      // Keep original Interencheres category — don't override with AI category
     }
   }
 
   // Find items that still need enrichment
   let toEnrich = items.filter(({ item }) => {
     if (!cache[item.id]) return true;
-    if (!cache[item.id].cat) return true; // needs AI category
     const faq = cache[item.id].faq || [];
     if (faq.length < 3) return true;
     const hasGeoQ = faq.some(f => /prix|valeur|co[uû]t|combien/i.test(f.q || ""));
