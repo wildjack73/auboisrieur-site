@@ -620,7 +620,12 @@ function registerItem(item, sale) {
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
   item._parentCatSlug = taxonomy.parent;
-  // Keep Interencheres original category name (e.g. "Bijoux - Montres"), don't override
+  // Use taxonomy subcat ONLY when Interencheres category is vague/generic
+  const origCat = (item.category?.name || "").toLowerCase();
+  const isVague = !origCat || origCat === "autre" || /divers|secteurs?\s*d.activit|g[ée]n[ée]ral/i.test(origCat);
+  if (isVague && taxonomy.subcat !== "Autre") {
+    item.category = { ...item.category, name: taxonomy.subcat };
+  }
 
   // Store real commission rate from API (instead of guessing 25%)
   const saleData = sale || item.sale || {};
@@ -698,7 +703,12 @@ function registerUnsoldItem(item, sale) {
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
   item._parentCatSlug = taxonomy.parent;
-  // Keep Interencheres original category name (e.g. "Bijoux - Montres"), don't override
+  // Use taxonomy subcat ONLY when Interencheres category is vague/generic
+  const origCat = (item.category?.name || "").toLowerCase();
+  const isVague = !origCat || origCat === "autre" || /divers|secteurs?\s*d.activit|g[ée]n[ée]ral/i.test(origCat);
+  if (isVague && taxonomy.subcat !== "Autre") {
+    item.category = { ...item.category, name: taxonomy.subcat };
+  }
   registry.unsold.set(item.id, { item, sale });
 }
 
