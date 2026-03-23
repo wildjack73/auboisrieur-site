@@ -52,12 +52,20 @@ jobs:
           key: site-data-v1
           save-always: true
 
-      - name: Bootstrap data from repo archive (first time only)
-        if: steps.data-cache.outputs.cache-hit != 'true' && hashFiles('data-cache.tar.gz') != ''
+      - name: Bootstrap data from repo archive (if cache is empty or smaller)
+        if: hashFiles('data-cache.tar.gz') != ''
         run: |
           mkdir -p site/data
-          tar -xzf data-cache.tar.gz -C site/data
-          echo "📦 Bootstrapped $(ls site/data/*.json 2>/dev/null | wc -l) cached lot files"
+          CACHE_COUNT=$(ls site/data/*.json 2>/dev/null | wc -l)
+          ARCHIVE_COUNT=$(tar -tzf data-cache.tar.gz 2>/dev/null | grep '\.json$' | wc -l)
+          echo "📊 Cache: $CACHE_COUNT lots | Archive: $ARCHIVE_COUNT lots"
+          if [ "$ARCHIVE_COUNT" -gt "$CACHE_COUNT" ]; then
+            echo "📦 Bootstrapping from archive ($ARCHIVE_COUNT > $CACHE_COUNT)..."
+            tar -xzf data-cache.tar.gz -C site/data
+            echo "✅ Bootstrapped $(ls site/data/*.json 2>/dev/null | wc -l) lot files"
+          else
+            echo "⏭️ Cache already has more data than archive"
+          fi
 
       - name: Scrape + build + AI (50 lots)
         env:
@@ -127,8 +135,8 @@ jobs:
             CURRENT_COUNT=$(tar -tzf data-cache.tar.gz 2>/dev/null | grep '\.json$' | wc -l)
           fi
           echo "📊 Data: $DATA_COUNT lots | Archive: $CURRENT_COUNT lots"
-          # Update if data has grown by 100+ lots OR archive is outdated
-          if [ "$DATA_COUNT" -gt "$((CURRENT_COUNT + 100))" ] || [ "$DATA_COUNT" -gt 0 -a "$CURRENT_COUNT" -eq 0 ]; then
+          # Update if data has grown by 50+ lots OR archive is outdated
+          if [ "$DATA_COUNT" -gt "$((CURRENT_COUNT + 50))" ] || [ "$DATA_COUNT" -gt 0 -a "$CURRENT_COUNT" -eq 0 ]; then
             echo "📦 Updating archive ($CURRENT_COUNT → $DATA_COUNT lots)..."
             tar -czf data-cache.tar.gz -C site/data .
             git config user.name "github-actions[bot]"
