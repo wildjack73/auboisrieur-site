@@ -615,11 +615,51 @@ function mapToTaxonomy(item) {
   return { parent: "divers-nature", subcat: "Autre" };
 }
 
+// Fix obviously wrong Interencheres categories by checking title/description keywords
+const CATEGORY_FIX_RULES = [
+  { test: /\b(montre|rolex|omega|cartier|breitling|patek|audemars|tag\s*heuer|seiko|longines|zenith|jaeger|iwc|tudor|vacheron|chronograph)\b/i, correctCat: "Bijoux - Montres", wrongCats: ["vins", "spiritueux", "numismatique", "philat", "jouets", "informatique", "electromenager"] },
+  { test: /\b(collier|bague|bracelet|boucle|pendentif|diamant|saphir|rubis|emeraude|or\s+\d+k|or\s+750|or\s+18)/i, correctCat: "Bijoux - Montres", wrongCats: ["vins", "spiritueux", "numismatique", "informatique"] },
+  { test: /\b(livre|manuscrit|ouvrage|edition|reliure|imprim[eé]|biblioth[eè]que|dictionnaire|atlas|trait[eé]\s+de)\b/i, correctCat: "Livres & Manuscrits", wrongCats: ["numismatique", "vins", "informatique", "jouets"] },
+  { test: /\b(vin|champagne|bordeaux|bourgogne|whisky|cognac|armagnac|spiritueux|magnum|bouteille.*cl|mill[eé]sim)\b/i, correctCat: "Vins & Spiritueux", wrongCats: ["bijoux", "montre", "informatique", "vehicul"] },
+  { test: /\b(ordinateur|serveur|pc\s|laptop|macbook|iphone|samsung\s+galaxy|ipad|tablette|smartphone|imprimante)\b/i, correctCat: "Informatique & Téléphonie", wrongCats: ["vins", "bijoux", "numismatique", "mobilier"] },
+  { test: /\b(voiture|auto|berline|suv|4x4|citro[eë]n|renault|peugeot|bmw|mercedes|audi|volkswagen|toyota|nissan|ford|opel|dacia|fiat|hyundai|kia)\b/i, correctCat: "Voitures Particulières", wrongCats: ["vins", "bijoux", "numismatique", "informatique", "mobilier"] },
+  { test: /\b(moto|scooter|harley|yamaha|kawasaki|honda\s+cb|suzuki|ducati|triumph|ktm)\b/i, correctCat: "Motos & Scooters", wrongCats: ["vins", "bijoux", "voiture", "informatique"] },
+  { test: /\b(tableau|huile\s+sur|toile|aquarelle|lithographie|estampe|gravure|s[eé]rigraphie|dessin\s+original)\b/i, correctCat: "Tableaux, Dessins & Estampes", wrongCats: ["vins", "informatique", "vehicul", "voiture"] },
+  { test: /\b(sculpture|bronze|marbre|buste|statue|figurine\s+art|terre\s+cuite)\b/i, correctCat: "Sculptures", wrongCats: ["vins", "informatique", "vehicul"] },
+  { test: /\b(fusil|carabine|pistolet\s+(?!à\s+(?:colle|enduit|peinture))|revolver|sabre|[eé]p[eé]e|baïonnette|dague|militaria|m[eé]daille\s+militaire)\b/i, correctCat: "Armes - Militaria", wrongCats: ["vins", "bijoux", "informatique"] },
+  { test: /\b(tracteur|moissonneuse|remorque\s+agricole|pulv[eé]risateur|charrue|semoir)\b/i, correctCat: "Matériel Agricole & Viticole", wrongCats: ["vins", "bijoux", "informatique", "mobilier"] },
+  { test: /\b(pelleteuse|chargeuse|grue|nacelle|compacteur|benne|bulldozer|mini.?pelle|t[eé]lescopique)\b/i, correctCat: "BTP & Construction", wrongCats: ["vins", "bijoux", "mobilier", "informatique"] },
+];
+
+function fixCategoryIfWrong(item) {
+  // Clean newlines/extra spaces from category name
+  if (item.category?.name) {
+    item.category.name = item.category.name.replace(/[\r\n]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  }
+  const desc = (item.description || "").substring(0, 300).toLowerCase();
+  const title = (item._aiTitle || item.description || "").substring(0, 150).toLowerCase();
+  const text = title + " " + desc;
+  const currentCat = (item.category?.name || "").toLowerCase();
+
+  for (const rule of CATEGORY_FIX_RULES) {
+    if (rule.test.test(text)) {
+      const isWrong = rule.wrongCats.some(w => currentCat.includes(w));
+      if (isWrong) {
+        item.category = { ...item.category, name: rule.correctCat };
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function registerItem(item, sale) {
   // Apply taxonomy mapping — keep original Interencheres category name, only add parent grouping
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
   item._parentCatSlug = taxonomy.parent;
+  // Fix obviously wrong Interencheres categories (e.g. watches in "Vins & Spiritueux")
+  fixCategoryIfWrong(item);
   // Use taxonomy subcat ONLY when Interencheres category is vague/generic
   const origCat = (item.category?.name || "").toLowerCase();
   const isVague = !origCat || origCat === "autre" || /divers|secteurs?\s*d.activit|g[ée]n[ée]ral/i.test(origCat);
@@ -699,11 +739,10 @@ function registerItem(item, sale) {
 }
 
 function registerUnsoldItem(item, sale) {
-  // Apply taxonomy mapping — keep original Interencheres category name, only add parent grouping
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
   item._parentCatSlug = taxonomy.parent;
-  // Use taxonomy subcat ONLY when Interencheres category is vague/generic
+  fixCategoryIfWrong(item);
   const origCat = (item.category?.name || "").toLowerCase();
   const isVague = !origCat || origCat === "autre" || /divers|secteurs?\s*d.activit|g[ée]n[ée]ral/i.test(origCat);
   if (isVague && taxonomy.subcat !== "Autre") {
