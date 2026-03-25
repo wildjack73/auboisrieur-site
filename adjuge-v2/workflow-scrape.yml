@@ -1,0 +1,49 @@
+name: Scrape & Build
+
+on:
+  schedule:
+    - cron: "7 7,19 * * *"  # 2x/jour : 9h07 et 21h07 Paris
+  workflow_dispatch:
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Scrape Interencheres API
+        run: node adjuge-v2/scraper.mjs > /tmp/lots.json 2>&1 | tee /dev/stderr
+
+      - name: Check data
+        run: |
+          SIZE=$(wc -c < /tmp/lots.json)
+          COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/lots.json','utf-8')).length)")
+          echo "📊 $COUNT lots scrapés ($SIZE bytes)"
+          if [ "$COUNT" -lt "100" ]; then
+            echo "⚠️ Trop peu de lots, possible erreur"
+          fi
+
+      - name: Send data to VPS + rebuild
+        env:
+          VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 91.121.223.36 >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Send JSON and ingest into SQLite
+          cat /tmp/lots.json | ssh -i ~/.ssh/id_ed25519 debian@91.121.223.36 "cd /var/www/adjuge && node scripts/ingest.mjs"
+
+          # Rebuild site
+          ssh -i ~/.ssh/id_ed25519 debian@91.121.223.36 "cd /var/www/adjuge && node scripts/build.mjs"
