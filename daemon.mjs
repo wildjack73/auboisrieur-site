@@ -1289,13 +1289,15 @@ function generateLotPage(item, sale) {
   const fbEstLow = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
   const fbEstHigh = item.pricing?.estimates?.max || 0;
   let enhancedFallback = fallbackDesc;
-  if (!item._aiDesc && fallbackDesc.length < 100) {
+  if (!item._aiDesc && fallbackDesc.length < 200) {
     // Build a more informative fallback
     const parts = [];
     if (fallbackDesc) parts.push(fallbackDesc);
-    if (fbCat) parts.push(`Ce lot de la catégorie ${fbCat} a été présenté aux enchères${fbCity ? ` à ${fbCity}` : ""}${fbOrg ? ` par ${fbOrg}` : ""}.`);
-    if (fbEstLow > 0 && fbEstHigh > 0) parts.push(`L'estimation de cet objet était comprise entre ${formatPrice(fbEstLow)} et ${formatPrice(fbEstHigh)} €.`);
-    if (fbPrice > 0) parts.push(`Il a été adjugé ${formatPrice(fbPrice)} €.`);
+    if (fbCat && fbCat !== "Autre") parts.push(`Ce lot de la catégorie ${fbCat} a été présenté aux enchères${fbCity ? ` à ${fbCity}` : ""}${fbOrg ? ` par ${fbOrg}` : ""}.`);
+    if (fbEstLow > 0 && fbEstHigh > 0) parts.push(`L'estimation de cet objet était comprise entre ${formatPrice(fbEstLow)} et ${formatPrice(fbEstHigh)} €, ce qui en situe la valeur sur le marché de l'art et des enchères.`);
+    if (fbPrice > 0) parts.push(`Il a été adjugé ${formatPrice(fbPrice)} €${fbEstLow > 0 ? (fbPrice > fbEstHigh ? ", au-dessus de son estimation" : fbPrice < fbEstLow ? ", en dessous de son estimation" : ", dans sa fourchette d'estimation") : ""}.`);
+    const nPhotos = item.medias?.length || 0;
+    if (nPhotos > 1) parts.push(`${nPhotos} photos permettent d'examiner cet objet sous différents angles.`);
     enhancedFallback = parts.join(" ");
   }
   // Use AI-enriched title/desc if available
@@ -1868,7 +1870,7 @@ function generateCategoryPage(slug, data) {
     var allLots = ${JSON.stringify(data.items.map(item => {
       const rawD = item.description || item.title_translations?.["fr-FR"] || "";
       const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-      const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+      const title = item._aiTitle || cleanTitleLine(lns[0] || "Objet");
       const price = item.pricing?.auctioned?.price || 0;
       const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
       const cat = item.category?.name || "";
@@ -1950,7 +1952,7 @@ function generateMaisonPage(slug, data) {
   const lotsData = data.items.map(item => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const title = item._aiTitle || cleanTitleLine(lns[0] || "Objet");
     const price = item.pricing?.auctioned?.price || 0;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "";
@@ -2210,7 +2212,7 @@ function generateTopVentesPage() {
         ${sorted.map(({ item }, i) => {
           const rawD = item.description || item.title_translations?.["fr-FR"] || "";
           const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-          const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+          const title = item._aiTitle || cleanTitleLine(lns[0] || "Objet");
           const desc = item._aiDesc || (lns.length > 1 ? lns.slice(1).join(" ").substring(0, 100) : "");
           const price = item.pricing?.auctioned?.price || 0;
           const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
@@ -2248,7 +2250,6 @@ function generateUnsoldPage(item, sale) {
   const lines = rawDesc.split("\n").map(l => l.trim()).filter(Boolean);
   const descLines = lines.filter(l => cleanTitleLine(l) !== fallbackTitle);
   const lotTitle = item._aiTitle || fallbackTitle;
-  const lotDesc = item._aiDesc || descLines.join(" ").trim();
   const est = item.pricing?.estimates || {};
   const org = item.organization?.names?.voluntary || item.organization?.names?.judicial || "";
   const orgSlug = slugify(org);
@@ -2258,8 +2259,23 @@ function generateUnsoldPage(item, sale) {
   const catSlug = slugify(catName);
   const medias = item.medias || [];
   const thumb = medias[0] ? imgUrl(medias[0], "lg") : "";
+  const startPrice = item.pricing?.starting_price || item.pricing?.reserve_price || 0;
 
-  const desc = `${lotTitle} — Invendu aux enchères. ${est.min ? `Estimation ${est.min}-${est.max}€.` : ""} Contactez la maison de vente.`;
+  // Build rich fallback description from raw data if no AI desc
+  let lotDesc = item._aiDesc || "";
+  if (!lotDesc) {
+    const parts = [];
+    const rawText = descLines.join(" ").trim();
+    if (rawText && rawText.length > 20) parts.push(rawText);
+    if (catName && catName !== "Autre") parts.push(`Ce lot appartient à la catégorie ${catName}.`);
+    if (est.min) parts.push(`L'estimation de cet objet se situe entre ${formatPrice(est.min)} et ${formatPrice(est.max)} €, ce qui donne une bonne indication de sa valeur sur le marché.`);
+    if (startPrice) parts.push(`La mise à prix était fixée à ${formatPrice(startPrice)} €.`);
+    if (org) parts.push(`Présenté en vente par ${org}${city ? ` à ${city}` : ""}.`);
+    if (medias.length > 1) parts.push(`${medias.length} photos sont disponibles pour examiner cet objet en détail.`);
+    lotDesc = parts.join(" ");
+  }
+
+  const desc = `${lotTitle} — Invendu aux enchères. ${est.min ? `Estimation ${formatPrice(est.min)}-${formatPrice(est.max)}€.` : ""} Contactez la maison de vente.`;
   const slug = lotSlug(item);
 
   // Contact info — coordinates from organization.address or sale.address
@@ -2481,7 +2497,7 @@ function generateInvendusIndex() {
   const unsoldData = unsoldItems.map(({ item, sale }) => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const title = item._aiTitle || cleanTitleLine(lns[0] || "Objet");
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "Autre";
     const estLow = item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0;
@@ -3409,7 +3425,7 @@ function generateVillePage(slug, data) {
   const lotsData = items.map(item => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const title = item._aiTitle || cleanTitleLine(lns[0] || "Objet");
     const price = item.pricing?.auctioned?.price || 0;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "";
@@ -3759,7 +3775,7 @@ function generatePrixPage(slug, data) {
   const lotsData = items.map(item => {
     const rawD = item.description || item.title_translations?.["fr-FR"] || "";
     const lns = rawD.split("\n").map(l => l.trim()).filter(Boolean);
-    const title = item._aiTitle || (lns.length > 1 && lns[0].length < 60 ? lns[0] : lns[0]?.substring(0, 70) || "Objet");
+    const title = item._aiTitle || cleanTitleLine(lns[0] || "Objet");
     const price = item.pricing?.auctioned?.price || 0;
     const thumb = item.medias?.[0] ? imgUrl(item.medias[0], "lg") : "";
     const cat = item.category?.name || "";
