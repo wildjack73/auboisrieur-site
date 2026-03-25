@@ -22,16 +22,16 @@ jobs:
           node-version: "20"
 
       - name: Scrape Interencheres API
-        run: node adjuge-v2/scraper.mjs > /tmp/lots.json 2>&1 | tee /dev/stderr
+        run: node adjuge-v2/scraper.mjs > /tmp/lots.json
 
       - name: Check data
         run: |
           SIZE=$(wc -c < /tmp/lots.json)
-          COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/lots.json','utf-8')).length)")
-          echo "📊 $COUNT lots scrapés ($SIZE bytes)"
-          if [ "$COUNT" -lt "100" ]; then
-            echo "⚠️ Trop peu de lots, possible erreur"
-          fi
+          echo "📦 JSON size: $SIZE bytes"
+          head -c 200 /tmp/lots.json
+          echo ""
+          COUNT=$(node -e "const d=require('fs').readFileSync('/tmp/lots.json','utf-8'); try{console.log(JSON.parse(d).length)}catch(e){console.log('PARSE_ERROR: '+e.message); console.log('First 100 chars: '+d.substring(0,100))}")
+          echo "📊 $COUNT lots scrapés"
 
       - name: Send data to VPS + rebuild
         env:
