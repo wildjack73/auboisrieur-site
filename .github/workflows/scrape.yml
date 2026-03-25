@@ -67,6 +67,71 @@ jobs:
             echo "⏭️ Cache already has more data than archive"
           fi
 
+      - name: Test API - compare upcoming vs past sale data
+        run: |
+          node -e "
+          const {execSync} = require('child_process');
+          const API = 'https://api.interencheres.com/api/v1';
+          function f(url) { return JSON.parse(execSync('curl -sL --retry 2 --max-time 15 -H \"Accept: application/json\" \"'+url+'\"', {encoding:'utf-8',maxBuffer:50e6})); }
+
+          // Get tomorrow's date
+          const d = new Date(); d.setDate(d.getDate()+1);
+          const tomorrow = d.toISOString().slice(0,10);
+          const today = new Date().toISOString().slice(0,10);
+
+          console.log('=== API DATA COMPARISON TEST ===');
+          console.log('Today:', today, '| Tomorrow:', tomorrow);
+
+          // 1. Try upcoming sales (tomorrow)
+          try {
+            const sales = f(API+'/ie4_sales?limit=50&sort=datetime&filters%5Bstatus%5D=published');
+            const futureSales = sales.filter(s => s.datetime && s.datetime.substring(0,10) >= tomorrow);
+            const pastSales = sales.filter(s => s.datetime && s.datetime.substring(0,10) === today);
+            console.log('\\nFuture sales (tomorrow+):', futureSales.length);
+            console.log('Today sales:', pastSales.length);
+
+            // Compare a future lot vs a past lot
+            const testSale = futureSales[0] || pastSales[0];
+            if (testSale) {
+              console.log('\\nTesting sale:', testSale.id, testSale.datetime?.substring(0,16), testSale.name?.substring(0,60));
+              const items = f(API+'/ie4_items?filters%5Bsale%5D='+testSale.id+'&limit=3');
+              console.log('Items found:', items.length);
+              items.forEach((i,idx) => {
+                console.log('\\n--- LOT '+(idx+1)+' (ID:'+i.id+') ---');
+                console.log('Category:', i.category?.name || 'VIDE');
+                console.log('Description length:', (i.description||'').length);
+                console.log('Description preview:', (i.description||'VIDE').substring(0,200));
+                console.log('Title FR:', (i.title_translations?.['fr-FR']||'VIDE').substring(0,150));
+                console.log('Photos:', i.medias?.length || 0);
+                console.log('Estimates:', JSON.stringify(i.pricing?.estimates));
+                console.log('Starting price:', i.pricing?.starting_price);
+                console.log('Auctioned:', JSON.stringify(i.pricing?.auctioned));
+              });
+            }
+
+            // Also test a past sale for comparison
+            const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+            const yday = yesterday.toISOString().slice(0,10);
+            const ydaySales = sales.filter(s => s.datetime && s.datetime.substring(0,10) === yday);
+            if (ydaySales[0]) {
+              const items2 = f(API+'/ie4_items?filters%5Bsale%5D='+ydaySales[0].id+'&limit=2');
+              console.log('\\n=== YESTERDAY SALE (comparison) ===');
+              console.log('Sale:', ydaySales[0].id, ydaySales[0].name?.substring(0,60));
+              items2.forEach((i,idx) => {
+                console.log('\\n--- PAST LOT '+(idx+1)+' ---');
+                console.log('Category:', i.category?.name || 'VIDE');
+                console.log('Desc length:', (i.description||'').length);
+                console.log('Desc:', (i.description||'VIDE').substring(0,200));
+                console.log('Title FR:', (i.title_translations?.['fr-FR']||'VIDE').substring(0,150));
+                console.log('Photos:', i.medias?.length || 0);
+                console.log('Estimates:', JSON.stringify(i.pricing?.estimates));
+                console.log('Auctioned:', JSON.stringify(i.pricing?.auctioned));
+              });
+            }
+          } catch(e) { console.log('Test failed:', e.message); }
+          console.log('\\n=== END TEST ===');
+          "
+
       - name: Scrape + build + AI (50 lots)
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
