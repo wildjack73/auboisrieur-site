@@ -1,215 +1,161 @@
-name: Scrape & Deploy
+name: Scrape → VPS
 
 on:
-  # Toutes les 3 heures entre 7h et 22h UTC (9h-minuit Paris)
   schedule:
-    - cron: "0 7,10,13,16,19,22 * * *"
-  # Lancement manuel
+    - cron: "0 7,19 * * *"  # 2x/jour: 9h + 21h Paris
   workflow_dispatch:
-    inputs:
-      date:
-        description: "Date à scraper (YYYY-MM-DD, vide = aujourd'hui)"
-        required: false
-      mode:
-        description: "Mode: scrape (défaut) ou rebuild (regénère depuis le cache)"
-        required: false
-        default: "scrape"
-        type: choice
-        options:
-          - scrape
-          - rebuild
 
 concurrency:
-  group: scrape-deploy
+  group: scrape
   cancel-in-progress: false
 
 jobs:
-  scrape-and-deploy:
+  scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Cache stable — clé fixe "site-data-v1", jamais invalidée
-      # On utilise save-always pour sauvegarder même si le run échoue
-      - name: Restore data cache
-        uses: actions/cache@v4
-        id: data-cache
-        with:
-          path: |
-            site/data
-            site/lot
-          key: site-data-v1
-          save-always: true
-
-      - name: Bootstrap data from repo archive (if cache is empty or smaller)
-        if: hashFiles('data-cache.tar.gz') != ''
+      - name: Scrape Interenchères API → JSON
         run: |
-          mkdir -p site/data
-          CACHE_COUNT=$(ls site/data/*.json 2>/dev/null | wc -l)
-          ARCHIVE_COUNT=$(tar -tzf data-cache.tar.gz 2>/dev/null | grep '\.json$' | wc -l)
-          echo "📊 Cache: $CACHE_COUNT lots | Archive: $ARCHIVE_COUNT lots"
-          if [ "$ARCHIVE_COUNT" -gt "$CACHE_COUNT" ]; then
-            echo "📦 Bootstrapping from archive ($ARCHIVE_COUNT > $CACHE_COUNT)..."
-            tar -xzf data-cache.tar.gz -C site/data
-            echo "✅ Bootstrapped $(ls site/data/*.json 2>/dev/null | wc -l) lot files"
-          else
-            echo "⏭️ Cache already has more data than archive"
-          fi
-
-      - name: Test API - compare upcoming vs past sale data
-        run: |
-          node -e "
+          cat << 'SCRAPER' > scrape.mjs
           const {execSync} = require('child_process');
+          const fs = require('fs');
           const API = 'https://api.interencheres.com/api/v1';
-          function f(url) { return JSON.parse(execSync('curl -sL --retry 2 --max-time 15 -H \"Accept: application/json\" \"'+url+'\"', {encoding:'utf-8',maxBuffer:50e6})); }
+          const PAGE_SIZE = 300;
 
-          // Get tomorrow's date
-          const d = new Date(); d.setDate(d.getDate()+1);
-          const tomorrow = d.toISOString().slice(0,10);
-          const today = new Date().toISOString().slice(0,10);
+          function apiFetch(url) {
+            const raw = execSync(
+              'curl -sL --retry 3 --max-time 30 -H "Accept: application/json" "' + url + '"',
+              { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 }
+            );
+            return JSON.parse(raw);
+          }
 
-          console.log('=== API DATA COMPARISON TEST ===');
-          console.log('Today:', today, '| Tomorrow:', tomorrow);
-
-          // 1. Try upcoming sales (tomorrow)
-          try {
-            const sales = f(API+'/ie4_sales?limit=50&sort=datetime&filters%5Bstatus%5D=published');
-            const futureSales = sales.filter(s => s.datetime && s.datetime.substring(0,10) >= tomorrow);
-            const pastSales = sales.filter(s => s.datetime && s.datetime.substring(0,10) === today);
-            console.log('\\nFuture sales (tomorrow+):', futureSales.length);
-            console.log('Today sales:', pastSales.length);
-
-            // Compare a future lot vs a past lot
-            const testSale = futureSales[0] || pastSales[0];
-            if (testSale) {
-              console.log('\\nTesting sale:', testSale.id, testSale.datetime?.substring(0,16), testSale.name?.substring(0,60));
-              const items = f(API+'/ie4_items?filters%5Bsale%5D='+testSale.id+'&limit=3');
-              console.log('Items found:', items.length);
-              items.forEach((i,idx) => {
-                console.log('\\n--- LOT '+(idx+1)+' (ID:'+i.id+') ---');
-                console.log('Category:', i.category?.name || 'VIDE');
-                console.log('Description length:', (i.description||'').length);
-                console.log('Description preview:', (i.description||'VIDE').substring(0,200));
-                console.log('Title FR:', (i.title_translations?.['fr-FR']||'VIDE').substring(0,150));
-                console.log('Photos:', i.medias?.length || 0);
-                console.log('Estimates:', JSON.stringify(i.pricing?.estimates));
-                console.log('Starting price:', i.pricing?.starting_price);
-                console.log('Auctioned:', JSON.stringify(i.pricing?.auctioned));
-              });
+          function fetchAllItems(saleId) {
+            const items = [];
+            let offset = 0;
+            while (true) {
+              const batch = apiFetch(
+                API + '/ie4_items?filters%5Bsale%5D=' + saleId +
+                '&limit=' + PAGE_SIZE + '&offset=' + offset + '&sort=id'
+              );
+              if (!Array.isArray(batch) || batch.length === 0) break;
+              items.push(...batch);
+              if (batch.length < PAGE_SIZE) break;
+              offset += PAGE_SIZE;
             }
+            return items;
+          }
 
-            // Also test a past sale for comparison
-            const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-            const yday = yesterday.toISOString().slice(0,10);
-            const ydaySales = sales.filter(s => s.datetime && s.datetime.substring(0,10) === yday);
-            if (ydaySales[0]) {
-              const items2 = f(API+'/ie4_items?filters%5Bsale%5D='+ydaySales[0].id+'&limit=2');
-              console.log('\\n=== YESTERDAY SALE (comparison) ===');
-              console.log('Sale:', ydaySales[0].id, ydaySales[0].name?.substring(0,60));
-              items2.forEach((i,idx) => {
-                console.log('\\n--- PAST LOT '+(idx+1)+' ---');
-                console.log('Category:', i.category?.name || 'VIDE');
-                console.log('Desc length:', (i.description||'').length);
-                console.log('Desc:', (i.description||'VIDE').substring(0,200));
-                console.log('Title FR:', (i.title_translations?.['fr-FR']||'VIDE').substring(0,150));
-                console.log('Photos:', i.medias?.length || 0);
-                console.log('Estimates:', JSON.stringify(i.pricing?.estimates));
-                console.log('Auctioned:', JSON.stringify(i.pricing?.auctioned));
-              });
+          function cleanTitle(raw) {
+            if (!raw) return '';
+            let t = raw.replace(/^\s*(lot\s+\d+[\s:.-]*|n°\s*\d+[\s:.-]*)/i, '');
+            t = t.replace(/\s+/g, ' ').trim();
+            if (t.length > 120) t = t.substring(0, 117) + '...';
+            return t;
+          }
+
+          function slugify(text) {
+            return String(text || '')
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+              .substring(0, 80);
+          }
+
+          // Scrape last 7 days
+          const lots = [];
+          for (let daysAgo = 0; daysAgo < 7; daysAgo++) {
+            const d = new Date();
+            d.setDate(d.getDate() - daysAgo);
+            const dateStr = d.toISOString().slice(0, 10);
+            console.log('📅 Scraping', dateStr, '...');
+
+            try {
+              const sales = apiFetch(
+                API + '/ie4_sales?limit=200&sort=-datetime&filters%5Bdatetime%5D=' + dateStr +
+                '&filters%5Bstatus%5D=3&filters%5Btype%5D=live'
+              );
+              console.log('  ' + sales.length + ' ventes');
+
+              for (const sale of sales) {
+                try {
+                  const items = fetchAllItems(sale.id);
+                  const org = sale.organization || {};
+                  const addr = sale.address || org.address || {};
+                  const commission = sale.options?.commission_rate?.voluntary || sale.options?.commission_rate?.judicial || 0;
+
+                  for (const item of items) {
+                    const raw = item.description || item.title_translations?.['fr-FR'] || '';
+                    const cat = item.category?.name || '';
+                    const sold = item.pricing?.auctioned?.price != null;
+                    const price = item.pricing?.auctioned?.price || 0;
+                    const photos = (item.medias || []).map(m => {
+                      if (typeof m === 'string') return m;
+                      return m?.rewriteImgUrl?.lg || m?.rewriteImgUrl?.original || m?.url || '';
+                    }).filter(Boolean).map(u => u.startsWith('//') ? 'https:' + u : u);
+
+                    lots.push({
+                      id: item.id,
+                      title: raw.substring(0, 300),
+                      clean_title: cleanTitle(raw),
+                      description: raw,
+                      category: cat,
+                      category_id: item.category?.id || null,
+                      sold: sold ? 1 : 0,
+                      price: price,
+                      estimate_low: item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0,
+                      estimate_high: item.pricing?.estimates?.max || 0,
+                      starting_price: item.pricing?.starting_price || 0,
+                      commission_rate: commission,
+                      sale_date: sale.datetime?.substring(0, 10) || dateStr,
+                      sale_id: sale.id,
+                      org_name: org.names?.voluntary || org.names?.judicial || '',
+                      org_email: org.address?.email || '',
+                      org_phone: org.address?.telephone || '',
+                      org_address: [addr.address, addr.zipCode, addr.city].filter(Boolean).join(', '),
+                      city: addr.city || '',
+                      postcode: addr.zipCode || '',
+                      slug: slugify(cleanTitle(raw)) + '-' + item.id,
+                      thumb: photos[0] || '',
+                      photos: photos,
+                    });
+                  }
+                  console.log('  Vente ' + sale.id + ': ' + items.length + ' lots');
+                } catch(e) {
+                  console.warn('  ⚠ Vente ' + sale.id + ': ' + e.message);
+                }
+              }
+            } catch(e) {
+              console.warn('  ⚠ ' + dateStr + ': ' + e.message);
             }
-          } catch(e) { console.log('Test failed:', e.message); }
-          console.log('\\n=== END TEST ===');
-          "
+          }
 
-      - name: Scrape + build + AI (50 lots)
+          console.log('\\n✅ Total: ' + lots.length + ' lots scrapés');
+          console.log('  Vendus: ' + lots.filter(l => l.sold).length);
+          console.log('  Invendus: ' + lots.filter(l => !l.sold).length);
+          console.log('  Avec catégorie: ' + lots.filter(l => l.category).length);
+
+          fs.writeFileSync('lots.json', JSON.stringify(lots));
+          console.log('📦 lots.json: ' + (fs.statSync('lots.json').size / 1024 / 1024).toFixed(1) + ' MB');
+          SCRAPER
+          node scrape.mjs
+
+      - name: Send to VPS via SCP
         env:
-          SITE_URL: ${{ secrets.SITE_URL }}
-          GA_ID: ${{ secrets.GA_ID }}
-          AD_SLOT_HEADER: ${{ secrets.AD_SLOT_HEADER }}
-          AD_SLOT_SIDEBAR: ${{ secrets.AD_SLOT_SIDEBAR }}
-          AD_SLOT_INARTICLE: ${{ secrets.AD_SLOT_INARTICLE }}
-          AD_SLOT_BETWEENLOTS: ${{ secrets.AD_SLOT_BETWEENLOTS }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
-          SKIP_FTP: "true"
-          AI_BUDGET: "100"
-          SKIP_FORCE_REGEN: "true"
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USER: ${{ secrets.FTP_USER }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_REMOTE_PATH: ${{ secrets.FTP_REMOTE_PATH }}
+          VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          MODE="${{ github.event.inputs.mode || 'scrape' }}"
-          DATE_ARG=""
-          if [ -n "${{ github.event.inputs.date }}" ]; then
-            DATE_ARG="--date ${{ github.event.inputs.date }}"
-          fi
+          mkdir -p ~/.ssh
+          echo "$VPS_KEY" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H 91.121.223.36 >> ~/.ssh/known_hosts 2>/dev/null
 
-          if [ "$MODE" = "rebuild" ]; then
-            node daemon.mjs --rebuild $DATE_ARG
-          else
-            node daemon.mjs --once $DATE_ARG
-          fi
+          echo "📤 Sending lots.json to VPS..."
+          scp -i ~/.ssh/vps_key lots.json debian@91.121.223.36:/var/www/adjuge/data/
+          echo "✅ Sent $(wc -c < lots.json | tr -d ' ') bytes"
 
-      - name: Deploy via lftp
+      - name: Trigger ingest + build on VPS
         env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USER: ${{ secrets.FTP_USER }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_REMOTE_PATH: ${{ secrets.FTP_REMOTE_PATH }}
+          VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          sudo apt-get install -y -qq lftp > /dev/null 2>&1
-          REMOTE="${FTP_REMOTE_PATH:-/public_html}"
-          echo "📤 Deploy vers $REMOTE"
-          # lftp: --only-newer = ne jamais supprimer, seulement ajouter/mettre à jour
-          # Retry up to 3 times (Hostinger FTP can be flaky)
-          for attempt in 1 2 3; do
-            echo "🔄 Tentative $attempt/3..."
-            lftp -c "
-              set ftp:ssl-allow no;
-              set net:timeout 60;
-              set net:max-retries 10;
-              set net:reconnect-interval-base 5;
-              set net:reconnect-interval-multiplier 2;
-              set mirror:parallel-transfer-count 8;
-              open -u $FTP_USER,$FTP_PASSWORD $FTP_HOST;
-              mirror --reverse --only-newer --parallel=8 --exclude data/ --verbose=1 site/ $REMOTE/;
-              quit;
-            " && echo "✅ Déploiement terminé" && break
-            echo "⚠️ Tentative $attempt échouée, retry..."
-            sleep 10
-          done
-
-      # Mettre à jour l'archive bootstrap à chaque run réussi
-      - name: Update data-cache archive
-        run: |
-          DATA_COUNT=$(ls site/data/*.json 2>/dev/null | wc -l)
-          CURRENT_COUNT=0
-          if [ -f data-cache.tar.gz ]; then
-            CURRENT_COUNT=$(tar -tzf data-cache.tar.gz 2>/dev/null | grep '\.json$' | wc -l)
-          fi
-          echo "📊 Data: $DATA_COUNT lots | Archive: $CURRENT_COUNT lots"
-          # Update if data has grown by 50+ lots OR archive is outdated
-          if [ "$DATA_COUNT" -gt "$((CURRENT_COUNT + 50))" ] || [ "$DATA_COUNT" -gt 0 -a "$CURRENT_COUNT" -eq 0 ]; then
-            echo "📦 Updating archive ($CURRENT_COUNT → $DATA_COUNT lots)..."
-            tar -czf data-cache.tar.gz -C site/data .
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data-cache.tar.gz
-            git commit -m "Auto-update data-cache.tar.gz ($DATA_COUNT lots)" || true
-            git push || true
-            echo "✅ Archive mise à jour"
-          else
-            echo "⏭️ Archive déjà à jour (écart < 1000 lots)"
-          fi
+          ssh -i ~/.ssh/vps_key debian@91.121.223.36 "cd /var/www/adjuge && node scripts/ingest.mjs && node scripts/build.mjs"
+          echo "✅ Site rebuilt on VPS"
