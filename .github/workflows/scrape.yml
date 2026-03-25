@@ -130,5 +130,5 @@ jobs:
         env:
           VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          ssh -i ~/.ssh/vps_key debian@91.121.223.36 "cd /var/www/adjuge && node scripts/ingest.mjs && node scripts/build.mjs"
+          ssh -i ~/.ssh/vps_key debian@91.121.223.36 "cd /var/www/adjuge && cat data/lots.json | node scripts/ingest.mjs && node scripts/build.mjs"
           echo "✅ Site rebuilt"
