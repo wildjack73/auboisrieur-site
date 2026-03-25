@@ -2,7 +2,7 @@ name: Scrape → VPS
 
 on:
   schedule:
-    - cron: "0 7,19 * * *"  # 2x/jour: 9h + 21h Paris
+    - cron: "0 7,19 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -12,135 +12,110 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
-      - name: Scrape Interenchères API → JSON
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore data cache
+        uses: actions/cache@v4
+        id: data-cache
+        with:
+          path: |
+            site/data
+          key: site-data-v2
+          save-always: true
+
+      - name: Scrape via daemon.mjs
+        env:
+          SKIP_FTP: "true"
+          AI_BUDGET: "0"
+          SKIP_FORCE_REGEN: "true"
+        run: node daemon.mjs --once
+
+      - name: Export lots to JSON for VPS
         run: |
-          cat << 'SCRAPER' > scrape.js
-          const {execSync} = require('child_process');
+          node -e "
           const fs = require('fs');
-          const API = 'https://search.interencheres.com/v1/search';
-          const PAGE_SIZE = 300;
-
-          function apiFetch(url) {
-            const raw = execSync(
-              'curl -sL --retry 3 --max-time 30 -H "Accept: application/json" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36" -H "Referer: https://www.interencheres.com/" -H "Origin: https://www.interencheres.com" "' + url + '"',
-              { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 }
-            );
-            return JSON.parse(raw);
-          }
-
-          function fetchAllItems(saleId) {
-            const items = [];
-            let offset = 0;
-            while (true) {
-              const batch = apiFetch(
-                API + '/ie4_items?filters%5Bsale%5D=' + saleId +
-                '&limit=' + PAGE_SIZE + '&offset=' + offset + '&sort=id'
-              );
-              if (!Array.isArray(batch) || batch.length === 0) break;
-              items.push(...batch);
-              if (batch.length < PAGE_SIZE) break;
-              offset += PAGE_SIZE;
-            }
-            return items;
-          }
-
-          function cleanTitle(raw) {
-            if (!raw) return '';
-            let t = raw.replace(/^\s*(lot\s+\d+[\s:.-]*|n°\s*\d+[\s:.-]*)/i, '');
-            t = t.replace(/\s+/g, ' ').trim();
-            if (t.length > 120) t = t.substring(0, 117) + '...';
-            return t;
-          }
-
-          function slugify(text) {
-            return String(text || '')
-              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-              .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-              .substring(0, 80);
-          }
-
-          // Fetch all recent sales (last 7 days)
+          const path = require('path');
+          const dataDir = 'site/data';
+          const files = fs.readdirSync(dataDir).filter(f => f.endsWith('.json'));
+          console.log('📦 Exporting', files.length, 'lot files...');
           const lots = [];
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          const cutoff = sevenDaysAgo.toISOString().slice(0, 10);
-
-          // Fetch sales with both sort orders to maximize coverage
-          const allSales = new Map();
-          for (const sort of ['-datetime', 'datetime']) {
+          for (const f of files) {
             try {
-              const sales = apiFetch(API + '/ie4_sales?limit=300&sort=' + sort + '&filters%5Bstatus%5D=published&filters%5Btype%5D=live');
-              for (const s of sales) {
-                const sDate = (s.datetime || '').substring(0, 10);
-                if (sDate >= cutoff && !allSales.has(s.id)) allSales.set(s.id, s);
-              }
-            } catch(e) { console.warn('⚠ Sales fetch error:', e.message); }
-          }
-          console.log('📅 ' + allSales.size + ' ventes trouvées (7 derniers jours)');
-
-          for (const sale of allSales.values()) {
-            try {
-              const items = fetchAllItems(sale.id);
-              const org = sale.organization || {};
+              const d = JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf-8'));
+              const item = d.item || d;
+              const sale = d.sale || {};
+              const org = sale.organization || item.organization || {};
               const addr = sale.address || org.address || {};
-              const commission = sale.options?.commission_rate?.voluntary || sale.options?.commission_rate?.judicial || 0;
+              const raw = item.description || '';
+              const cat = item.category?.name || item._aiCategory || '';
+              const sold = item.pricing?.auctioned?.price != null;
+              const price = item.pricing?.auctioned?.price || 0;
+              const photos = (item.medias || []).map(m => {
+                if (typeof m === 'string') return m;
+                const u = m?.rewriteImgUrl?.lg || m?.rewriteImgUrl?.original || m?.url || '';
+                return u.startsWith('//') ? 'https:' + u : u;
+              }).filter(Boolean);
 
-              for (const item of items) {
-                const raw = item.description || item.title_translations?.['fr-FR'] || '';
-                const cat = item.category?.name || '';
-                const sold = item.pricing?.auctioned?.price != null;
-                const price = item.pricing?.auctioned?.price || 0;
-                const photos = (item.medias || []).map(m => {
-                  if (typeof m === 'string') return m;
-                  return m?.rewriteImgUrl?.lg || m?.rewriteImgUrl?.original || m?.url || '';
-                }).filter(Boolean).map(u => u.startsWith('//') ? 'https:' + u : u);
-
-                lots.push({
-                  id: item.id,
-                  title: raw.substring(0, 300),
-                  clean_title: cleanTitle(raw),
-                  description: raw,
-                  category: cat,
-                  category_id: item.category?.id || null,
-                  sold: sold ? 1 : 0,
-                  price: price,
-                  estimate_low: item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0,
-                  estimate_high: item.pricing?.estimates?.max || 0,
-                  starting_price: item.pricing?.starting_price || 0,
-                  commission_rate: commission,
-                  sale_date: sale.datetime?.substring(0, 10) || '',
-                  sale_id: sale.id,
-                  org_name: org.names?.voluntary || org.names?.judicial || '',
-                  org_email: org.address?.email || '',
-                  org_phone: org.address?.telephone || '',
-                  org_address: [addr.address, addr.zipCode, addr.city].filter(Boolean).join(', '),
-                  city: addr.city || '',
-                  postcode: addr.zipCode || '',
-                  slug: slugify(cleanTitle(raw)) + '-' + item.id,
-                  thumb: photos[0] || '',
-                  photos: photos,
-                });
+              function cleanTitle(r) {
+                if (!r) return '';
+                let t = r.replace(/^\s*(lot\s+\d+[\s:.-]*|n°\s*\d+[\s:.-]*)/i, '');
+                t = t.replace(/\s+/g, ' ').trim();
+                return t.length > 120 ? t.substring(0, 117) + '...' : t;
               }
-              console.log('  Vente ' + sale.id + ' (' + (sale.datetime||'').substring(0,10) + '): ' + items.length + ' lots — cat: ' + (items[0]?.category?.name || '?'));
-            } catch(e) {
-              console.warn('  ⚠ Vente ' + sale.id + ': ' + e.message);
-            }
+              function slugify(text) {
+                return String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 80);
+              }
+
+              const ct = cleanTitle(raw);
+              lots.push({
+                id: item.id,
+                title: raw.substring(0, 300),
+                clean_title: ct,
+                description: raw,
+                category: cat,
+                category_id: item.category?.id || null,
+                sold: sold ? 1 : 0,
+                price,
+                estimate_low: item.pricing?.estimates?.low || item.pricing?.estimates?.min || 0,
+                estimate_high: item.pricing?.estimates?.max || 0,
+                starting_price: item.pricing?.starting_price || 0,
+                commission_rate: sale.options?.commission_rate?.voluntary || sale.options?.commission_rate?.judicial || 0,
+                sale_date: sale.datetime?.substring(0, 10) || '',
+                sale_id: sale.id || 0,
+                org_name: org.names?.voluntary || org.names?.judicial || '',
+                org_email: org.address?.email || '',
+                org_phone: org.address?.telephone || '',
+                org_address: [addr.address, addr.zipCode, addr.city].filter(Boolean).join(', '),
+                city: addr.city || '',
+                postcode: addr.zipCode || '',
+                slug: slugify(ct) + '-' + item.id,
+                thumb: photos[0] || '',
+                photos,
+              });
+            } catch(e) {}
           }
-
-          console.log('\\n✅ Total: ' + lots.length + ' lots scrapés');
-          console.log('  Vendus: ' + lots.filter(l => l.sold).length);
-          console.log('  Invendus: ' + lots.filter(l => !l.sold).length);
-          console.log('  Avec catégorie: ' + lots.filter(l => l.category).length);
-
+          console.log('✅', lots.length, 'lots exportés');
+          console.log('  Avec catégorie:', lots.filter(l => l.category).length);
+          console.log('  Vendus:', lots.filter(l => l.sold).length);
+          console.log('  Invendus:', lots.filter(l => !l.sold).length);
           fs.writeFileSync('lots.json', JSON.stringify(lots));
-          console.log('📦 lots.json: ' + (fs.statSync('lots.json').size / 1024 / 1024).toFixed(1) + ' MB');
-          SCRAPER
-          node scrape.js
+          console.log('📦 lots.json:', (fs.statSync('lots.json').size / 1024 / 1024).toFixed(1), 'MB');
+          "
 
-      - name: Send to VPS via SCP
+      - name: Send to VPS
         env:
           VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
@@ -148,14 +123,12 @@ jobs:
           echo "$VPS_KEY" > ~/.ssh/vps_key
           chmod 600 ~/.ssh/vps_key
           ssh-keyscan -H 91.121.223.36 >> ~/.ssh/known_hosts 2>/dev/null
-
-          echo "📤 Sending lots.json to VPS..."
           scp -i ~/.ssh/vps_key lots.json debian@91.121.223.36:/var/www/adjuge/data/
-          echo "✅ Sent $(wc -c < lots.json | tr -d ' ') bytes"
+          echo "✅ $(wc -c < lots.json | tr -d ' ') bytes sent"
 
-      - name: Trigger ingest + build on VPS
+      - name: Ingest + build on VPS
         env:
           VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           ssh -i ~/.ssh/vps_key debian@91.121.223.36 "cd /var/www/adjuge && node scripts/ingest.mjs && node scripts/build.mjs"
-          echo "✅ Site rebuilt on VPS"
+          echo "✅ Site rebuilt"
