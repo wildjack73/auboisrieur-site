@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Scrape Interenchères API → JSON
         run: |
-          cat << 'SCRAPER' > scrape.mjs
+          cat << 'SCRAPER' > scrape.js
           const {execSync} = require('child_process');
           const fs = require('fs');
           const API = 'https://api.interencheres.com/api/v1';
@@ -138,7 +138,7 @@ jobs:
           fs.writeFileSync('lots.json', JSON.stringify(lots));
           console.log('📦 lots.json: ' + (fs.statSync('lots.json').size / 1024 / 1024).toFixed(1) + ' MB');
           SCRAPER
-          node scrape.mjs
+          node scrape.js
 
       - name: Send to VPS via SCP
         env:
