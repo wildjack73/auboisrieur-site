@@ -64,7 +64,7 @@ jobs:
               const price = item.pricing?.auctioned?.price || 0;
               const photos = (item.medias || []).map(m => {
                 if (typeof m === 'string') return m;
-                const u = m?.rewriteImgUrl?.lg || m?.rewriteImgUrl?.original || m?.url || '';
+                const u = m?.rewriteImgUrl?.original || m?.rewriteImgUrl?.lg || m?.url || '';
                 return u.startsWith('//') ? 'https:' + u : u;
               }).filter(Boolean);
 
