@@ -32,7 +32,9 @@ jobs:
         with:
           path: |
             site/data
-          key: site-data-v2
+          key: site-data-v1
+          restore-keys: |
+            site-data-
           save-always: true
 
       - name: Scrape via daemon.mjs
