@@ -654,6 +654,8 @@ function fixCategoryIfWrong(item) {
 }
 
 function registerItem(item, sale) {
+  // Save the ORIGINAL API category before any modifications
+  item._originalCategory = item.category?.name || "";
   // Apply taxonomy mapping — keep original Interencheres category name, only add parent grouping
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
@@ -739,6 +741,8 @@ function registerItem(item, sale) {
 }
 
 function registerUnsoldItem(item, sale) {
+  // Save the ORIGINAL API category before any modifications
+  item._originalCategory = item.category?.name || "";
   const taxonomy = mapToTaxonomy(item);
   item._parentCat = getParentName(taxonomy.parent);
   item._parentCatSlug = taxonomy.parent;

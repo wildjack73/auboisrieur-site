@@ -59,7 +59,7 @@ jobs:
               const org = sale.organization || item.organization || {};
               const addr = sale.address || org.address || {};
               const raw = item.description || '';
-              const cat = item.category?.name || item._aiCategory || '';
+              const cat = item._originalCategory || item.category?.name || '';
               const sold = item.pricing?.auctioned?.price != null;
               const price = item.pricing?.auctioned?.price || 0;
               const photos = (item.medias || []).map(m => {
