@@ -588,10 +588,8 @@ function mapToTaxonomy(item) {
   const field = item.category?.field || "";
   const desc = (item.description || item.title_translations?.["fr-FR"] || "").toLowerCase();
 
-  // 1. Try mapping by category ID (most reliable)
-  if (catId && CATEGORY_ID_MAP[catId]) return CATEGORY_ID_MAP[catId];
-
-  // 2. Try mapping by normalized category name
+  // 1. Try mapping by normalized category name FIRST (most reliable — API name is accurate)
+  // ID mapping is unreliable because same ID can mean different categories in different sales
   const normalizedName = catName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s*\(.*\)/, "").replace(/\n/g, " ").trim();
   if (normalizedName) {
     for (const [key, val] of Object.entries(CATEGORY_MAP)) {
@@ -617,10 +615,10 @@ function mapToTaxonomy(item) {
 
 // Fix obviously wrong Interencheres categories by checking title/description keywords
 const CATEGORY_FIX_RULES = [
-  { test: /\b(montre|rolex|omega|cartier|breitling|patek|audemars|tag\s*heuer|seiko|longines|zenith|jaeger|iwc|tudor|vacheron|chronograph)\b/i, correctCat: "Bijoux - Montres", wrongCats: ["vins", "spiritueux", "numismatique", "philat", "jouets", "informatique", "electromenager"] },
-  { test: /\b(collier|bague|bracelet|boucle|pendentif|diamant|saphir|rubis|emeraude|or\s+\d+k|or\s+750|or\s+18)/i, correctCat: "Bijoux - Montres", wrongCats: ["vins", "spiritueux", "numismatique", "informatique"] },
+  { test: /\b(montre|rolex|omega|cartier|breitling|patek|audemars|tag\s*heuer|seiko|longines|zenith|jaeger|iwc|tudor|vacheron|chronograph)\b/i, correctCat: "Bijoux - Montres", wrongCats: ["vins", "spiritueux", "numismatique", "philat", "jouets", "informatique", "electromenager", "luminaire", "pendule", "mobilier", "destockage"] },
+  { test: /\b(collier|bague|bracelet|boucle|pendentif|diamant|saphir|rubis|emeraude|or\s+\d+k|or\s+750|or\s+18)/i, correctCat: "Bijoux - Montres", wrongCats: ["vins", "spiritueux", "numismatique", "informatique", "luminaire", "pendule", "mobilier", "destockage"] },
   { test: /\b(livre|manuscrit|ouvrage|edition|reliure|imprim[eé]|biblioth[eè]que|dictionnaire|atlas|trait[eé]\s+de)\b/i, correctCat: "Livres & Manuscrits", wrongCats: ["numismatique", "vins", "informatique", "jouets"] },
-  { test: /\b(vin|champagne|bordeaux|bourgogne|whisky|cognac|armagnac|spiritueux|magnum|bouteille.*cl|mill[eé]sim)\b/i, correctCat: "Vins & Spiritueux", wrongCats: ["bijoux", "montre", "informatique", "vehicul"] },
+  { test: /\b(vin|champagne|bordeaux|bourgogne|whisky|cognac|armagnac|spiritueux|magnum|bouteille.*cl|mill[eé]sim)\b/i, correctCat: "Vins & Spiritueux", wrongCats: ["bijoux", "montre", "informatique", "vehicul", "luminaire", "pendule", "mobilier", "tableau", "sculpture", "jouet", "numismatique", "philat", "instrument"] },
   { test: /\b(ordinateur|serveur|pc\s|laptop|macbook|iphone|samsung\s+galaxy|ipad|tablette|smartphone|imprimante)\b/i, correctCat: "Informatique & Téléphonie", wrongCats: ["vins", "bijoux", "numismatique", "mobilier"] },
   { test: /\b(voiture|auto|berline|suv|4x4|citro[eë]n|renault|peugeot|bmw|mercedes|audi|volkswagen|toyota|nissan|ford|opel|dacia|fiat|hyundai|kia)\b/i, correctCat: "Voitures Particulières", wrongCats: ["vins", "bijoux", "numismatique", "informatique", "mobilier"] },
   { test: /\b(moto|scooter|harley|yamaha|kawasaki|honda\s+cb|suzuki|ducati|triumph|ktm)\b/i, correctCat: "Motos & Scooters", wrongCats: ["vins", "bijoux", "voiture", "informatique"] },
