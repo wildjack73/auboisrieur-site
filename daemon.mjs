@@ -438,62 +438,8 @@ const CATEGORY_TAXONOMY = {
   }
 };
 
-// Map Interenchères category IDs → { parent, subcat }
-const CATEGORY_ID_MAP = {
-  // mo = Art & Objets mobiliers
-  200: { parent: "art-decoration-collections", subcat: "Objets d'art & Curiosités" },
-  201: { parent: "art-decoration-collections", subcat: "Argenterie & Orfèvrerie" },
-  202: { parent: "art-decoration-collections", subcat: "Art populaire" },
-  203: { parent: "art-decoration-collections", subcat: "Arts d'Asie" },
-  204: { parent: "art-decoration-collections", subcat: "Art populaire" },
-  205: { parent: "art-decoration-collections", subcat: "Bijoux & Pierres Précieuses" },
-  206: { parent: "art-decoration-collections", subcat: "Livres & Manuscrits" },
-  207: { parent: "art-decoration-collections", subcat: "Céramiques & Porcelaine" },
-  208: { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
-  209: { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
-  210: { parent: "art-decoration-collections", subcat: "Instruments de Musique" },
-  211: { parent: "art-decoration-collections", subcat: "Objets d'art & Curiosités" },
-  212: { parent: "art-decoration-collections", subcat: "Jouets & Modélisme" },
-  213: { parent: "art-decoration-collections", subcat: "Numismatique" },
-  214: { parent: "art-decoration-collections", subcat: "Philatélie" },
-  215: { parent: "art-decoration-collections", subcat: "Mobilier Ancien" },
-  216: { parent: "art-decoration-collections", subcat: "Mobilier Ancien" },
-  217: { parent: "art-decoration-collections", subcat: "Design & Mobilier du XXe" },
-  218: { parent: "art-decoration-collections", subcat: "Mode & Accessoires" },
-  219: { parent: "art-decoration-collections", subcat: "Numismatique" },
-  220: { parent: "art-decoration-collections", subcat: "Pendules & Horloges" },
-  221: { parent: "art-decoration-collections", subcat: "Design & Mobilier du XXe" },
-  222: { parent: "art-decoration-collections", subcat: "Verrerie & Cristallerie" },
-  223: { parent: "art-decoration-collections", subcat: "Verrerie & Cristallerie" },
-  224: { parent: "art-decoration-collections", subcat: "Vins & Spiritueux" },
-  225: { parent: "art-decoration-collections", subcat: "Photographie" },
-  226: { parent: "art-decoration-collections", subcat: "Sculptures" },
-  227: { parent: "art-decoration-collections", subcat: "Arts d'Orient & Islamiques" },
-  228: { parent: "art-decoration-collections", subcat: "Tableaux, Dessins & Estampes" },
-  229: { parent: "art-decoration-collections", subcat: "Tapis & Textiles" },
-  230: { parent: "art-decoration-collections", subcat: "Archéologie & Arts Premiers" },
-  231: { parent: "art-decoration-collections", subcat: "Militaria" },
-  232: { parent: "art-decoration-collections", subcat: "Luminaires" },
-  // pr = Professionnel & Stocks
-  234: { parent: "biens-equipement", subcat: "BTP & Construction" },
-  236: { parent: "biens-equipement", subcat: "Machines-outils & Industrie" },
-  238: { parent: "biens-equipement", subcat: "Destockage & Invendus" },
-  239: { parent: "biens-equipement", subcat: "Matériel Agricole & Viticole" },
-  240: { parent: "biens-equipement", subcat: "Manutention & Levage" },
-  242: { parent: "biens-equipement", subcat: "Matériel de Restauration & Hôtellerie" },
-  243: { parent: "biens-equipement", subcat: "Destockage & Invendus" },
-  244: { parent: "biens-equipement", subcat: "Matériel Médical" },
-  248: { parent: "biens-equipement", subcat: "Électroménager" },
-  249: { parent: "biens-equipement", subcat: "Mobilier & Matériel de Bureau" },
-  250: { parent: "biens-equipement", subcat: "Photo & Audiovisuel" },
-  251: { parent: "biens-equipement", subcat: "Informatique & Téléphonie" },
-  // vh = Véhicules
-  254: { parent: "vehicules", subcat: "Camping-cars & Caravanes" },
-  256: { parent: "vehicules", subcat: "Bateaux & Nautisme" },
-  261: { parent: "vehicules", subcat: "Utilitaires & Véhicules de Société" },
-  262: { parent: "vehicules", subcat: "Voitures Particulières" },
-  265: { parent: "vehicules", subcat: "Voitures de Collection" },
-};
+// CATEGORY_ID_MAP removed — IDs are unreliable (same ID = different categories in different sales)
+// Use item.category.name from API exclusively
 
 // Map Interenchères category names (normalized) → { parent, subcat }
 const CATEGORY_MAP = {
