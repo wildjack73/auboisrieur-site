@@ -8,21 +8,27 @@
   :root { --bg:#0f1115; --card:#171a21; --line:#262b36; --txt:#e6e9ef; --mut:#9aa3b2; --acc:#4f8cff; --acc2:#36c98d; }
   * { box-sizing:border-box; }
   body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--txt); }
-  header { padding:24px 20px; border-bottom:1px solid var(--line); }
+  header { padding:20px 20px 0; }
   header h1 { margin:0 0 4px; font-size:20px; }
-  header p { margin:0; color:var(--mut); font-size:13px; }
+  header p { margin:0 0 14px; color:var(--mut); font-size:13px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); padding:0 20px; }
+  .tabs button { background:none; border:0; border-bottom:2px solid transparent; color:var(--mut); font:inherit; padding:10px 14px; cursor:pointer; }
+  .tabs button.active { color:var(--txt); border-bottom-color:var(--acc); font-weight:600; }
   main { max-width:1000px; margin:0 auto; padding:20px; }
+  .tabpane { display:none; } .tabpane.active { display:block; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
   label { display:block; font-size:13px; color:var(--mut); margin:10px 0 4px; }
   input[type=text], input[type=number], select, textarea { width:100%; background:#0c0e13; border:1px solid var(--line); color:var(--txt); border-radius:7px; padding:8px 10px; font:inherit; }
   textarea { min-height:90px; resize:vertical; }
+  textarea.tall { min-height:260px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
   .row { display:flex; gap:14px; flex-wrap:wrap; }
   .row > div { flex:1; min-width:160px; }
   .checks { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; }
   .checks label { display:flex; align-items:center; gap:7px; margin:0; color:var(--txt); font-size:14px; cursor:pointer; }
-  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:11px 20px; font:inherit; font-weight:600; cursor:pointer; }
+  button.btn { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:11px 20px; font:inherit; font-weight:600; cursor:pointer; }
   button.sec { background:#222734; color:var(--txt); border:1px solid var(--line); }
   button:disabled { opacity:.5; cursor:not-allowed; }
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
   .progress { margin-top:14px; font-size:13px; color:var(--mut); }
   .bar { height:8px; background:#0c0e13; border-radius:5px; overflow:hidden; margin-top:6px; }
   .bar > i { display:block; height:100%; background:var(--acc); width:0; transition:width .2s; }
@@ -30,8 +36,7 @@
   h3 { font-size:14px; color:var(--mut); margin:18px 0 8px; }
   .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
   .stat { background:#0c0e13; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
-  .stat b { font-size:20px; display:block; }
-  .stat span { font-size:12px; color:var(--mut); }
+  .stat b { font-size:20px; display:block; } .stat span { font-size:12px; color:var(--mut); }
   .kw { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:13px; }
   .kw .t { width:200px; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .kw .b { flex:1; height:14px; background:#0c0e13; border-radius:3px; overflow:hidden; }
@@ -45,18 +50,18 @@
   th { color:var(--mut); font-weight:600; }
   .err { color:#ff7a7a; font-size:13px; }
   .pill { display:inline-block; background:#0c0e13; border:1px solid var(--line); border-radius:20px; padding:2px 9px; font-size:12px; color:var(--mut); }
+  .ok { color:var(--acc2); font-size:13px; }
   details { margin-top:10px; } summary { cursor:pointer; color:var(--mut); font-size:13px; }
   .reco { background:#0c2018; border:1px solid #1f4636; border-radius:8px; padding:10px 12px; color:#9be8c4; }
   .auditList li { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
   .auditList li .meta { flex:1; } .auditList li .meta small { color:var(--mut); }
   .auditList li button { padding:4px 10px; font-size:12px; }
-  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
 
   /* ── Vue imprimable / PDF ─────────────────────────────────────────────── */
   #printArea { display:none; }
   @media print {
     body { background:#fff; color:#111; font-size:11px; }
-    body > header, body > main { display:none !important; }
+    body > header, body > .tabs, body > main { display:none !important; }
     #printArea { display:block; color:#111; }
     #printArea .audit { page-break-before:always; }
     #printArea .audit:first-of-type { page-break-before:avoid; }
@@ -67,8 +72,7 @@
     #printArea .kw .b { background:#eee; } #printArea .kw .b > i { background:#7bbf9c; }
     #printArea .kw .t { color:#111; } #printArea .kw .n { color:#666; }
     #printArea .stat { background:#f6f7f8; border:1px solid #ddd; } #printArea .stat b{ color:#111; } #printArea .stat span{ color:#555; }
-    #printArea table { font-size:10px; } #printArea th,#printArea td { border-bottom:1px solid #ddd; }
-    #printArea th { color:#555; }
+    #printArea table { font-size:10px; } #printArea th,#printArea td { border-bottom:1px solid #ddd; } #printArea th { color:#555; }
     #printArea .pill { border:1px solid #ccc; color:#555; }
     #printArea .cover { text-align:center; padding:40px 0 24px; border-bottom:2px solid #111; margin-bottom:18px; }
     #printArea .cover .sub { color:#555; font-size:13px; margin-top:6px; }
@@ -82,7 +86,14 @@
   <h1>Audit Google Local — analyse du top 3</h1>
   <p>Récupère les 3 (ou N) premiers résultats Google par ville pour un métier donné et analyse catégories, descriptions, avis, photos et statistiques. Empile tes mini-audits puis exporte un PDF complet.</p>
 </header>
+<nav class="tabs">
+  <button data-tab="audit" class="active">Audit</button>
+  <button data-tab="settings">Paramètres</button>
+</nav>
 <main>
+
+<!-- ─────────────── ONGLET AUDIT ─────────────── -->
+<div class="tabpane active" id="tab-audit">
   <div class="card">
     <div class="row">
       <div>
@@ -93,31 +104,27 @@
         <label>Titre du mini-audit (optionnel)</label>
         <input type="text" id="title" placeholder="ex : Experts-comptables — France">
       </div>
-      <div style="flex:0 0 110px">
-        <label>Top N</label>
-        <input type="number" id="topN" value="3" min="1" max="20">
-      </div>
-      <div style="flex:0 0 170px">
-        <label>Fournisseur</label>
-        <select id="provider"></select>
-      </div>
     </div>
-    <label>Villes (une par ligne ou séparées par des virgules — vide = liste des grandes villes françaises)</label>
-    <textarea id="cities" placeholder="Nice&#10;Lyon&#10;Marseille&#10;..."></textarea>
-    <div class="checks">
-      <label><input type="checkbox" id="withReviews"> Analyser le texte des avis (plus lent)</label>
-      <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
-      <span class="pill" id="visionPill"></span>
-    </div>
+    <details>
+      <summary>Options pour ce run (sinon : valeurs des Paramètres)</summary>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:0 0 110px"><label>Top N</label><input type="number" id="topN" min="1" max="20" placeholder="3"></div>
+        <div style="flex:0 0 170px"><label>Fournisseur</label><select id="provider"><option value="">(défaut)</option><option>valueserp</option><option>dataforseo</option></select></div>
+      </div>
+      <label>Villes pour ce run (vide = liste des Paramètres)</label>
+      <textarea id="citiesOverride" placeholder="Nice&#10;Lyon&#10;Marseille&#10;..."></textarea>
+      <div class="checks">
+        <label><input type="checkbox" id="withReviews"> Analyser le texte des avis (plus lent)</label>
+        <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
+        <span class="pill" id="visionPill"></span>
+      </div>
+    </details>
     <div class="toolbar">
-      <button id="run">Lancer ce mini-audit</button>
+      <button id="run" class="btn">Lancer ce mini-audit</button>
       <button id="exportPdf" class="sec" disabled>📄 Générer le PDF complet (0)</button>
       <button id="clearAll" class="sec" disabled>Tout effacer</button>
     </div>
-    <div class="progress" id="prog" hidden>
-      <span id="progText">…</span>
-      <div class="bar"><i id="progBar"></i></div>
-    </div>
+    <div class="progress" id="prog" hidden><span id="progText">…</span><div class="bar"><i id="progBar"></i></div></div>
   </div>
 
   <div class="card" id="listCard" hidden>
@@ -126,29 +133,109 @@
   </div>
 
   <div id="out"></div>
-</main>
+</div>
 
+<!-- ─────────────── ONGLET PARAMÈTRES ─────────────── -->
+<div class="tabpane" id="tab-settings">
+  <div class="card">
+    <h2>Villes utilisées par défaut</h2>
+    <p style="color:var(--mut);font-size:13px;margin:0 0 6px">Une ville par ligne (ou séparées par virgule/point-virgule). C'est cette liste qui est utilisée pour chaque audit, sauf si tu remplis « Villes pour ce run ».</p>
+    <textarea id="citiesSettings" class="tall"></textarea>
+    <div class="toolbar">
+      <button id="saveCities" class="btn">Enregistrer</button>
+      <button id="resetCities" class="sec">Réinitialiser (liste fournie)</button>
+      <span id="citiesCount" class="pill"></span>
+      <span id="citiesSaved" class="ok" hidden>Enregistré ✓</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Valeurs par défaut des audits</h2>
+    <div class="row">
+      <div style="flex:0 0 130px"><label>Top N</label><input type="number" id="defTopN" min="1" max="20"></div>
+      <div style="flex:0 0 200px"><label>Fournisseur</label><select id="defProvider"></select></div>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" id="defReviews"> Analyser les avis par défaut</label>
+      <label><input type="checkbox" id="defVision"> Analyser les photos par défaut</label>
+      <span class="pill" id="visionPill2"></span>
+    </div>
+    <div class="toolbar"><button id="saveDefaults" class="btn">Enregistrer</button><span id="defSaved" class="ok" hidden>Enregistré ✓</span></div>
+  </div>
+</div>
+
+</main>
 <div id="printArea"></div>
 
 <script>
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 let meta = {};
 let audits = [];
-try { audits = JSON.parse(localStorage.getItem("seoAudits") || "[]"); } catch { audits = []; }
+let settings = { cities: null, topN: 3, provider: "", reviews: false, vision: false };
 
-(async () => {
-  meta = await fetch("/api/meta").then(r => r.json());
-  $("#provider").innerHTML = meta.providers.map(p => `<option ${p===meta.defaultProvider?"selected":""}>${p}</option>`).join("");
-  $("#cities").placeholder = meta.topCities.slice(0,8).join("\n") + "\n…";
-  if (!meta.visionAvailable) { $("#withVision").disabled = true; $("#visionPill").textContent = "Vision non configurée (GOOGLE_VISION_API_KEY)"; }
-  else $("#visionPill").textContent = "Vision disponible";
-  refreshList();
-})();
+try { audits = JSON.parse(localStorage.getItem("seoAudits") || "[]"); } catch { audits = []; }
+try { Object.assign(settings, JSON.parse(localStorage.getItem("seoSettings") || "{}")); } catch {}
 
 function saveAudits() { try { localStorage.setItem("seoAudits", JSON.stringify(audits)); } catch {} }
+function saveSettings() { try { localStorage.setItem("seoSettings", JSON.stringify(settings)); } catch {} }
 function parseCities(txt) { return txt.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+// Tabs
+$$(".tabs button").forEach(b => b.onclick = () => {
+  $$(".tabs button").forEach(x => x.classList.toggle("active", x === b));
+  $$(".tabpane").forEach(p => p.classList.toggle("active", p.id === "tab-" + b.dataset.tab));
+});
+
+(async () => {
+  meta = await fetch("/api/meta").then(r => r.json());
+  if (settings.cities == null) settings.cities = meta.topCities.slice();
+  if (!settings.provider) settings.provider = meta.defaultProvider;
+  // selects
+  $("#provider").innerHTML = `<option value="">(défaut : ${esc(settings.provider)})</option>` + meta.providers.map(p=>`<option>${p}</option>`).join("");
+  $("#defProvider").innerHTML = meta.providers.map(p=>`<option ${p===settings.provider?"selected":""}>${p}</option>`).join("");
+  // vision availability
+  const vTxt = meta.visionAvailable ? "Vision disponible" : "Vision non configurée (GOOGLE_VISION_API_KEY)";
+  $("#visionPill").textContent = vTxt; $("#visionPill2").textContent = vTxt;
+  if (!meta.visionAvailable) { $("#withVision").disabled = true; $("#defVision").disabled = true; }
+  // populate settings UI
+  $("#citiesSettings").value = settings.cities.join("\n");
+  $("#defTopN").value = settings.topN || 3;
+  $("#defReviews").checked = !!settings.reviews;
+  $("#defVision").checked = !!settings.vision && meta.visionAvailable;
+  $("#citiesOverride").placeholder = meta.topCities.slice(0,6).join("\n") + "\n…";
+  updateCitiesCount();
+  refreshList();
+})();
+
+// ── Paramètres : villes ─────────────────────────────────────────────────────
+function updateCitiesCount() {
+  const n = parseCities($("#citiesSettings").value).length;
+  $("#citiesCount").textContent = `${n} ville${n>1?"s":""}`;
+}
+$("#citiesSettings").addEventListener("input", updateCitiesCount);
+$("#saveCities").onclick = () => {
+  settings.cities = parseCities($("#citiesSettings").value);
+  saveSettings(); updateCitiesCount();
+  const m = $("#citiesSaved"); m.hidden = false; setTimeout(()=>m.hidden=true, 1800);
+};
+$("#resetCities").onclick = () => {
+  if (!confirm("Remplacer la liste par la liste fournie par défaut ?")) return;
+  settings.cities = meta.topCities.slice(); $("#citiesSettings").value = settings.cities.join("\n");
+  saveSettings(); updateCitiesCount();
+};
+// ── Paramètres : valeurs par défaut ─────────────────────────────────────────
+$("#saveDefaults").onclick = () => {
+  settings.topN = parseInt($("#defTopN").value,10) || 3;
+  settings.provider = $("#defProvider").value || meta.defaultProvider;
+  settings.reviews = $("#defReviews").checked;
+  settings.vision = $("#defVision").checked;
+  saveSettings();
+  $("#provider").querySelector("option[value='']").textContent = `(défaut : ${settings.provider})`;
+  const m = $("#defSaved"); m.hidden = false; setTimeout(()=>m.hidden=true, 1800);
+};
+
+// ── Rendu d'un audit (écran + PDF) ──────────────────────────────────────────
 function bars(items, key="term") {
   if (!items || !items.length) return '<p class="err">Aucune donnée.</p>';
   const max = items[0].count || 1;
@@ -160,8 +247,6 @@ function statBox(label, st, unit="") {
   if (!st) return "";
   return `<div class="stat"><b>${st.avg}${unit}</b><span>${esc(label)} — moy. (médiane ${st.median}${unit}, ${st.min}–${st.max}, n=${st.count})</span></div>`;
 }
-
-// Rendu d'un audit (réutilisé à l'écran ET dans le PDF, via `compact` pour le PDF).
 function renderAudit(r, { compact=false } = {}) {
   const s = r.stats;
   const head = `
@@ -169,33 +254,22 @@ function renderAudit(r, { compact=false } = {}) {
     <p class="pill">requête « ${esc(r.keyword)} » · ${r.cities.requested} villes · ${r.businesses.total} fiches · ${r.businesses.withDescription} avec description · fournisseur ${esc(r.provider)} · ${new Date(r.generatedAt).toLocaleString("fr-FR")}</p>
     ${r.recommendations?.length ? `<h3>Recommandations</h3><ul class="recs">${r.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : ""}
     <div class="stats" style="margin-top:10px">
-      ${statBox("Note", s.rating, "/5")}
-      ${statBox("Nombre d'avis", s.reviewsCount)}
-      ${statBox("Nombre de photos", s.photosCount)}
-      ${statBox("Longueur description (car.)", s.descriptionLength)}
+      ${statBox("Note", s.rating, "/5")}${statBox("Nombre d'avis", s.reviewsCount)}${statBox("Nombre de photos", s.photosCount)}${statBox("Longueur description (car.)", s.descriptionLength)}
     </div>
-
     <h2>Catégories du top ${r.topN} <span class="pill">pondéré — ${esc(r.categoryCombos?.weighting||"")}</span></h2>
     ${r.categoryCombos?.recommendation ? `<p class="reco">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
     <div class="cols">
-      <div><h3>Combinaisons exactes (principale ; secondaires) — ${r.categoryCombos?.businessesWithCategories||0} fiches</h3>
-        ${bars((r.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})))}</div>
+      <div><h3>Combinaisons exactes (principale ; secondaires) — ${r.categoryCombos?.businessesWithCategories||0} fiches</h3>${bars((r.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})))}</div>
       <div><h3>Catégories prises isolément</h3>${bars(r.categories)}</div>
     </div>
-
     <h2>Mots-clés des descriptions du top ${r.topN}</h2>
     <div class="cols">
       <div><h3>Mots (% de fiches qui le contiennent)</h3>${bars((r.descriptionKeywords.unigrams||[]).slice(0,compact?20:40))}</div>
       <div><h3>Expressions (bigrammes)</h3>${bars((r.descriptionKeywords.bigrams||[]).slice(0,compact?15:25))}</div>
     </div>
-    ${r.reviewKeywords.documents ? `<h2>Mots-clés des avis (${r.reviewKeywords.documents} avis)</h2>
-      <div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
-    ${r.vision ? `<h2>Photos — objets détectés (${r.vision.imagesAnalyzed} images, ${r.vision.businessesAnalyzed} fiches)</h2>${bars(r.vision.topObjects.slice(0,compact?15:30))}` : ""}
-  `;
-  if (compact) {
-    return head + `<h3>Échantillon du top ${r.topN}</h3><table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead><tbody>${
-      r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>`;
-  }
+    ${r.reviewKeywords.documents ? `<h2>Mots-clés des avis (${r.reviewKeywords.documents} avis)</h2><div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
+    ${r.vision ? `<h2>Photos — objets détectés (${r.vision.imagesAnalyzed} images, ${r.vision.businessesAnalyzed} fiches)</h2>${bars(r.vision.topObjects.slice(0,compact?15:30))}` : ""}`;
+  if (compact) return head + `<h3>Échantillon du top ${r.topN}</h3><table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead><tbody>${r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>`;
   return head + `
     <h2>Échantillon des fiches du top ${r.topN}</h2>
     <table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th><th>Description</th></tr></thead>
@@ -203,7 +277,6 @@ function renderAudit(r, { compact=false } = {}) {
     ${r.errors?.length ? `<details><summary>Erreurs (${r.errors.length})</summary><table><tbody>${r.errors.slice(0,40).map(e=>`<tr><td>${esc(e.city)}</td><td class="err">${esc(e.error)}</td></tr>`).join("")}</tbody></table></details>` : ""}
     <details><summary>JSON brut</summary><pre style="overflow:auto;font-size:12px">${esc(JSON.stringify(r,null,2))}</pre></details>`;
 }
-
 function showOnScreen(r) { $("#out").innerHTML = `<div class="card">${renderAudit(r)}</div>`; window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }
 
 function refreshList() {
@@ -211,29 +284,22 @@ function refreshList() {
   $("#exportPdf").disabled = audits.length === 0;
   $("#clearAll").disabled = audits.length === 0;
   $("#listCard").hidden = audits.length === 0;
-  $("#auditList").innerHTML = audits.map((a, i) => `<li>
-      <span class="meta"><b>${esc(a._title || a.keyword)}</b><br><small>requête « ${esc(a.keyword)} » · ${a.cities.requested} villes · top ${a.topN} · ${new Date(a.generatedAt).toLocaleString("fr-FR")}${a.categoryCombos?.mainCategory?` · ➜ ${esc(a.categoryCombos.mainCategory)}`:""}</small></span>
-      <button class="sec" data-view="${i}">Voir</button>
-      <button class="sec" data-del="${i}">✕</button>
-    </li>`).join("");
-  $("#auditList").querySelectorAll("[data-view]").forEach(b => b.onclick = () => showOnScreen(audits[+b.dataset.view]));
-  $("#auditList").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { audits.splice(+b.dataset.del,1); saveAudits(); refreshList(); });
+  $("#auditList").innerHTML = audits.map((a,i)=>`<li>
+      <span class="meta"><b>${esc(a._title||a.keyword)}</b><br><small>requête « ${esc(a.keyword)} » · ${a.cities.requested} villes · top ${a.topN} · ${new Date(a.generatedAt).toLocaleString("fr-FR")}${a.categoryCombos?.mainCategory?` · ➜ ${esc(a.categoryCombos.mainCategory)}`:""}</small></span>
+      <button class="sec" data-view="${i}">Voir</button><button class="sec" data-del="${i}">✕</button></li>`).join("");
+  $("#auditList").querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>showOnScreen(audits[+b.dataset.view]));
+  $("#auditList").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ audits.splice(+b.dataset.del,1); saveAudits(); refreshList(); });
 }
 
-// ── Construire la vue imprimable et lancer l'impression / PDF ───────────────
+// ── PDF ─────────────────────────────────────────────────────────────────────
 function exportPdf() {
   if (!audits.length) return;
   const now = new Date().toLocaleString("fr-FR");
-  const cover = `<div class="cover">
-      <h1>Rapport d'audit Google Local — Top 3</h1>
-      <div class="sub">${audits.length} mini-audit${audits.length>1?"s":""} consolidé${audits.length>1?"s":""} · généré le ${now}</div>
-    </div>
-    <h2>Sommaire</h2>
-    <ol class="toc">${audits.map(a=>`<li>${esc(a._title || a.keyword)} <span class="pill">« ${esc(a.keyword)} » · ${a.cities.requested} villes${a.categoryCombos?.mainCategory?` · ${esc(a.categoryCombos.mainCategory)}`:""}</span></li>`).join("")}</ol>`;
-  const body = audits.map(a => `<section class="audit">${renderAudit(a, { compact:true })}</section>`).join("");
-  $("#printArea").innerHTML = cover + body;
+  const cover = `<div class="cover"><h1>Rapport d'audit Google Local — Top 3</h1><div class="sub">${audits.length} mini-audit${audits.length>1?"s":""} consolidé${audits.length>1?"s":""} · généré le ${now}</div></div>
+    <h2>Sommaire</h2><ol class="toc">${audits.map(a=>`<li>${esc(a._title||a.keyword)} <span class="pill">« ${esc(a.keyword)} » · ${a.cities.requested} villes${a.categoryCombos?.mainCategory?` · ${esc(a.categoryCombos.mainCategory)}`:""}</span></li>`).join("")}</ol>`;
+  $("#printArea").innerHTML = cover + audits.map(a=>`<section class="audit">${renderAudit(a,{compact:true})}</section>`).join("");
   document.title = "Audit Google Local — " + now;
-  setTimeout(() => window.print(), 50);
+  setTimeout(()=>window.print(), 50);
 }
 $("#exportPdf").onclick = exportPdf;
 $("#clearAll").onclick = () => { if (confirm("Effacer tous les mini-audits enregistrés ?")) { audits = []; saveAudits(); refreshList(); } };
@@ -242,15 +308,18 @@ $("#clearAll").onclick = () => { if (confirm("Effacer tous les mini-audits enreg
 $("#run").addEventListener("click", () => {
   const keyword = $("#keyword").value.trim();
   if (!keyword) { alert("Indique un métier / une requête."); return; }
-  const title = $("#title").value.trim();
+  const ovCities = parseCities($("#citiesOverride").value);
+  const cities = ovCities.length ? ovCities : (settings.cities || meta.topCities);
+  if (!cities.length) { alert("Aucune ville : configure la liste dans Paramètres."); return; }
   const payload = {
     keyword,
-    topN: parseInt($("#topN").value,10) || 3,
-    provider: $("#provider").value,
-    cities: parseCities($("#cities").value),
-    withReviews: $("#withReviews").checked,
-    withVision: $("#withVision").checked && !$("#withVision").disabled,
+    topN: parseInt($("#topN").value,10) || settings.topN || 3,
+    provider: $("#provider").value || settings.provider || meta.defaultProvider,
+    cities,
+    withReviews: $("#withReviews").checked || settings.reviews,
+    withVision: ($("#withVision").checked || settings.vision) && meta.visionAvailable,
   };
+  const title = $("#title").value.trim();
   $("#run").disabled = true; $("#out").innerHTML = "";
   $("#prog").hidden = false; $("#progText").textContent = "Démarrage…"; $("#progBar").style.width = "0%";
 
@@ -265,7 +334,7 @@ $("#run").addEventListener("click", () => {
         while ((idx = buf.indexOf("\n\n")) >= 0) {
           const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
           const ev = (chunk.match(/^event: (.*)$/m)||[])[1];
-          const dataLine = (chunk.match(/^data: ([\s\S]*)$/m)||[])[1];
+          const dataLine = (chunk.match(/^data: (.*)$/m)||[])[1];
           if (dataLine) handle(ev, JSON.parse(dataLine), title);
         }
       }
@@ -277,16 +346,12 @@ $("#run").addEventListener("click", () => {
 function handle(ev, data, title) {
   if (ev === "start") { $("#progText").textContent = `Audit de ${data.cities} ville(s)…`; }
   else if (ev === "progress") {
-    const total = data.total || 1, done = data.done || 0, pct = Math.round((done/total)*100);
-    $("#progBar").style.width = pct + "%";
+    const total = data.total || 1, done = data.done || 0;
+    $("#progBar").style.width = Math.round((done/total)*100) + "%";
     const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", vision:"Analyse des photos" };
     $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
   }
-  else if (ev === "done") {
-    $("#prog").hidden = true;
-    data._title = title || data.keyword;
-    audits.push(data); saveAudits(); refreshList(); showOnScreen(data);
-  }
+  else if (ev === "done") { $("#prog").hidden = true; data._title = title || data.keyword; audits.push(data); saveAudits(); refreshList(); showOnScreen(data); }
   else if (ev === "error") { $("#prog").hidden = true; $("#out").innerHTML = `<div class="card err">Erreur : ${esc(data.error)}</div>`; }
 }
 </script>
