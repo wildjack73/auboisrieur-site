@@ -54,6 +54,33 @@ function keywordStats(docs) {
   return { documents: nonEmpty, unigrams: top(unigram, 40), bigrams: top(bigram, 25) };
 }
 
+// Aide à la rédaction de la description : à partir des mots-clés des
+// descriptions du top N, on classe les mots en "à mettre impérativement",
+// "recommandés", "optionnels", on liste les expressions à reprendre, et on
+// génère un modèle de description prêt à adapter.
+function descriptionGuide(dk, keyword, lengthStats) {
+  if (!dk || !dk.documents) return null;
+  const u = dk.unigrams || [], b = dk.bigrams || [];
+  const mustUse = u.filter(x => x.pct >= 60);
+  const recommended = u.filter(x => x.pct >= 30 && x.pct < 60);
+  const optional = u.filter(x => x.pct >= 15 && x.pct < 30);
+  const phrases = b.filter(x => x.pct >= 20);
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const words = [...new Set([...mustUse, ...recommended].map(x => x.term))].slice(0, 12);
+  const draftParts = [
+    `${cap(keyword)} — [votre nom], à [votre ville].`,
+    words.length ? `Nos services : ${words.join(", ")}.` : "",
+    phrases.slice(0, 3).map(p => cap(p.term) + ".").join(" "),
+    "Devis gratuit, intervention rapide. Contactez-nous dès aujourd'hui.",
+  ].filter(Boolean);
+  return {
+    documents: dk.documents,
+    targetLength: lengthStats ? { median: lengthStats.median, p25: lengthStats.p25, p75: lengthStats.p75 } : null,
+    mustUse, recommended, optional, phrases,
+    draft: draftParts.join(" "),
+  };
+}
+
 function numberStats(values) {
   const v = values.filter(x => typeof x === "number" && Number.isFinite(x)).sort((a, b) => a - b);
   if (!v.length) return null;
@@ -313,6 +340,8 @@ export async function runAudit(opts) {
     })),
   };
 
+  report.descriptionGuide = descriptionGuide(report.descriptionKeywords, keyword, report.stats.descriptionLength);
+
   // Recommandations dérivées
   report.recommendations = buildRecommendations(report);
   return report;
@@ -326,14 +355,16 @@ function buildRecommendations(r) {
   if (r.stats.rating) {
     recs.push(`Note moyenne du top ${r.topN} : ${r.stats.rating.avg}/5 — rester au-dessus de ${r.stats.rating.p25}/5.`);
   }
-  if (r.stats.descriptionLength) {
+  const g = r.descriptionGuide;
+  if (g) {
+    if (g.targetLength) recs.push(`Rédiger une description d'environ ${g.targetLength.median} caractères (fourchette observée : ${g.targetLength.p25}–${g.targetLength.p75}).`);
+    if (g.mustUse.length) recs.push(`Mots à intégrer impérativement dans la description (présents dans ≥ 60 % du top ${r.topN}) : ${g.mustUse.map(x => `${x.term} (${x.pct}%)`).join(", ")}.`);
+    if (g.recommended.length) recs.push(`Mots recommandés (≥ 30 %) : ${g.recommended.slice(0, 12).map(x => x.term).join(", ")}.`);
+    if (g.phrases.length) recs.push(`Expressions à reprendre : ${g.phrases.slice(0, 6).map(x => x.term).join(" / ")}.`);
+  } else if (r.stats.descriptionLength) {
     recs.push(`Rédiger une description d'environ ${r.stats.descriptionLength.median} caractères (médiane observée).`);
   }
   if (r.titleKeyword?.recommendation) recs.push(r.titleKeyword.recommendation);
-  const kw = r.descriptionKeywords.unigrams.slice(0, 8).map(k => k.term).join(", ");
-  if (kw) recs.push(`Intégrer ces mots-clés dans la description : ${kw}.`);
-  const bg = r.descriptionKeywords.bigrams.slice(0, 5).map(k => k.term).join(" / ");
-  if (bg) recs.push(`Expressions fréquentes dans le top ${r.topN} : ${bg}.`);
   if (r.categoryCombos?.recommendation) recs.push(r.categoryCombos.recommendation);
   else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
   if (r.reviewTopics?.topics?.length) {
