@@ -73,39 +73,105 @@
   li.prio-haute .badge { background:#7a2230; color:#ffd0d6; } li.prio-moyenne .badge { background:#7a5a20; color:#ffe6bf; }
   .plain { font-size:12.5px; color:var(--mut); margin:2px 0 8px; font-style:italic; }
 
-  /* ── Vue imprimable / PDF ─────────────────────────────────────────────── */
+  /* ── Vue imprimable / PDF (rapport pro) ───────────────────────────────── */
   #printArea { display:none; }
   @media print {
-    body { background:#fff; color:#111; font-size:11px; }
+    /* palette homogène */
+    #printArea {
+      --p:#13294b; --p2:#1d3f6e; --accent:#2563eb; --accent-l:#eaf1fc; --accent-b:#cddff5;
+      --ink:#1f2733; --muted:#6b7585; --line:#dce3ec; --zebra:#f6f8fb; --hi:#b8862b; --hi-l:#fbf3e1; --pr:#b23a3a; --pr-l:#fbeceb;
+    }
+    @page { size:A4; margin:20mm 15mm 16mm; }
+    body { background:#fff; color:var(--ink); font:10.5px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
     body > header, body > .tabs, body > main { display:none !important; }
-    #printArea { display:block; color:#111; }
-    #printArea .audit { page-break-before:always; }
-    #printArea .audit:first-of-type { page-break-before:avoid; }
-    #printArea h1 { font-size:22px; margin:0 0 4px; }
-    #printArea h2 { font-size:15px; border-bottom:1px solid #ccc; padding-bottom:4px; margin:18px 0 10px; color:#111; }
-    #printArea h3 { font-size:12px; color:#555; margin:12px 0 6px; }
-    #printArea .reco { background:#eef9f2; border:1px solid #bfe3cd; color:#0a3d22; border-radius:6px; padding:8px 10px; }
-    #printArea .kw .b { background:#eee; } #printArea .kw .b > i { background:#7bbf9c; }
-    #printArea .kw .t { color:#111; } #printArea .kw .n { color:#666; }
-    #printArea .stat { background:#f6f7f8; border:1px solid #ddd; } #printArea .stat b{ color:#111; } #printArea .stat span{ color:#555; }
-    #printArea table { font-size:10px; } #printArea th,#printArea td { border-bottom:1px solid #ddd; } #printArea th { color:#555; }
-    #printArea .pill { border:1px solid #ccc; color:#555; }
-    #printArea .cover { text-align:center; padding:40px 0 24px; border-bottom:2px solid #111; margin-bottom:18px; }
-    #printArea .cover .sub { color:#555; font-size:13px; margin-top:6px; }
-    #printArea .toc { font-size:12px; } #printArea .toc li { margin:3px 0; }
-    #printArea .imgGrid { grid-template-columns:repeat(4,1fr); }
-    #printArea .imgGrid img { height:80px; }
-    #printArea .imgGrid figcaption { color:#555; }
-    figure { break-inside:avoid; }
-    #printArea .summary { background:#f3f7fb; border:1px solid #cdd9e5; }
-    #printArea .summary h3, #printArea .summary p { color:#111; }
-    #printArea ol.actions li { border-bottom:1px solid #ddd; }
-    #printArea ol.actions li::before { background:#e5e8ec; color:#555; }
-    #printArea ol.actions li.prio-haute::before, #printArea li.prio-haute .badge { background:#e9c4ca; color:#7a2230; }
-    #printArea ol.actions li.prio-moyenne::before, #printArea li.prio-moyenne .badge { background:#ecdcc0; color:#6b4f1c; }
-    #printArea .badge { background:#e5e8ec; color:#555; }
-    #printArea .plain { color:#666; }
-    @page { margin:14mm 12mm; }
+    #printArea { display:block; color:var(--ink); }
+    a { color:var(--accent); text-decoration:none; }
+
+    /* pied de page répété */
+    #printArea .pdf-footer { position:fixed; bottom:-12mm; left:0; right:0; font-size:8px; color:var(--muted); border-top:1px solid var(--line); padding-top:3px; display:flex; justify-content:space-between; }
+
+    /* couverture */
+    #printArea .cover { page-break-after:always; padding-top:34mm; }
+    #printArea .cover .band { height:6px; background:var(--accent); border-radius:3px; width:60mm; margin-bottom:24mm; }
+    #printArea .cover .kicker { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:10px; margin-bottom:8px; }
+    #printArea .cover h1 { font-size:30px; line-height:1.15; color:var(--p); margin:0 0 10px; font-weight:800; letter-spacing:-.01em; }
+    #printArea .cover .lead { font-size:13px; color:var(--p2); max-width:130mm; }
+    #printArea .cover .facts { margin-top:30mm; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    #printArea .cover .facts div { background:var(--zebra); border:1px solid var(--line); border-radius:5px; padding:10px 12px; }
+    #printArea .cover .facts b { display:block; font-size:18px; color:var(--p); }
+    #printArea .cover .facts span { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+
+    /* sommaire */
+    #printArea .toc { page-break-after:always; }
+    #printArea .toc h2 { all:unset; display:block; font-size:18px; color:var(--p); font-weight:800; margin:0 0 14px; padding-bottom:6px; border-bottom:2px solid var(--accent); }
+    #printArea .toc ol { list-style:none; counter-reset:toc; padding:0; margin:0; }
+    #printArea .toc li { counter-increment:toc; display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:11.5px; }
+    #printArea .toc li::before { content:counter(toc,decimal-leading-zero); color:var(--accent); font-weight:700; min-width:24px; }
+    #printArea .toc li .t { flex:1; color:var(--p2); font-weight:600; }
+    #printArea .toc li .s { color:var(--muted); font-size:9.5px; }
+
+    /* chapitre = un mini-audit */
+    #printArea .chapter { page-break-before:always; }
+    #printArea .chapter:first-of-type { page-break-before:avoid; }
+    #printArea .chapter-head { background:var(--p); color:#fff; border-radius:5px; padding:10px 14px; margin:0 0 14px; display:flex; align-items:baseline; gap:10px; }
+    #printArea .chapter-head .num { background:var(--accent); color:#fff; font-weight:800; font-size:11px; border-radius:4px; padding:2px 8px; }
+    #printArea .chapter-head .ttl { font-size:15px; font-weight:700; }
+    #printArea .chapter-head .sub { margin-left:auto; font-size:9px; color:#aebfda; }
+
+    /* en-têtes de section */
+    #printArea h1 { display:none; }
+    #printArea h2 { font-size:11.5px; color:var(--p); font-weight:800; text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px; padding-bottom:3px; border-bottom:2px solid var(--accent-b); page-break-after:avoid; }
+    #printArea h2 .pill { float:right; text-transform:none; letter-spacing:0; }
+    #printArea h3 { font-size:9.5px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin:12px 0 5px; page-break-after:avoid; }
+
+    /* blocs */
+    #printArea .summary { background:#f7f9fc; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:5px; padding:12px 14px; margin:10px 0 14px; break-inside:avoid; }
+    #printArea .summary h3 { all:unset; display:block; font-size:12px; font-weight:800; color:var(--p); margin:0 0 6px; }
+    #printArea .summary p { margin:0 0 8px; color:var(--p2); font-size:10.5px; }
+    #printArea ol.actions { margin:0; padding-left:0; list-style:none; counter-reset:act; }
+    #printArea ol.actions li { counter-increment:act; position:relative; padding:6px 0 6px 26px; border-bottom:1px solid var(--line); font-size:10px; break-inside:avoid; }
+    #printArea ol.actions li:last-child { border-bottom:0; }
+    #printArea ol.actions li::before { content:counter(act); position:absolute; left:0; top:6px; width:17px; height:17px; border-radius:50%; background:var(--accent-l); color:var(--accent); font-size:9px; text-align:center; line-height:17px; font-weight:800; }
+    #printArea ol.actions li.prio-haute::before { background:var(--pr-l); color:var(--pr); }
+    #printArea ol.actions li.prio-moyenne::before { background:var(--hi-l); color:var(--hi); }
+    #printArea .badge { display:inline-block; font-size:7.5px; text-transform:uppercase; letter-spacing:.05em; padding:1px 5px; border-radius:8px; background:var(--accent-l); color:var(--accent); margin-right:5px; vertical-align:middle; font-weight:700; }
+    #printArea li.prio-haute .badge { background:var(--pr-l); color:var(--pr); } #printArea li.prio-moyenne .badge { background:var(--hi-l); color:var(--hi); }
+    #printArea .reco { background:var(--accent-l); border:1px solid var(--accent-b); border-radius:5px; padding:8px 11px; color:#123a66; font-size:10px; break-inside:avoid; }
+    #printArea .plain { color:var(--muted); font-size:9.5px; font-style:italic; }
+    #printArea ul.recs, #printArea details > ul.recs { font-size:10px; }
+
+    /* indicateurs */
+    #printArea .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(40mm,1fr)); gap:8px; }
+    #printArea .stat { background:var(--accent-l); border:1px solid var(--accent-b); border-radius:5px; padding:8px 10px; break-inside:avoid; }
+    #printArea .stat b { display:block; font-size:15px; color:var(--p); }
+    #printArea .stat span { font-size:8px; color:var(--muted); }
+
+    /* barres mots-clés */
+    #printArea .kw { font-size:9px; margin:2px 0; }
+    #printArea .kw .t { width:46mm; color:var(--ink); }
+    #printArea .kw .b { background:#e8eef6; border-radius:2px; height:11px; } #printArea .kw .b > i { background:var(--accent); }
+    #printArea .kw .n { color:var(--muted); }
+
+    /* tableaux */
+    #printArea table { width:100%; border-collapse:collapse; font-size:8.8px; margin:6px 0; break-inside:auto; }
+    #printArea thead { display:table-header-group; }
+    #printArea tr { break-inside:avoid; }
+    #printArea th { background:var(--accent-l); color:var(--p); text-transform:uppercase; font-size:7.6px; letter-spacing:.04em; padding:5px 7px; text-align:left; border-bottom:1px solid var(--accent-b); }
+    #printArea td { padding:4px 7px; border-bottom:1px solid var(--line); vertical-align:top; }
+    #printArea tbody tr:nth-child(even) td { background:var(--zebra); }
+
+    /* divers */
+    #printArea .pill { display:inline-block; border:1px solid var(--line); color:var(--muted); background:#fff; border-radius:10px; padding:1px 8px; font-size:8.5px; }
+    #printArea details > summary { color:var(--p2); font-weight:700; font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; margin:8px 0 4px; list-style:none; }
+    #printArea details > summary::-webkit-details-marker { display:none; }
+    #printArea textarea { width:100%; border:1px solid var(--line); border-radius:4px; padding:6px 8px; font:9.5px/1.4 ui-monospace,Menlo,monospace; color:var(--ink); background:var(--zebra); resize:none; }
+    #printArea .cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    #printArea .imgGrid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:6px; }
+    #printArea .imgGrid img { width:100%; height:26mm; object-fit:cover; border-radius:3px; }
+    #printArea .imgGrid figcaption { color:var(--muted); font-size:7.5px; margin-top:2px; }
+    #printArea figure { break-inside:avoid; margin:0; }
+    #printArea pre { display:none; }   /* pas de JSON brut dans le PDF */
+    #printArea section.audit { break-inside:auto; }
   }
 </style>
 </head>
@@ -308,7 +374,7 @@ function statBox(label, st, unit="") {
 function renderAudit(r, { compact=false } = {}) {
   const s = r.stats;
   const head = `
-    <h2>${esc(r._title || r.keyword)} — top ${r.topN}</h2>
+    ${compact ? "" : `<h2>${esc(r._title || r.keyword)} — top ${r.topN}</h2>`}
     <p class="pill">requête « ${esc(r.keyword)} » · ${r.cities.requested} villes · ${r.businesses.total} fiches · ${r.businesses.withDescription} avec description · fournisseur ${esc(r.provider)} · ${new Date(r.generatedAt).toLocaleString("fr-FR")}</p>
     ${r.summary ? `<div class="summary"><h3>En clair — que faut-il faire ?</h3><p>${esc(r.summary.headline)}</p>
       <ol class="actions">${r.summary.actions.map(a=>`<li class="prio-${a.priority}"><span class="badge">${a.priority==="haute"?"Priorité":a.priority==="moyenne"?"Important":"Bonus"}</span> ${esc(a.text)}</li>`).join("")}</ol></div>` : ""}
@@ -483,12 +549,33 @@ $("#exportCsv").onclick = () => audits.length && downloadCsv(audits, "audits-goo
 // ── PDF ─────────────────────────────────────────────────────────────────────
 function exportPdf() {
   if (!audits.length) return;
-  const now = new Date().toLocaleString("fr-FR");
-  const cover = `<div class="cover"><h1>Rapport d'audit Google Local — Top 3</h1><div class="sub">${audits.length} mini-audit${audits.length>1?"s":""} consolidé${audits.length>1?"s":""} · généré le ${now}</div></div>
-    <h2>Sommaire</h2><ol class="toc">${audits.map(a=>`<li>${esc(a._title||a.keyword)} <span class="pill">« ${esc(a.keyword)} » · ${a.cities.requested} villes${a.categoryCombos?.mainCategory?` · ${esc(a.categoryCombos.mainCategory)}`:""}</span></li>`).join("")}</ol>`;
-  $("#printArea").innerHTML = cover + audits.map(a=>`<section class="audit">${renderAudit(a,{compact:true})}</section>`).join("");
-  document.title = "Audit Google Local — " + now;
-  setTimeout(()=>window.print(), 50);
+  const d = new Date();
+  const now = d.toLocaleDateString("fr-FR", { day:"2-digit", month:"long", year:"numeric" });
+  const totBiz = audits.reduce((s,a)=>s+(a.businesses?.total||0),0);
+  const totCities = audits.reduce((s,a)=>s+(a.cities?.requested||0),0);
+  const cover = `<div class="cover">
+      <div class="band"></div>
+      <div class="kicker">Audit de visibilité locale — Google Business Profile</div>
+      <h1>Rapport d'analyse du top 3 Google</h1>
+      <p class="lead">Analyse des établissements les mieux positionnés (« local pack ») pour ${audits.length} requête${audits.length>1?"s":""} métier&nbsp;+&nbsp;ville, et plan d'action pour s'en rapprocher.</p>
+      <div class="facts">
+        <div><b>${audits.length}</b><span>audit${audits.length>1?"s":""} consolidé${audits.length>1?"s":""}</span></div>
+        <div><b>${totBiz}</b><span>fiches analysées</span></div>
+        <div><b>${totCities}</b><span>requêtes ville</span></div>
+        <div><b>${now}</b><span>date du rapport</span></div>
+        <div><b>Top ${audits[0]?.topN||3}</b><span>profondeur analysée</span></div>
+        <div><b>Confidentiel</b><span>usage interne</span></div>
+      </div>
+    </div>
+    <div class="toc"><h2>Sommaire</h2><ol>${audits.map(a=>`<li><span class="t">${esc(a._title||a.keyword)}</span><span class="s">« ${esc(a.keyword)} » · ${a.cities.requested} villes${a.categoryCombos?.mainCategory?` · ${esc(a.categoryCombos.mainCategory)}`:""}${a.ratingTarget?` · note ${a.ratingTarget.median}/5`:""}</span></li>`).join("")}</ol></div>`;
+  const chapters = audits.map((a,i)=>`<section class="chapter">
+      <div class="chapter-head"><span class="num">${String(i+1).padStart(2,"0")}</span><span class="ttl">${esc(a._title||a.keyword)}</span><span class="sub">« ${esc(a.keyword)} » · ${a.cities.requested} villes · ${new Date(a.generatedAt).toLocaleDateString("fr-FR")}</span></div>
+      ${renderAudit(a,{compact:true})}
+    </section>`).join("");
+  $("#printArea").innerHTML = `<div class="pdf-footer"><span>Rapport d'audit Google Local — Top 3</span><span>${now}</span></div>` + cover + chapters;
+  $("#printArea").querySelectorAll("details").forEach(el => el.open = true); // tout déplier pour le PDF
+  document.title = "Rapport audit Google Local — " + now;
+  setTimeout(()=>window.print(), 60);
 }
 $("#exportPdf").onclick = exportPdf;
 $("#clearAll").onclick = () => { if (confirm("Effacer tous les mini-audits enregistrés ?")) { audits = []; saveAudits(); refreshList(); } };
