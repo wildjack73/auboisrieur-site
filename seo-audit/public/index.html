@@ -20,7 +20,8 @@
   .row > div { flex:1; min-width:160px; }
   .checks { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; }
   .checks label { display:flex; align-items:center; gap:7px; margin:0; color:var(--txt); font-size:14px; cursor:pointer; }
-  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:11px 20px; font:inherit; font-weight:600; cursor:pointer; margin-top:16px; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:11px 20px; font:inherit; font-weight:600; cursor:pointer; }
+  button.sec { background:#222734; color:var(--txt); border:1px solid var(--line); }
   button:disabled { opacity:.5; cursor:not-allowed; }
   .progress { margin-top:14px; font-size:13px; color:var(--mut); }
   .bar { height:8px; background:#0c0e13; border-radius:5px; overflow:hidden; margin-top:6px; }
@@ -32,26 +33,54 @@
   .stat b { font-size:20px; display:block; }
   .stat span { font-size:12px; color:var(--mut); }
   .kw { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:13px; }
-  .kw .t { width:190px; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .kw .t { width:200px; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .kw .b { flex:1; height:14px; background:#0c0e13; border-radius:3px; overflow:hidden; }
   .kw .b > i { display:block; height:100%; background:var(--acc2); }
   .kw .n { width:64px; flex:none; text-align:right; color:var(--mut); font-variant-numeric:tabular-nums; }
   .cols { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
   @media(max-width:720px){ .cols{ grid-template-columns:1fr; } }
-  ul.recs { padding-left:18px; }
-  ul.recs li { margin:6px 0; }
+  ul.recs { padding-left:18px; } ul.recs li { margin:6px 0; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
   th { color:var(--mut); font-weight:600; }
   .err { color:#ff7a7a; font-size:13px; }
   .pill { display:inline-block; background:#0c0e13; border:1px solid var(--line); border-radius:20px; padding:2px 9px; font-size:12px; color:var(--mut); }
   details { margin-top:10px; } summary { cursor:pointer; color:var(--mut); font-size:13px; }
+  .reco { background:#0c2018; border:1px solid #1f4636; border-radius:8px; padding:10px 12px; color:#9be8c4; }
+  .auditList li { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .auditList li .meta { flex:1; } .auditList li .meta small { color:var(--mut); }
+  .auditList li button { padding:4px 10px; font-size:12px; }
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+  /* ── Vue imprimable / PDF ─────────────────────────────────────────────── */
+  #printArea { display:none; }
+  @media print {
+    body { background:#fff; color:#111; font-size:11px; }
+    body > header, body > main { display:none !important; }
+    #printArea { display:block; color:#111; }
+    #printArea .audit { page-break-before:always; }
+    #printArea .audit:first-of-type { page-break-before:avoid; }
+    #printArea h1 { font-size:22px; margin:0 0 4px; }
+    #printArea h2 { font-size:15px; border-bottom:1px solid #ccc; padding-bottom:4px; margin:18px 0 10px; color:#111; }
+    #printArea h3 { font-size:12px; color:#555; margin:12px 0 6px; }
+    #printArea .reco { background:#eef9f2; border:1px solid #bfe3cd; color:#0a3d22; border-radius:6px; padding:8px 10px; }
+    #printArea .kw .b { background:#eee; } #printArea .kw .b > i { background:#7bbf9c; }
+    #printArea .kw .t { color:#111; } #printArea .kw .n { color:#666; }
+    #printArea .stat { background:#f6f7f8; border:1px solid #ddd; } #printArea .stat b{ color:#111; } #printArea .stat span{ color:#555; }
+    #printArea table { font-size:10px; } #printArea th,#printArea td { border-bottom:1px solid #ddd; }
+    #printArea th { color:#555; }
+    #printArea .pill { border:1px solid #ccc; color:#555; }
+    #printArea .cover { text-align:center; padding:40px 0 24px; border-bottom:2px solid #111; margin-bottom:18px; }
+    #printArea .cover .sub { color:#555; font-size:13px; margin-top:6px; }
+    #printArea .toc { font-size:12px; } #printArea .toc li { margin:3px 0; }
+    @page { margin:14mm 12mm; }
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>Audit Google Local — analyse du top 3</h1>
-  <p>Récupère les 3 (ou N) premiers résultats Google par ville pour un métier donné et analyse descriptions, avis, photos et statistiques.</p>
+  <p>Récupère les 3 (ou N) premiers résultats Google par ville pour un métier donné et analyse catégories, descriptions, avis, photos et statistiques. Empile tes mini-audits puis exporte un PDF complet.</p>
 </header>
 <main>
   <div class="card">
@@ -60,11 +89,15 @@
         <label>Métier / requête (sans la ville)</label>
         <input type="text" id="keyword" placeholder="ex : expert-comptable">
       </div>
-      <div style="flex:0 0 120px">
+      <div>
+        <label>Titre du mini-audit (optionnel)</label>
+        <input type="text" id="title" placeholder="ex : Experts-comptables — France">
+      </div>
+      <div style="flex:0 0 110px">
         <label>Top N</label>
         <input type="number" id="topN" value="3" min="1" max="20">
       </div>
-      <div style="flex:0 0 180px">
+      <div style="flex:0 0 170px">
         <label>Fournisseur</label>
         <select id="provider"></select>
       </div>
@@ -76,17 +109,32 @@
       <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
       <span class="pill" id="visionPill"></span>
     </div>
-    <button id="run">Lancer l'audit</button>
+    <div class="toolbar">
+      <button id="run">Lancer ce mini-audit</button>
+      <button id="exportPdf" class="sec" disabled>📄 Générer le PDF complet (0)</button>
+      <button id="clearAll" class="sec" disabled>Tout effacer</button>
+    </div>
     <div class="progress" id="prog" hidden>
       <span id="progText">…</span>
       <div class="bar"><i id="progBar"></i></div>
     </div>
   </div>
+
+  <div class="card" id="listCard" hidden>
+    <h2>Mes mini-audits</h2>
+    <ul class="auditList" id="auditList"></ul>
+  </div>
+
   <div id="out"></div>
 </main>
+
+<div id="printArea"></div>
+
 <script>
 const $ = s => document.querySelector(s);
 let meta = {};
+let audits = [];
+try { audits = JSON.parse(localStorage.getItem("seoAudits") || "[]"); } catch { audits = []; }
 
 (async () => {
   meta = await fetch("/api/meta").then(r => r.json());
@@ -94,86 +142,107 @@ let meta = {};
   $("#cities").placeholder = meta.topCities.slice(0,8).join("\n") + "\n…";
   if (!meta.visionAvailable) { $("#withVision").disabled = true; $("#visionPill").textContent = "Vision non configurée (GOOGLE_VISION_API_KEY)"; }
   else $("#visionPill").textContent = "Vision disponible";
+  refreshList();
 })();
 
-function parseCities(txt) {
-  return txt.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
-}
+function saveAudits() { try { localStorage.setItem("seoAudits", JSON.stringify(audits)); } catch {} }
+function parseCities(txt) { return txt.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 function bars(items, key="term") {
   if (!items || !items.length) return '<p class="err">Aucune donnée.</p>';
   const max = items[0].count || 1;
   return items.map(it => `<div class="kw"><span class="t" title="${esc(it[key])}">${esc(it[key])}</span>`
-    + `<span class="b"><i style="width:${Math.round(it.count/max*100)}%"></i></span>`
+    + `<span class="b"><i style="width:${Math.round((it.count/max)*100)}%"></i></span>`
     + `<span class="n">${it.count}${it.pct!=null?` · ${it.pct}%`:""}</span></div>`).join("");
 }
-function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function statBox(label, st, unit="") {
   if (!st) return "";
   return `<div class="stat"><b>${st.avg}${unit}</b><span>${esc(label)} — moy. (médiane ${st.median}${unit}, ${st.min}–${st.max}, n=${st.count})</span></div>`;
 }
 
-function render(r) {
+// Rendu d'un audit (réutilisé à l'écran ET dans le PDF, via `compact` pour le PDF).
+function renderAudit(r, { compact=false } = {}) {
   const s = r.stats;
-  $("#out").innerHTML = `
-  <div class="card">
-    <h2>Synthèse — « ${esc(r.keyword)} » · top ${r.topN}</h2>
-    <p class="pill">${r.cities.requested} villes · ${r.businesses.total} fiches · ${r.businesses.withDescription} avec description · ${r.businesses.withReviewsText} avec avis · fournisseur ${esc(r.provider)}</p>
-    <div class="stats" style="margin-top:12px">
+  const head = `
+    <h2>${esc(r._title || r.keyword)} — top ${r.topN}</h2>
+    <p class="pill">requête « ${esc(r.keyword)} » · ${r.cities.requested} villes · ${r.businesses.total} fiches · ${r.businesses.withDescription} avec description · fournisseur ${esc(r.provider)} · ${new Date(r.generatedAt).toLocaleString("fr-FR")}</p>
+    ${r.recommendations?.length ? `<h3>Recommandations</h3><ul class="recs">${r.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    <div class="stats" style="margin-top:10px">
       ${statBox("Note", s.rating, "/5")}
       ${statBox("Nombre d'avis", s.reviewsCount)}
       ${statBox("Nombre de photos", s.photosCount)}
       ${statBox("Longueur description (car.)", s.descriptionLength)}
     </div>
-    ${r.recommendations?.length ? `<h3>Recommandations</h3><ul class="recs">${r.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-  </div>
 
-  <div class="card">
-    <h2>Mots-clés des descriptions du top ${r.topN}</h2>
-    <div class="cols">
-      <div><h3>Mots (% de fiches qui le contiennent)</h3>${bars(r.descriptionKeywords.unigrams)}</div>
-      <div><h3>Expressions (bigrammes)</h3>${bars(r.descriptionKeywords.bigrams)}</div>
-    </div>
-    <details><summary>Mots-clés des snippets éditoriaux Google</summary>
-      <div class="cols"><div>${bars(r.snippetKeywords.unigrams.slice(0,20))}</div><div>${bars(r.snippetKeywords.bigrams.slice(0,15))}</div></div>
-    </details>
-  </div>
-
-  ${r.reviewKeywords.documents ? `<div class="card">
-    <h2>Mots-clés des avis (${r.reviewKeywords.documents} avis analysés)</h2>
-    <div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams)}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams)}</div></div>
-  </div>` : ""}
-
-  <div class="card">
-    <h2>Catégories du top ${r.topN} <span class="pill">pondéré par position — ${esc(r.categoryCombos?.weighting||"")}</span></h2>
-    ${r.categoryCombos?.recommendation ? `<p style="background:#0c2018;border:1px solid #1f4636;border-radius:8px;padding:10px 12px;color:#9be8c4">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
+    <h2>Catégories du top ${r.topN} <span class="pill">pondéré — ${esc(r.categoryCombos?.weighting||"")}</span></h2>
+    ${r.categoryCombos?.recommendation ? `<p class="reco">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
     <div class="cols">
       <div><h3>Combinaisons exactes (principale ; secondaires) — ${r.categoryCombos?.businessesWithCategories||0} fiches</h3>
         ${bars((r.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})))}</div>
       <div><h3>Catégories prises isolément</h3>${bars(r.categories)}</div>
     </div>
-  </div>
 
-  ${r.vision ? `<div class="card">
-    <h2>Photos — objets/labels détectés (${r.vision.imagesAnalyzed} images, ${r.vision.businessesAnalyzed} fiches)</h2>
-    ${bars(r.vision.topObjects)}
-  </div>` : ""}
-
-  <div class="card">
+    <h2>Mots-clés des descriptions du top ${r.topN}</h2>
+    <div class="cols">
+      <div><h3>Mots (% de fiches qui le contiennent)</h3>${bars((r.descriptionKeywords.unigrams||[]).slice(0,compact?20:40))}</div>
+      <div><h3>Expressions (bigrammes)</h3>${bars((r.descriptionKeywords.bigrams||[]).slice(0,compact?15:25))}</div>
+    </div>
+    ${r.reviewKeywords.documents ? `<h2>Mots-clés des avis (${r.reviewKeywords.documents} avis)</h2>
+      <div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
+    ${r.vision ? `<h2>Photos — objets détectés (${r.vision.imagesAnalyzed} images, ${r.vision.businessesAnalyzed} fiches)</h2>${bars(r.vision.topObjects.slice(0,compact?15:30))}` : ""}
+  `;
+  if (compact) {
+    return head + `<h3>Échantillon du top ${r.topN}</h3><table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead><tbody>${
+      r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>`;
+  }
+  return head + `
     <h2>Échantillon des fiches du top ${r.topN}</h2>
     <table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th><th>Description</th></tr></thead>
     <tbody>${r.sample.map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td><td>${esc(b.description||"—")}</td></tr>`).join("")}</tbody></table>
-  </div>
-
-  ${r.errors?.length ? `<div class="card"><h2>Erreurs (${r.errors.length})</h2><table><tbody>${r.errors.slice(0,30).map(e=>`<tr><td>${esc(e.city)}</td><td class="err">${esc(e.error)}</td></tr>`).join("")}</tbody></table></div>` : ""}
-
-  <div class="card"><details><summary>JSON brut</summary><pre style="overflow:auto;font-size:12px">${esc(JSON.stringify(r,null,2))}</pre></details></div>
-  `;
+    ${r.errors?.length ? `<details><summary>Erreurs (${r.errors.length})</summary><table><tbody>${r.errors.slice(0,40).map(e=>`<tr><td>${esc(e.city)}</td><td class="err">${esc(e.error)}</td></tr>`).join("")}</tbody></table></details>` : ""}
+    <details><summary>JSON brut</summary><pre style="overflow:auto;font-size:12px">${esc(JSON.stringify(r,null,2))}</pre></details>`;
 }
 
+function showOnScreen(r) { $("#out").innerHTML = `<div class="card">${renderAudit(r)}</div>`; window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }
+
+function refreshList() {
+  $("#exportPdf").textContent = `📄 Générer le PDF complet (${audits.length})`;
+  $("#exportPdf").disabled = audits.length === 0;
+  $("#clearAll").disabled = audits.length === 0;
+  $("#listCard").hidden = audits.length === 0;
+  $("#auditList").innerHTML = audits.map((a, i) => `<li>
+      <span class="meta"><b>${esc(a._title || a.keyword)}</b><br><small>requête « ${esc(a.keyword)} » · ${a.cities.requested} villes · top ${a.topN} · ${new Date(a.generatedAt).toLocaleString("fr-FR")}${a.categoryCombos?.mainCategory?` · ➜ ${esc(a.categoryCombos.mainCategory)}`:""}</small></span>
+      <button class="sec" data-view="${i}">Voir</button>
+      <button class="sec" data-del="${i}">✕</button>
+    </li>`).join("");
+  $("#auditList").querySelectorAll("[data-view]").forEach(b => b.onclick = () => showOnScreen(audits[+b.dataset.view]));
+  $("#auditList").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { audits.splice(+b.dataset.del,1); saveAudits(); refreshList(); });
+}
+
+// ── Construire la vue imprimable et lancer l'impression / PDF ───────────────
+function exportPdf() {
+  if (!audits.length) return;
+  const now = new Date().toLocaleString("fr-FR");
+  const cover = `<div class="cover">
+      <h1>Rapport d'audit Google Local — Top 3</h1>
+      <div class="sub">${audits.length} mini-audit${audits.length>1?"s":""} consolidé${audits.length>1?"s":""} · généré le ${now}</div>
+    </div>
+    <h2>Sommaire</h2>
+    <ol class="toc">${audits.map(a=>`<li>${esc(a._title || a.keyword)} <span class="pill">« ${esc(a.keyword)} » · ${a.cities.requested} villes${a.categoryCombos?.mainCategory?` · ${esc(a.categoryCombos.mainCategory)}`:""}</span></li>`).join("")}</ol>`;
+  const body = audits.map(a => `<section class="audit">${renderAudit(a, { compact:true })}</section>`).join("");
+  $("#printArea").innerHTML = cover + body;
+  document.title = "Audit Google Local — " + now;
+  setTimeout(() => window.print(), 50);
+}
+$("#exportPdf").onclick = exportPdf;
+$("#clearAll").onclick = () => { if (confirm("Effacer tous les mini-audits enregistrés ?")) { audits = []; saveAudits(); refreshList(); } };
+
+// ── Lancer un mini-audit ────────────────────────────────────────────────────
 $("#run").addEventListener("click", () => {
   const keyword = $("#keyword").value.trim();
   if (!keyword) { alert("Indique un métier / une requête."); return; }
+  const title = $("#title").value.trim();
   const payload = {
     keyword,
     topN: parseInt($("#topN").value,10) || 3,
@@ -182,18 +251,12 @@ $("#run").addEventListener("click", () => {
     withReviews: $("#withReviews").checked,
     withVision: $("#withVision").checked && !$("#withVision").disabled,
   };
-  $("#run").disabled = true;
-  $("#out").innerHTML = "";
-  $("#prog").hidden = false;
-  $("#progText").textContent = "Démarrage…";
-  $("#progBar").style.width = "0%";
+  $("#run").disabled = true; $("#out").innerHTML = "";
+  $("#prog").hidden = false; $("#progText").textContent = "Démarrage…"; $("#progBar").style.width = "0%";
 
-  // EventSource ne supporte pas POST → on utilise fetch + ReadableStream pour le SSE.
   fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) })
     .then(async resp => {
-      const reader = resp.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = "";
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -202,10 +265,8 @@ $("#run").addEventListener("click", () => {
         while ((idx = buf.indexOf("\n\n")) >= 0) {
           const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
           const ev = (chunk.match(/^event: (.*)$/m)||[])[1];
-          const dataLine = (chunk.match(/^data: (.*)$/m)||[])[1];
-          if (!dataLine) continue;
-          const data = JSON.parse(dataLine);
-          handle(ev, data);
+          const dataLine = (chunk.match(/^data: ([\s\S]*)$/m)||[])[1];
+          if (dataLine) handle(ev, JSON.parse(dataLine), title);
         }
       }
     })
@@ -213,16 +274,19 @@ $("#run").addEventListener("click", () => {
     .finally(() => { $("#run").disabled = false; });
 });
 
-function handle(ev, data) {
+function handle(ev, data, title) {
   if (ev === "start") { $("#progText").textContent = `Audit de ${data.cities} ville(s)…`; }
   else if (ev === "progress") {
-    const total = data.total || 1, done = data.done || 0;
-    const pct = Math.round(done/total*100);
+    const total = data.total || 1, done = data.done || 0, pct = Math.round((done/total)*100);
     $("#progBar").style.width = pct + "%";
     const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", vision:"Analyse des photos" };
     $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
   }
-  else if (ev === "done") { $("#prog").hidden = true; render(data); }
+  else if (ev === "done") {
+    $("#prog").hidden = true;
+    data._title = title || data.keyword;
+    audits.push(data); saveAudits(); refreshList(); showOnScreen(data);
+  }
   else if (ev === "error") { $("#prog").hidden = true; $("#out").innerHTML = `<div class="card err">Erreur : ${esc(data.error)}</div>`; }
 }
 </script>
