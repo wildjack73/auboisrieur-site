@@ -205,6 +205,34 @@ function titleKeywordAnalysis(businesses, keyword, topN) {
   };
 }
 
+// Audit "note des avis" : quelle note moyenne / minimale viser pour entrer
+// dans le top N, par position, avec la distribution des notes.
+function ratingTarget(businesses, topN) {
+  const rated = businesses.filter(b => typeof b.rating === "number" && Number.isFinite(b.rating));
+  if (!rated.length) return null;
+  const ratings = rated.map(b => b.rating).sort((a, b) => a - b);
+  const counts = rated.map(b => b.reviewsCount).filter(n => typeof n === "number" && Number.isFinite(n)).sort((a, b) => a - b);
+  const q = (arr, p) => arr.length ? arr[Math.min(arr.length - 1, Math.floor(p * (arr.length - 1)))] : null;
+  const avg = a => a.length ? Math.round((a.reduce((s, x) => s + x, 0) / a.length) * 100) / 100 : null;
+  const byRankMap = new Map();
+  for (const b of rated) { const r = Number.isFinite(b.rank) ? b.rank : topN; (byRankMap.get(r) || byRankMap.set(r, []).get(r)).push(b); }
+  const byRank = [...byRankMap.entries()].sort((a, b) => a[0] - b[0]).map(([rank, list]) => {
+    const rr = list.map(x => x.rating);
+    const cc = list.map(x => x.reviewsCount).filter(n => typeof n === "number");
+    return { rank, n: list.length, avgRating: avg(rr), minRating: Math.min(...rr), avgReviews: cc.length ? Math.round(avg(cc)) : null };
+  });
+  const buckets = [["5.0", r => r >= 5], ["4.9", r => r >= 4.9 && r < 5], ["4.8", r => r >= 4.8 && r < 4.9], ["4.5–4.7", r => r >= 4.5 && r < 4.8], ["4.0–4.4", r => r >= 4 && r < 4.5], ["< 4.0", r => r < 4]];
+  const distribution = buckets.map(([label, fn]) => ({ term: label, count: ratings.filter(fn).length })).filter(b => b.count);
+  const floor = ratings[0], median = q(ratings, 0.5), p25 = q(ratings, 0.25), max = ratings[ratings.length - 1];
+  const minReviews = counts.length ? counts[0] : null, medianReviews = q(counts, 0.5);
+  return {
+    businessesRated: rated.length, avg: avg(ratings), floor, median, p25, max,
+    minReviews, medianReviews, byRank, distribution,
+    recommendation: `Note à atteindre : au moins ${floor}/5 (la plus basse du top ${topN}), idéalement ≥ ${median}/5 (médiane du top ${topN})` +
+      (minReviews != null ? `, avec au moins ${minReviews} avis (idéalement ${medianReviews}+).` : "."),
+  };
+}
+
 // Aide "sémantique des avis" : à partir des chips Google (place topics) et des
 // mots du texte des avis, on liste les mots à reprendre dans les réponses aux
 // avis (et à suggérer aux clients), avec un modèle de réponse.
@@ -437,6 +465,7 @@ export async function runAudit(opts) {
       photosCount: numberStats(businesses.map(b => b.photosCount)),
       descriptionLength: numberStats(descriptions.map(d => d.length)),
     },
+    ratingTarget: ratingTarget(businesses, topN),
     categories: weightedCategoryTally(businesses, topN),
     categoryCombos: categoryComboAnalysis(businesses, topN),
     titleKeyword: titleKeywordAnalysis(businesses, keyword, topN),
@@ -463,11 +492,12 @@ export async function runAudit(opts) {
 
 function buildRecommendations(r) {
   const recs = [];
-  if (r.stats.reviewsCount) {
-    recs.push(`Viser au moins ${r.stats.reviewsCount.median} avis (médiane du top ${r.topN}), idéalement ${r.stats.reviewsCount.p75}+ pour passer devant la majorité.`);
-  }
-  if (r.stats.rating) {
-    recs.push(`Note moyenne du top ${r.topN} : ${r.stats.rating.avg}/5 — rester au-dessus de ${r.stats.rating.p25}/5.`);
+  if (r.ratingTarget) {
+    recs.push(r.ratingTarget.recommendation);
+    if (r.ratingTarget.medianReviews != null) recs.push(`Nombre d'avis à atteindre : ≥ ${r.ratingTarget.minReviews} (minimum du top ${r.topN}), cible ${r.ratingTarget.medianReviews} (médiane)${r.stats.reviewsCount ? `, top ${r.topN} jusqu'à ${r.stats.reviewsCount.max} avis` : ""}.`);
+  } else {
+    if (r.stats.reviewsCount) recs.push(`Viser au moins ${r.stats.reviewsCount.median} avis (médiane du top ${r.topN}), idéalement ${r.stats.reviewsCount.p75}+.`);
+    if (r.stats.rating) recs.push(`Note moyenne du top ${r.topN} : ${r.stats.rating.avg}/5 — rester au-dessus de ${r.stats.rating.p25}/5.`);
   }
   const g = r.descriptionGuide;
   if (g) {

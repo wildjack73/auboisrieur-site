@@ -269,6 +269,15 @@ function renderAudit(r, { compact=false } = {}) {
     <div class="stats" style="margin-top:10px">
       ${statBox("Note", s.rating, "/5")}${statBox("Nombre d'avis", s.reviewsCount)}${statBox("Nombre de photos", s.photosCount)}${statBox("Longueur description (car.)", s.descriptionLength)}
     </div>
+    ${r.ratingTarget ? (g => `<h2>Note &amp; nombre d'avis — objectif à atteindre</h2>
+      <p class="reco">★ ${esc(g.recommendation)}${g.medianReviews!=null?` Nombre d'avis : ≥ ${g.minReviews} (min.), cible ${g.medianReviews} (médiane).`:""}</p>
+      <div class="stats" style="margin-top:8px">
+        <div class="stat"><b>${g.median}/5</b><span>note médiane du top ${r.topN} (à viser) — moy. ${g.avg}/5, plancher ${g.floor}/5, max ${g.max}/5</span></div>
+        ${g.medianReviews!=null?`<div class="stat"><b>${g.medianReviews}</b><span>avis médian du top ${r.topN} — min. ${g.minReviews}${r.stats.reviewsCount?`, max ${r.stats.reviewsCount.max}`:""}</span></div>`:""}
+      </div>
+      <h3>Par position</h3><table><thead><tr><th>Position</th><th>Fiches</th><th>Note moy.</th><th>Note min.</th><th>Avis moy.</th></tr></thead><tbody>${
+        g.byRank.map(x=>`<tr><td>#${x.rank}</td><td>${x.n}</td><td>${x.avgRating}/5</td><td>${x.minRating}/5</td><td>${x.avgReviews??"—"}</td></tr>`).join("")}</tbody></table>
+      ${g.distribution?.length?`<h3>Distribution des notes du top ${r.topN}</h3>${bars(g.distribution)}`:""}` )(r.ratingTarget) : ""}
     ${r.titleKeyword?.businessesWithTitle ? `<h2>Mot-clé dans le nom de la fiche ?</h2>
       <p class="reco">★ ${esc(r.titleKeyword.recommendation||"")}</p>
       <div class="stats" style="margin-top:8px">
@@ -355,6 +364,7 @@ function downloadCsv(list, filename){
     add(a,"avis_a_reprendre",a.reviewGuide?.mustMention);
     add(a,"avis_texte_mot",a.reviewKeywords?.unigrams);
     add(a,"avis_texte_expression",a.reviewKeywords?.bigrams);
+    if(a.ratingTarget){ rows.push([a._title||a.keyword,"note_a_atteindre_mediane",a.ratingTarget.median+"/5",a.ratingTarget.median,""]); rows.push([a._title||a.keyword,"avis_a_atteindre_mediane",a.ratingTarget.medianReviews??"",a.ratingTarget.medianReviews??"",""]); add(a,"note_distribution",a.ratingTarget.distribution); }
     add(a,"categorie",a.categories);
     add(a,"categorie_combinaison",(a.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})));
     if(a.vision){ add(a,"photo_objet",a.vision.topObjects); add(a,"photo_label",a.vision.topLabels); add(a,"photo_texte",a.vision.topTexts); }
