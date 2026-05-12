@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LocalBoost — votre place sur le podium</title>
+<title>Objectif Top 3 — votre place sur le podium</title>
 <style>
   :root { --bg:#0f1115; --card:#171a21; --line:#262b36; --txt:#e6e9ef; --mut:#9aa3b2; --acc:#4f8cff; --acc2:#36c98d; }
   * { box-sizing:border-box; }
@@ -177,7 +177,7 @@
 </head>
 <body>
 <header>
-  <h1>LocalBoost <span style="color:var(--mut);font-weight:400;font-size:14px">— votre place sur le podium</span></h1>
+  <h1>Objectif Top 3 <span style="color:var(--mut);font-weight:400;font-size:14px">— votre place sur le podium</span></h1>
   <p><b>Rien n'est laissé au hasard.</b> On analyse le top 3 Google (« local pack ») pour un métier × ville sur des centaines de communes, on mesure tout ce que font les leaders — catégories, nom de fiche, description, avis & sémantique, photos, attributs, citations, site web, volumes de recherche — et on en déduit le plan d'action précis. Empile tes mini-audits puis exporte un PDF pro.</p>
 </header>
 <nav class="tabs">
@@ -544,7 +544,7 @@ function downloadCsv(list, filename){
   const url = URL.createObjectURL(blob); const link=document.createElement("a");
   link.href=url; link.download=filename||"audits.csv"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-$("#exportCsv").onclick = () => audits.length && downloadCsv(audits, "localboost-audits.csv");
+$("#exportCsv").onclick = () => audits.length && downloadCsv(audits, "objectif-top-3-audits.csv");
 
 // ── PDF ─────────────────────────────────────────────────────────────────────
 function exportPdf() {
@@ -555,7 +555,7 @@ function exportPdf() {
   const totCities = audits.reduce((s,a)=>s+(a.cities?.requested||0),0);
   const cover = `<div class="cover">
       <div class="band"></div>
-      <div class="kicker">LocalBoost · audit de visibilité locale — Google Business Profile</div>
+      <div class="kicker">Objectif Top 3 · audit de visibilité locale — Google Business Profile</div>
       <h1>Votre place sur le podium</h1>
       <p class="lead">Rien n'est laissé au hasard : analyse exhaustive des établissements les mieux positionnés (« top 3 / local pack ») pour ${audits.length} requête${audits.length>1?"s":""} métier&nbsp;+&nbsp;ville, et plan d'action précis pour s'en rapprocher.</p>
       <div class="facts">
@@ -572,9 +572,9 @@ function exportPdf() {
       <div class="chapter-head"><span class="num">${String(i+1).padStart(2,"0")}</span><span class="ttl">${esc(a._title||a.keyword)}</span><span class="sub">« ${esc(a.keyword)} » · ${a.cities.requested} villes · ${new Date(a.generatedAt).toLocaleDateString("fr-FR")}</span></div>
       ${renderAudit(a,{compact:true})}
     </section>`).join("");
-  $("#printArea").innerHTML = `<div class="pdf-footer"><span>LocalBoost — votre place sur le podium</span><span>${now}</span></div>` + cover + chapters;
+  $("#printArea").innerHTML = `<div class="pdf-footer"><span>Objectif Top 3 — votre place sur le podium</span><span>${now}</span></div>` + cover + chapters;
   $("#printArea").querySelectorAll("details").forEach(el => el.open = true); // tout déplier pour le PDF
-  document.title = "LocalBoost — rapport d'audit — " + now;
+  document.title = "Objectif Top 3 — rapport d'audit — " + now;
   setTimeout(()=>window.print(), 60);
 }
 $("#exportPdf").onclick = exportPdf;
