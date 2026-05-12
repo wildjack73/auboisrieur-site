@@ -4,7 +4,7 @@ import dataforseo from "./providers/dataforseo.mjs";
 import valueserp from "./providers/valueserp.mjs";
 import { analyzeImages, visionConfigured } from "./vision.mjs";
 import serpapi from "./serpapi.mjs";
-import { translateTerms, translateConfigured } from "./translate.mjs";
+import { translate, translateConfigured } from "./translate.mjs";
 
 const PROVIDERS = { dataforseo, valueserp };
 
@@ -358,11 +358,20 @@ export async function runAudit(opts) {
     }
     const top = (m, n) => [...m.entries()].map(([term, count]) => ({ term, count })).sort((a, b) => b.count - a.count).slice(0, n);
     let topObjects = top(O, 30), topLabels = top(L, 30);
-    // Vision renvoie les objets/labels en anglais → traduction en français.
+    // Vision renvoie les objets/labels en anglais → on constitue d'abord la
+    // liste complète, on dédoublonne, puis une seule traduction (avec cache).
     if (translateConfigured()) {
       onProgress({ phase: "vision", done: withImgs.length, total: withImgs.length, name: "traduction" });
-      try { topObjects = await translateTerms(topObjects); } catch { /* keep en */ }
-      try { topLabels = await translateTerms(topLabels); } catch { /* keep en */ }
+      try {
+        const allEn = [...new Set([...topObjects, ...topLabels].map(x => x.term))];
+        const fr = await translate(allEn);
+        const map = new Map(allEn.map((en, i) => [en, fr[i]]));
+        const apply = arr => arr.map(x => {
+          const t = map.get(x.term);
+          return (t && t.toLowerCase() !== x.term.toLowerCase()) ? { ...x, term: t.toLowerCase(), original: x.term } : x;
+        });
+        topObjects = apply(topObjects); topLabels = apply(topLabels);
+      } catch { /* keep en */ }
     }
     visionAgg = {
       imagesAnalyzed, businessesAnalyzed: withImgs.length,
