@@ -39,6 +39,12 @@ export default {
     base: "https://translation.googleapis.com/language/translate/v2",
   },
 
+  // Haloscan (https://tool.haloscan.com) — clé API (JWT) ; auth via header haloscan-api-key
+  haloscan: {
+    apiKey: env("HALOSCAN_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoyMiwiZGF0ZSI6MTcxMTYyNjk0NTYzMywiaWF0IjoxNzExNjI2OTQ1LCJleHAiOjE3NDMxODQ1NDV9.MMF3zKq2R0yPoKaxnbNhXJVWOiORzi-URi_sMgGssTw"),
+    base: "https://api.haloscan.com",
+  },
+
   // Localisation / langue par défaut pour les requêtes SERP
   locationName: env("SEO_AUDIT_LOCATION", "France"),
   languageCode: env("SEO_AUDIT_LANGUAGE", "fr"),
