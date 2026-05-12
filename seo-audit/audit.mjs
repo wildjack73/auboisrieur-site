@@ -205,6 +205,25 @@ function titleKeywordAnalysis(businesses, keyword, topN) {
   };
 }
 
+// Aide "sémantique des avis" : à partir des chips Google (place topics) et des
+// mots du texte des avis, on liste les mots à reprendre dans les réponses aux
+// avis (et à suggérer aux clients), avec un modèle de réponse.
+function reviewSemanticGuide(reviewTopics, reviewKeywords, keyword) {
+  const topics = (reviewTopics?.topics || []).filter(t => t.term && t.term.length >= 3);
+  const textWords = (reviewKeywords?.unigrams || []).filter(x => x.term.length >= 4);
+  if (!topics.length && !textWords.length) return null;
+  const mustMention = topics.slice(0, 10).map(t => ({ term: t.term, count: t.count }));
+  const alsoUseful = topics.slice(10, 24).map(t => t.term);
+  const fromReviewText = textWords.slice(0, 15).map(x => x.term);
+  const words = [...new Set([...mustMention.map(m => m.term), ...fromReviewText])].slice(0, 12);
+  const responseTemplate =
+    `Bonjour [prénom], merci beaucoup pour votre avis et votre confiance ! ` +
+    `Toute l'équipe est ravie que votre expérience ait été à la hauteur` +
+    (words.length ? ` — ${words.slice(0, 4).join(", ")} font partie de ce qui nous tient à cœur` : "") +
+    `. Au plaisir de vous accueillir à nouveau. [Signature, ${keyword}]`;
+  return { mustMention, alsoUseful, fromReviewText, words, responseTemplate };
+}
+
 // Mots-clés des avis selon Google ("place topics") : Google associe à chaque
 // fiche des sujets fréquemment mentionnés dans les avis, avec un nombre de
 // mentions. On somme ces mentions sur tout le top N (comme le bot ZennoPoster).
@@ -435,6 +454,7 @@ export async function runAudit(opts) {
   };
 
   report.descriptionGuide = descriptionGuide(report.descriptionKeywords, keyword, report.stats.descriptionLength);
+  report.reviewGuide = reviewSemanticGuide(report.reviewTopics, report.reviewKeywords, keyword);
 
   // Recommandations dérivées
   report.recommendations = buildRecommendations(report);
@@ -462,7 +482,7 @@ function buildRecommendations(r) {
   if (r.categoryCombos?.recommendation) recs.push(r.categoryCombos.recommendation);
   else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
   if (r.reviewTopics?.topics?.length) {
-    recs.push(`Mots-clés à faire ressortir dans les avis (mentionnés par les clients du top ${r.topN}) : ${r.reviewTopics.topics.slice(0, 10).map(t => `${t.term} (${t.count})`).join(", ")}.`);
+    recs.push(`Mots-clés des avis (chips Google) à reprendre dans vos réponses aux avis et à suggérer à vos clients : ${r.reviewTopics.topics.slice(0, 10).map(t => `${t.term} (${t.count})`).join(", ")}.`);
   }
   if (r.citations?.mustSubmit?.length) {
     recs.push(`Annuaires / sites de citations où être présent pour « ${r.keyword} » (apparaissent dans ≥ 50 % des SERP analysées) : ${r.citations.mustSubmit.map(d => d.domain).join(", ")}.`);

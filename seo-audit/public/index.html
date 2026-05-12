@@ -297,7 +297,12 @@ function renderAudit(r, { compact=false } = {}) {
       <div><h3>Mots</h3>${bars((r.descriptionKeywords.unigrams||[]).slice(0,compact?20:40))}</div>
       <div><h3>Expressions (bigrammes)</h3>${bars((r.descriptionKeywords.bigrams||[]).slice(0,compact?15:25))}</div>
     </div>
-    ${r.reviewTopics?.topics?.length ? `<h2>Mots-clés des avis selon Google — « place topics » (${r.reviewTopics.businessesWithTopics} fiches)</h2><p style="color:var(--mut);font-size:13px;margin:0 0 6px">Sujets que Google extrait des avis ; le nombre = total des mentions sur le top ${r.topN}.</p>${bars(r.reviewTopics.topics.slice(0,compact?20:40))}` : ""}
+    ${r.reviewTopics?.topics?.length ? `<h2>Mots-clés des avis (chips Google) — « place topics » <span class="pill">${r.reviewTopics.businessesWithTopics} fiches</span></h2><p style="color:var(--mut);font-size:13px;margin:0 0 6px">Les étiquettes affichées sous « Avis » sur la fiche (ex. <i>gentillesse 23, professionnalisme 19…</i>) ; le nombre = total des mentions sur le top ${r.topN}. Sémantique à reprendre dans vos réponses aux avis et à suggérer à vos clients.</p>${bars(r.reviewTopics.topics.slice(0,compact?20:40))}` : ""}
+    ${r.reviewGuide ? (g => `<h2>Sémantique pour les avis &amp; réponses</h2>
+      ${g.mustMention?.length ? `<h3>Mots à reprendre en priorité</h3>${bars(g.mustMention)}` : ""}
+      ${g.alsoUseful?.length ? `<p class="pill">Aussi utiles : ${esc(g.alsoUseful.join(", "))}</p>` : ""}
+      ${g.fromReviewText?.length ? `<p style="font-size:13px"><b>Mots fréquents dans le texte des avis :</b> ${esc(g.fromReviewText.join(", "))}</p>` : ""}
+      <h3>Modèle de réponse aux avis (à adapter)</h3><textarea readonly style="min-height:80px">${esc(g.responseTemplate)}</textarea>` )(r.reviewGuide) : ""}
     ${r.reviewKeywords.documents ? `<h2>Mots-clés du texte des avis (${r.reviewKeywords.documents} avis)</h2><div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
     ${r.citations ? (c => `<h2>Citations / annuaires où être présent <span class="pill">${c.citiesScanned} SERP analysées</span></h2>
       <p style="color:var(--mut);font-size:13px;margin:0 0 6px">Domaines qui ressortent dans les résultats organiques de « ${esc(r.keyword)} + ville » ; nb = dans combien de villes le domaine apparaît.</p>
@@ -347,6 +352,7 @@ function downloadCsv(list, filename){
     add(a,"description_mot",a.descriptionKeywords?.unigrams);
     add(a,"description_bigramme",a.descriptionKeywords?.bigrams);
     add(a,"avis_place_topics",a.reviewTopics?.topics);
+    add(a,"avis_a_reprendre",a.reviewGuide?.mustMention);
     add(a,"avis_texte_mot",a.reviewKeywords?.unigrams);
     add(a,"avis_texte_expression",a.reviewKeywords?.bigrams);
     add(a,"categorie",a.categories);
