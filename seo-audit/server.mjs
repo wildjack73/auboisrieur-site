@@ -96,6 +96,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(config.port, () => {
-  console.log(`Audit Google Local — http://localhost:${config.port}`);
+  console.log(`LocalBoost — http://localhost:${config.port}`);
   console.log(`Fournisseur par défaut : ${config.defaultProvider} | Vision : ${visionConfigured() ? "activée" : "désactivée"}`);
 });
