@@ -41,7 +41,7 @@ export default {
 
   // Haloscan (https://tool.haloscan.com) — clé API (JWT) ; auth via header haloscan-api-key
   haloscan: {
-    apiKey: env("HALOSCAN_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoyMiwiZGF0ZSI6MTcxMTYyNjk0NTYzMywiaWF0IjoxNzExNjI2OTQ1LCJleHAiOjE3NDMxODQ1NDV9.MMF3zKq2R0yPoKaxnbNhXJVWOiORzi-URi_sMgGssTw"),
+    apiKey: env("HALOSCAN_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoyMiwiZGF0ZSI6MTc3ODYxNzE1ODU0OCwiaWF0IjoxNzc4NjE3MTU4LCJleHAiOjIwOTQxOTMxNTh9.bCltDfvOCoj-VXeNoF9pMpoTJOe48kQxFCXm8EnUoA8"),
     base: "https://api.haloscan.com",
   },
 
