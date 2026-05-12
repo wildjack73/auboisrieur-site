@@ -242,6 +242,54 @@ function reviewFrequencyAnalysis(businesses) {
   };
 }
 
+// Gros sites souvent reliés aux fiches (réseaux sociaux / agrégateurs / places
+// de marché) qu'on EXCLUT quand on étudie le "vrai" site du business.
+const SOCIAL_DOMAINS = new Set(["facebook.com", "fb.com", "fb.me", "instagram.com", "linkedin.com", "twitter.com", "x.com", "youtube.com", "youtu.be", "tiktok.com", "pinterest.com", "pinterest.fr", "snapchat.com", "wa.me", "linktr.ee", "beacons.ai"]);
+const AGGREGATOR_DOMAINS = new Set(["booking.com", "planity.com", "treatwell.fr", "treatwell.com", "fresha.com", "doctolib.fr", "doctolib.com", "pagesjaunes.fr", "mappy.com", "tripadvisor.fr", "tripadvisor.com", "yelp.com", "yelp.fr", "justacote.com", "starofservice.com", "malt.fr", "leboncoin.fr", "ubereats.com", "deliveroo.fr", "deliveroo.com", "thefork.fr", "thefork.com", "lafourchette.com", "trustpilot.com", "g.page", "google.com", "amazon.fr", "etsy.com", "wanteed.fr", "houzz.fr", "houzz.com", "allovoisins.com", "ootravaux.fr", "travaux.com", "habitatpresto.com", "izi-by-edf.fr", "needhelp.com", "frizbiz.com", "fr.trustpilot.com"]);
+
+function classifyDomain(domain) {
+  if (!domain) return "none";
+  const d = String(domain).toLowerCase().replace(/^www\./, "");
+  const inSet = set => [...set].some(p => d === p || d.endsWith("." + p));
+  if (inSet(SOCIAL_DOMAINS)) return "social";
+  if (inSet(AGGREGATOR_DOMAINS)) return "aggregator";
+  return "own";
+}
+
+// Métriques du "vrai" site web des fiches du top N (autorité : Domain Rank,
+// domaines référents, backlinks) — en excluant socials/agrégateurs. DataForSEO.
+async function siteMetricsAnalysis(businesses, topN, onProgress) {
+  if (!dataforseo.configured()) return null;
+  const tally = { none: 0, social: 0, aggregator: 0, own: 0 };
+  const ownDomains = []; const seen = new Set();
+  for (const b of businesses) {
+    const c = classifyDomain(b.domain);
+    tally[c]++;
+    if (c === "own" && b.domain && !seen.has(b.domain)) { seen.add(b.domain); ownDomains.push(b.domain); }
+  }
+  const metrics = [];
+  const list = ownDomains.slice(0, 40);
+  for (let i = 0; i < list.length; i++) {
+    onProgress?.({ phase: "sitemetrics", done: i, total: list.length, name: list[i] });
+    try { const m = await dataforseo.domainMetrics(list[i]); if (m) metrics.push(m); } catch { /* skip */ }
+  }
+  const tot = businesses.length || 1;
+  const rank = numberStats(metrics.map(m => m.rank));
+  const referringDomains = numberStats(metrics.map(m => m.referringDomains));
+  const backlinks = numberStats(metrics.map(m => m.backlinks));
+  const ownPct = Math.round((tally.own / tot) * 100);
+  return {
+    businesses: tot,
+    breakdown: { ownSitePct: ownPct, socialOnlyPct: Math.round((tally.social / tot) * 100), aggregatorPct: Math.round((tally.aggregator / tot) * 100), noSitePct: Math.round((tally.none / tot) * 100) },
+    sitesAnalyzed: metrics.length,
+    rank, referringDomains, backlinks,
+    rows: metrics.slice().sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 40),
+    recommendation: (metrics.length && rank)
+      ? `Sites des fiches du top ${topN} : Domain Rank médian ${rank.median}/1000${referringDomains ? `, ~${referringDomains.median} domaines référents` : ""}${backlinks ? `, ~${backlinks.median} backlinks` : ""} → vise au moins ces niveaux pour ton site. (${ownPct}% des fiches du top ${topN} ont un vrai site propre.)`
+      : `${ownPct}% des fiches du top ${topN} ont un vrai site propre (le reste : page sociale/agrégateur ou pas de site) — peu de données de métriques exploitables.`,
+  };
+}
+
 // Position du SITE de la fiche dans le SERP organique de "<métier> <ville>"
 // (nécessite l'audit citations actif, qui fournit les résultats organiques).
 function websiteRankAnalysis(businesses, organicByCity, topN) {
@@ -379,7 +427,7 @@ export async function runAudit(opts) {
   const {
     keyword, cities, topN = 3,
     providerName = config.defaultProvider,
-    withReviews = false, withVision = false, withCitations = false,
+    withReviews = false, withVision = false, withCitations = false, withSiteMetrics = false,
     onProgress = () => {},
   } = opts;
 
@@ -445,6 +493,12 @@ export async function runAudit(opts) {
     }
     organicByCity = byCity;
     citations = citationsAnalysis(byCity);
+  }
+
+  // Métriques des sites web des fiches (optionnel) — DataForSEO Backlinks
+  let siteMetrics = null;
+  if (withSiteMetrics) {
+    try { siteMetrics = await siteMetricsAnalysis(businesses, topN, onProgress); } catch { /* skip */ }
   }
 
   // Photos + Vision (optionnel)
@@ -543,6 +597,7 @@ export async function runAudit(opts) {
     ratingTarget: ratingTarget(businesses, topN),
     reviewFrequency: reviewFrequencyAnalysis(businesses),
     websiteRank: websiteRankAnalysis(businesses, organicByCity, topN),
+    siteMetrics,
     categories: weightedCategoryTally(businesses, topN),
     categoryCombos: categoryComboAnalysis(businesses, topN),
     titleKeyword: titleKeywordAnalysis(businesses, keyword, topN),
@@ -590,6 +645,7 @@ function buildRecommendations(r) {
   if (r.title?.words) recs.push(`Longueur du nom de la fiche : ~${r.title.words.median} mots / ${r.title.chars.median} caractères (médiane du top ${r.topN}).`);
   if (r.titleKeyword?.recommendation) recs.push(r.titleKeyword.recommendation);
   if (r.websiteRank?.recommendation) recs.push(r.websiteRank.recommendation);
+  if (r.siteMetrics?.recommendation) recs.push(r.siteMetrics.recommendation);
   if (r.categoryCombos?.recommendation) recs.push(r.categoryCombos.recommendation);
   else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
   if (r.reviewTopics?.topics?.length) {

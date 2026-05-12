@@ -155,4 +155,27 @@ export async function reviews(biz, { depth = 50, timeoutMs = 60000 } = {}) {
   return [];
 }
 
-export default { localPack, businessInfo, reviews, organicResults, configured };
+// ── Métriques d'un domaine (autorité du site) via l'API Backlinks ───────────
+export async function domainMetrics(domain) {
+  if (!domain) return null;
+  let r;
+  try {
+    const json = await post("/backlinks/summary/live", [{
+      target: domain, internal_list_limit: 1,
+      backlinks_status_type: "live", include_subdomains: true,
+    }]);
+    r = firstResult(json);
+  } catch { return null; }
+  if (!r) return null;
+  return {
+    domain,
+    rank: r.rank ?? null,                       // Domain Rank DataForSEO (0–1000)
+    backlinks: r.backlinks ?? null,
+    referringDomains: r.referring_domains ?? null,
+    referringMainDomains: r.referring_main_domains ?? null,
+    referringPages: r.referring_pages ?? null,
+    firstSeen: r.first_seen ?? null,
+  };
+}
+
+export default { localPack, businessInfo, reviews, organicResults, domainMetrics, configured };

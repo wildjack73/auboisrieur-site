@@ -124,6 +124,7 @@
       <div class="checks">
         <label><input type="checkbox" id="withReviews"> Analyser le texte des avis (plus lent)</label>
         <label><input type="checkbox" id="withCitations"> Audit citations / annuaires (1 requête SERP de plus par ville)</label>
+        <label><input type="checkbox" id="withSiteMetrics"> Métriques des sites web (Domain Rank, backlinks — DataForSEO)</label>
         <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
         <span class="pill" id="visionPill"></span>
       </div>
@@ -167,6 +168,7 @@
     <div class="checks">
       <label><input type="checkbox" id="defReviews"> Analyser les avis par défaut</label>
       <label><input type="checkbox" id="defCitations"> Audit citations / annuaires par défaut</label>
+      <label><input type="checkbox" id="defSiteMetrics"> Métriques des sites web par défaut</label>
       <label><input type="checkbox" id="defVision"> Analyser les photos par défaut</label>
       <span class="pill" id="visionPill2"></span>
     </div>
@@ -182,7 +184,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 let meta = {};
 let audits = [];
-let settings = { cities: null, topN: 3, provider: "", reviews: false, citations: false, vision: false };
+let settings = { cities: null, topN: 3, provider: "", reviews: false, citations: false, siteMetrics: false, vision: false };
 
 try { audits = JSON.parse(localStorage.getItem("seoAudits") || "[]"); } catch { audits = []; }
 try { Object.assign(settings, JSON.parse(localStorage.getItem("seoSettings") || "{}")); } catch {}
@@ -214,6 +216,7 @@ $$(".tabs button").forEach(b => b.onclick = () => {
   $("#defTopN").value = settings.topN || 3;
   $("#defReviews").checked = !!settings.reviews;
   $("#defCitations").checked = !!settings.citations;
+  $("#defSiteMetrics").checked = !!settings.siteMetrics;
   $("#defVision").checked = !!settings.vision && meta.visionAvailable;
   $("#citiesOverride").placeholder = meta.topCities.slice(0,6).join("\n") + "\n…";
   updateCitiesCount();
@@ -242,6 +245,7 @@ $("#saveDefaults").onclick = () => {
   settings.provider = $("#defProvider").value || meta.defaultProvider;
   settings.reviews = $("#defReviews").checked;
   settings.citations = $("#defCitations").checked;
+  settings.siteMetrics = $("#defSiteMetrics").checked;
   settings.vision = $("#defVision").checked;
   saveSettings();
   $("#provider").querySelector("option[value='']").textContent = `(défaut : ${settings.provider})`;
@@ -302,6 +306,16 @@ function renderAudit(r, { compact=false } = {}) {
       </div>
       <details><summary>Détail</summary><table><thead><tr><th>Fiche</th><th>Ville</th><th>#GMB</th><th>Domaine</th><th>Rang organique</th></tr></thead><tbody>${
         w.rows.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.city)}</td><td>${x.rank}</td><td>${esc(x.domain||"—")}</td><td>${x.organicRank??"hors top"}</td></tr>`).join("")}</tbody></table></details>` )(r.websiteRank) : (r.citations?"":`<p class="pill">Active « Audit citations / annuaires » pour voir la position des sites des fiches sur « ${esc(r.keyword)} + ville ».</p>`)}
+    ${r.siteMetrics ? (m => `<h2>Métriques des sites web des fiches</h2>
+      <p class="reco">★ ${esc(m.recommendation)}</p>
+      <div class="stats" style="margin-top:8px">
+        <div class="stat"><b>${m.breakdown.ownSitePct}%</b><span>ont un vrai site propre · ${m.breakdown.socialOnlyPct}% page sociale · ${m.breakdown.aggregatorPct}% agrégateur · ${m.breakdown.noSitePct}% sans site</span></div>
+        ${m.rank?`<div class="stat"><b>${m.rank.median}/1000</b><span>Domain Rank médian (${m.sitesAnalyzed} sites) — ${m.rank.min}–${m.rank.max}</span></div>`:""}
+        ${m.referringDomains?`<div class="stat"><b>${m.referringDomains.median}</b><span>domaines référents (médiane) — ${m.referringDomains.min}–${m.referringDomains.max}</span></div>`:""}
+        ${m.backlinks?`<div class="stat"><b>${m.backlinks.median}</b><span>backlinks (médiane)</span></div>`:""}
+      </div>
+      ${m.rows?.length?`<details><summary>Détail par site</summary><table><thead><tr><th>Domaine</th><th>Domain Rank</th><th>Dom. référents</th><th>Backlinks</th></tr></thead><tbody>${
+        m.rows.map(x=>`<tr><td>${esc(x.domain)}</td><td>${x.rank??"—"}</td><td>${x.referringDomains??"—"}</td><td>${x.backlinks??"—"}</td></tr>`).join("")}</tbody></table></details>`:""}` )(r.siteMetrics) : ""}
     <h2>Catégories du top ${r.topN} <span class="pill">pondéré — ${esc(r.categoryCombos?.weighting||"")}</span></h2>
     ${r.categoryCombos?.recommendation ? `<p class="reco">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
     <div class="cols">
@@ -389,6 +403,7 @@ function downloadCsv(list, filename){
     if(a.stats?.photosCount&&a.stats.photosCount.count) rows.push([a._title||a.keyword,"photos_mediane","",a.stats.photosCount.median,""]);
     if(a.reviewFrequency) rows.push([a._title||a.keyword,"avis_par_mois_mediane","",a.reviewFrequency.perMonth.median,""]);
     if(a.websiteRank) rows.push([a._title||a.keyword,"site_en_page1_pct","",a.websiteRank.top10Pct+"%",""]);
+    if(a.siteMetrics){ rows.push([a._title||a.keyword,"site_propre_pct","",a.siteMetrics.breakdown.ownSitePct+"%",""]); if(a.siteMetrics.rank)rows.push([a._title||a.keyword,"domain_rank_median","",a.siteMetrics.rank.median,""]); if(a.siteMetrics.referringDomains)rows.push([a._title||a.keyword,"domaines_referents_median","",a.siteMetrics.referringDomains.median,""]); for(const x of (a.siteMetrics.rows||[]))rows.push([a._title||a.keyword,"site_metrique",x.domain,x.rank??"",x.referringDomains??""]); }
   }
   const csv = rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
   const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
@@ -424,6 +439,7 @@ $("#run").addEventListener("click", () => {
     cities,
     withReviews: $("#withReviews").checked || settings.reviews,
     withCitations: $("#withCitations").checked || settings.citations,
+    withSiteMetrics: $("#withSiteMetrics").checked || settings.siteMetrics,
     withVision: ($("#withVision").checked || settings.vision) && meta.visionAvailable,
   };
   const title = $("#title").value.trim();
@@ -455,7 +471,7 @@ function handle(ev, data, title) {
   else if (ev === "progress") {
     const total = data.total || 1, done = data.done || 0;
     $("#progBar").style.width = Math.round((done/total)*100) + "%";
-    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", photos:"Récupération des photos", vision:"Analyse des photos" };
+    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", sitemetrics:"Métriques des sites", photos:"Récupération des photos", vision:"Analyse des photos" };
     $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
   }
   else if (ev === "done") { $("#prog").hidden = true; data._title = title || data.keyword; audits.push(data); saveAudits(); refreshList(); showOnScreen(data); }

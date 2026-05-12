@@ -68,6 +68,7 @@ const server = http.createServer(async (req, res) => {
       withReviews: !!body.withReviews,
       withVision: !!body.withVision,
       withCitations: !!body.withCitations,
+      withSiteMetrics: !!body.withSiteMetrics,
     };
 
     // Server-Sent Events : progression + résultat final
