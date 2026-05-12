@@ -7,7 +7,7 @@ const { apiKey, base } = config.vision;
 
 export function visionConfigured() { return !!apiKey; }
 
-const empty = () => ({ objects: {}, labels: {}, texts: {}, analyzed: 0 });
+const empty = () => ({ objects: {}, labels: {}, texts: {}, analyzed: 0, images: [] });
 
 function words(text) {
   return (text || "")
@@ -40,16 +40,20 @@ export async function analyzeImages(urls, { maxImages = 8 } = {}) {
   } catch { return empty(); }
 
   const out = empty();
-  const bump = (m, k) => { k = String(k || "").toLowerCase().trim(); if (k) m[k] = (m[k] || 0) + 1; };
-  for (const r of json.responses || []) {
-    if (r.error) continue;
+  const norm = k => String(k || "").toLowerCase().trim();
+  const bump = (m, k) => { k = norm(k); if (k) m[k] = (m[k] || 0) + 1; };
+  (json.responses || []).forEach((r, idx) => {
+    if (!r || r.error) return;
     out.analyzed++;
-    for (const o of r.localizedObjectAnnotations || []) bump(out.objects, o.name);
-    for (const l of r.labelAnnotations || []) bump(out.labels, l.description);
+    const objs = [...new Set((r.localizedObjectAnnotations || []).map(o => norm(o.name)).filter(Boolean))];
+    const labs = [...new Set((r.labelAnnotations || []).map(l => norm(l.description)).filter(Boolean))];
+    for (const o of objs) bump(out.objects, o);
+    for (const l of labs) bump(out.labels, l);
     const full = r.textAnnotations?.[0]?.description || r.fullTextAnnotation?.text || "";
     const seen = new Set();
     for (const w of words(full)) { if (seen.has(w)) continue; seen.add(w); bump(out.texts, w); }
-  }
+    out.images.push({ url: slice[idx], objects: objs, labels: labs });
+  });
   return out;
 }
 

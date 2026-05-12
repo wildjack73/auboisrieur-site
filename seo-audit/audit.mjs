@@ -346,6 +346,7 @@ export async function runAudit(opts) {
     // 2) Vision sur les photos
     const withImgs = targets.filter(b => b.images?.length);
     const O = new Map(), L = new Map(), T = new Map();
+    const allImages = []; // { url, objects[], labels[] }
     let imagesAnalyzed = 0, i = 0;
     for (const biz of withImgs) {
       onProgress({ phase: "vision", done: i, total: withImgs.length, name: biz.name });
@@ -354,23 +355,38 @@ export async function runAudit(opts) {
       for (const [k, v] of Object.entries(r.objects)) O.set(k, (O.get(k) || 0) + v);
       for (const [k, v] of Object.entries(r.labels)) L.set(k, (L.get(k) || 0) + v);
       for (const [k, v] of Object.entries(r.texts)) T.set(k, (T.get(k) || 0) + v);
+      for (const im of (r.images || [])) if (im?.url) allImages.push(im);
       i++;
     }
     const top = (m, n) => [...m.entries()].map(([term, count]) => ({ term, count })).sort((a, b) => b.count - a.count).slice(0, n);
     let topObjects = top(O, 30), topLabels = top(L, 30);
+
+    // Photos représentatives : on note chaque image selon la fréquence globale
+    // des objets (et un peu des labels) qu'elle contient, et on garde les meilleures.
+    const seenUrl = new Set();
+    let sampleImages = allImages
+      .filter(im => (im.objects?.length || im.labels?.length) && !seenUrl.has(im.url) && (seenUrl.add(im.url), true))
+      .map(im => ({ ...im, score: (im.objects || []).reduce((s, o) => s + (O.get(o) || 0), 0) + 0.2 * (im.labels || []).reduce((s, l) => s + (L.get(l) || 0), 0) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 9)
+      .map(im => ({ url: im.url, objects: (im.objects || []).slice(0, 4), labels: (im.labels || []).slice(0, 4) }));
+
     // Vision renvoie les objets/labels en anglais → on constitue d'abord la
-    // liste complète, on dédoublonne, puis une seule traduction (avec cache).
+    // liste complète (top + légendes des exemples), on dédoublonne, puis une
+    // seule traduction (avec cache).
     if (translateConfigured()) {
       onProgress({ phase: "vision", done: withImgs.length, total: withImgs.length, name: "traduction" });
       try {
-        const allEn = [...new Set([...topObjects, ...topLabels].map(x => x.term))];
+        const allEn = [...new Set([
+          ...topObjects.map(x => x.term), ...topLabels.map(x => x.term),
+          ...sampleImages.flatMap(im => [...im.objects, ...im.labels]),
+        ])];
         const fr = await translate(allEn);
-        const map = new Map(allEn.map((en, i) => [en, fr[i]]));
-        const apply = arr => arr.map(x => {
-          const t = map.get(x.term);
-          return (t && t.toLowerCase() !== x.term.toLowerCase()) ? { ...x, term: t.toLowerCase(), original: x.term } : x;
-        });
-        topObjects = apply(topObjects); topLabels = apply(topLabels);
+        const map = new Map(allEn.map((en, k) => [en, fr[k]]));
+        const tr = en => { const t = map.get(en); return (t && t.toLowerCase() !== en.toLowerCase()) ? t.toLowerCase() : en; };
+        const applyList = arr => arr.map(x => { const t = tr(x.term); return t !== x.term ? { ...x, term: t, original: x.term } : x; });
+        topObjects = applyList(topObjects); topLabels = applyList(topLabels);
+        sampleImages = sampleImages.map(im => ({ url: im.url, objects: im.objects.map(tr), labels: im.labels.map(tr) }));
       } catch { /* keep en */ }
     }
     visionAgg = {
@@ -379,6 +395,7 @@ export async function runAudit(opts) {
       translated: translateConfigured(),
       topObjects, topLabels,
       topTexts: top(T, 40),
+      sampleImages,
     };
   }
 

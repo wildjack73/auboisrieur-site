@@ -56,6 +56,10 @@
   .auditList li { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
   .auditList li .meta { flex:1; } .auditList li .meta small { color:var(--mut); }
   .auditList li button { padding:4px 10px; font-size:12px; }
+  .imgGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; margin-top:8px; }
+  .imgGrid figure { margin:0; }
+  .imgGrid img { width:100%; height:100px; object-fit:cover; border-radius:6px; background:#0c0e13; display:block; }
+  .imgGrid figcaption { font-size:11px; color:var(--mut); margin-top:3px; line-height:1.3; }
 
   /* ── Vue imprimable / PDF ─────────────────────────────────────────────── */
   #printArea { display:none; }
@@ -77,6 +81,10 @@
     #printArea .cover { text-align:center; padding:40px 0 24px; border-bottom:2px solid #111; margin-bottom:18px; }
     #printArea .cover .sub { color:#555; font-size:13px; margin-top:6px; }
     #printArea .toc { font-size:12px; } #printArea .toc li { margin:3px 0; }
+    #printArea .imgGrid { grid-template-columns:repeat(4,1fr); }
+    #printArea .imgGrid img { height:80px; }
+    #printArea .imgGrid figcaption { color:#555; }
+    figure { break-inside:avoid; }
     @page { margin:14mm 12mm; }
   }
 </style>
@@ -301,7 +309,9 @@ function renderAudit(r, { compact=false } = {}) {
         <div><h3>Objets détectés (à montrer en priorité)</h3>${bars(fmt(v.topObjects).slice(0,compact?15:30))}</div>
         <div><h3>Labels / ambiances</h3>${bars(fmt(v.topLabels).slice(0,compact?15:30))}</div>
       </div>
-      ${(v.topTexts||[]).length ? `<h3>Mots écrits sur les photos</h3>${bars(v.topTexts.slice(0,compact?20:40))}` : ""}`; })(r.vision) : ""}`;
+      ${(v.topTexts||[]).length ? `<h3>Mots écrits sur les photos</h3>${bars(v.topTexts.slice(0,compact?20:40))}` : ""}
+      ${(v.sampleImages||[]).length ? `<h3>Photos représentatives (exemples du top ${r.topN})</h3><div class="imgGrid">${
+        v.sampleImages.map(im=>`<figure><img src="${esc(im.url)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('figure').style.display='none'"><figcaption>${esc((im.objects&&im.objects.length?im.objects:im.labels||[]).slice(0,3).join(", "))}</figcaption></figure>`).join("")}</div>` : ""}`; })(r.vision) : ""}`;
   if (compact) return head + `<h3>Échantillon du top ${r.topN}</h3><table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead><tbody>${r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>`;
   return head + `
     <h2>Échantillon des fiches du top ${r.topN}</h2>
