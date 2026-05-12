@@ -279,6 +279,91 @@ function gmbProfileAnalysis(businesses, topN) {
   };
 }
 
+// Engagement sur les avis : taux de réponse du propriétaire, délai de réponse,
+// part d'avis négatifs (≤ 3/5). Calculé sur les avis récupérés (option avis).
+function reviewEngagementAnalysis(businesses) {
+  let total = 0, answered = 0, neg = 0; const delays = []; const perBiz = [];
+  for (const b of businesses) {
+    const rv = b.reviews || []; if (!rv.length) continue;
+    let bt = 0, ba = 0;
+    for (const r of rv) {
+      total++; bt++;
+      if (r.ownerAnswer) {
+        answered++; ba++;
+        if (r.time && r.ownerAnswerTime) { const d = (Date.parse(r.ownerAnswerTime) - Date.parse(r.time)) / 86400000; if (Number.isFinite(d) && d >= 0 && d < 400) delays.push(d); }
+      }
+      if (typeof r.rating === "number" && r.rating <= 3) neg++;
+    }
+    perBiz.push({ name: b.name, rank: b.rank, reviews: bt, answered: ba, answeredPct: bt ? Math.round((ba / bt) * 100) : 0 });
+  }
+  if (!total) return null;
+  return {
+    reviewsAnalyzed: total,
+    ownerResponseRate: Math.round((answered / total) * 100),
+    negativeReviewsPct: Math.round((neg / total) * 100),
+    responseDelayDays: numberStats(delays),
+    perBiz: perBiz.slice(0, 30),
+  };
+}
+
+// Contrôles techniques des sites des fiches : HTTPS, viewport mobile, balisage
+// schema.org LocalBusiness. (Récupère la page d'accueil de chaque site.)
+const SCHEMA_RE = /"@type"\s*:\s*"\s*([a-z]*\s*business|localbusiness|organization|store|restaurant|professionalservice|dentist|hairsalon|beautysalon|legalservice|accountingservice|financialservice|medicalbusiness|homeandconstructionbusiness|automotivebusiness|foodestablishment|lodgingbusiness|realestateagent|travelagency)\s*"/i;
+const SCHEMA_MICRO_RE = /itemtype\s*=\s*["']https?:\/\/schema\.org\/(localbusiness|organization|store|restaurant|[a-z]*business)/i;
+async function siteTechAnalysis(domains, onProgress) {
+  const list = [...new Set((domains || []).filter(Boolean))].slice(0, 30);
+  if (!list.length) return null;
+  const rows = [];
+  for (let i = 0; i < list.length; i++) {
+    onProgress?.({ phase: "sitetech", done: i, total: list.length, name: list[i] });
+    const r = { domain: list[i], ok: false, https: null, mobileViewport: null, localBusinessSchema: null };
+    try {
+      const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 12000);
+      const res = await fetch(`https://${list[i]}/`, { redirect: "follow", signal: ctrl.signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; ObjectifTop3/1.0)" } });
+      clearTimeout(to);
+      r.ok = res.ok; r.https = String(res.url || "").startsWith("https://");
+      const html = (await res.text()).slice(0, 500000);
+      r.mobileViewport = /<meta[^>]+name\s*=\s*["']viewport["']/i.test(html);
+      r.localBusinessSchema = SCHEMA_RE.test(html) || SCHEMA_MICRO_RE.test(html);
+    } catch { /* injoignable */ }
+    rows.push(r);
+  }
+  const n = rows.length;
+  const p = k => Math.round((rows.filter(x => x[k] === true).length / n) * 100);
+  return { sitesChecked: n, reachablePct: p("ok"), httpsPct: p("https"), mobilePct: p("mobileViewport"), schemaPct: p("localBusinessSchema"), rows };
+}
+
+// Score de référence du top N : à quel point les fiches leaders respectent les
+// bonnes pratiques GMB (0–100). Sert de "barre à atteindre" et met en évidence
+// les pratiques quasi systématiques chez les leaders.
+function referenceChecklist(businesses, report) {
+  const checks = [];
+  const add = (label, weight, ok, eligible) => {
+    const elig = eligible ? businesses.filter(eligible) : businesses;
+    if (!elig.length) return;
+    checks.push({ label, weight, pct: Math.round((elig.filter(ok).length / elig.length) * 100), base: elig.length });
+  };
+  add("Fiche revendiquée", 8, b => b.claimed === true, b => typeof b.claimed === "boolean");
+  add("Description présente", 6, b => !!(b.description && b.description.trim()));
+  add("Description ≥ 250 caractères", 6, b => !!b.description && b.description.trim().length >= 250, b => !!(b.description && b.description.trim()));
+  add("≥ 10 photos", 8, b => typeof b.photosCount === "number" && b.photosCount >= 10, b => typeof b.photosCount === "number");
+  add("≥ 5 attributs cochés", 6, b => (b.attributes || []).length >= 5);
+  add("Horaires renseignés", 6, b => !!(b.workHours && b.workHours.daysOpen >= 1), b => !!b.workHours);
+  add("Catégorie(s) secondaire(s)", 6, b => (b.categories || []).filter(Boolean).length >= 1);
+  add("Site web renseigné", 8, b => !!b.domain);
+  add("Note ≥ 4,5/5", 10, b => typeof b.rating === "number" && b.rating >= 4.5, b => typeof b.rating === "number");
+  add("≥ 50 avis", 8, b => typeof b.reviewsCount === "number" && b.reviewsCount >= 50, b => typeof b.reviewsCount === "number");
+  add("≥ 100 avis", 6, b => typeof b.reviewsCount === "number" && b.reviewsCount >= 100, b => typeof b.reviewsCount === "number");
+  add("Avis récent (< 30 j)", 6, b => { const ds = (b.reviews || []).map(r => Date.parse(r.time)).filter(Number.isFinite); return ds.length && (Date.now() - Math.max(...ds)) < 30 * 86400000; }, b => (b.reviews || []).some(r => r.time));
+  add("Répond aux avis", 6, b => (b.reviews || []).some(r => r.ownerAnswer), b => (b.reviews || []).length > 0);
+  if (report.titleKeyword?.businessesWithTitle) checks.push({ label: `« ${report.keyword} » dans le nom`, weight: 4, pct: report.titleKeyword.keywordInTitlePct, base: report.titleKeyword.businessesWithTitle });
+  if (!checks.length) return null;
+  const W = checks.reduce((s, c) => s + c.weight, 0) || 1;
+  const score = Math.round(checks.reduce((s, c) => s + c.weight * c.pct, 0) / W);
+  checks.sort((a, b) => b.pct - a.pct || b.weight - a.weight);
+  return { score, checks, essentials: checks.filter(c => c.pct >= 80).map(c => c.label) };
+}
+
 // Gros sites souvent reliés aux fiches (réseaux sociaux / agrégateurs / places
 // de marché) qu'on EXCLUT quand on étudie le "vrai" site du business.
 const SOCIAL_DOMAINS = new Set(["facebook.com", "fb.com", "fb.me", "instagram.com", "linkedin.com", "twitter.com", "x.com", "youtube.com", "youtu.be", "tiktok.com", "pinterest.com", "pinterest.fr", "snapchat.com", "wa.me", "linktr.ee", "beacons.ai"]);
@@ -293,10 +378,10 @@ function classifyDomain(domain) {
   return "own";
 }
 
-// Métriques du "vrai" site web des fiches du top N (autorité : Domain Rank,
-// domaines référents, backlinks) — en excluant socials/agrégateurs. DataForSEO.
+// Le "vrai" site web des fiches du top N : répartition (site propre vs page
+// sociale/agrégateur), autorité (Domain Rank/backlinks via DataForSEO) et
+// contrôles techniques (HTTPS, mobile, schema.org).
 async function siteMetricsAnalysis(businesses, topN, onProgress) {
-  if (!dataforseo.configured()) return null;
   const tally = { none: 0, social: 0, aggregator: 0, own: 0 };
   const ownDomains = []; const seen = new Set();
   for (const b of businesses) {
@@ -304,26 +389,34 @@ async function siteMetricsAnalysis(businesses, topN, onProgress) {
     tally[c]++;
     if (c === "own" && b.domain && !seen.has(b.domain)) { seen.add(b.domain); ownDomains.push(b.domain); }
   }
-  const metrics = [];
   const list = ownDomains.slice(0, 40);
-  for (let i = 0; i < list.length; i++) {
-    onProgress?.({ phase: "sitemetrics", done: i, total: list.length, name: list[i] });
-    try { const m = await dataforseo.domainMetrics(list[i]); if (m) metrics.push(m); } catch { /* skip */ }
+  const metrics = [];
+  if (dataforseo.configured()) {
+    for (let i = 0; i < list.length; i++) {
+      onProgress?.({ phase: "sitemetrics", done: i, total: list.length, name: list[i] });
+      try { const m = await dataforseo.domainMetrics(list[i]); if (m) metrics.push(m); } catch { /* skip */ }
+    }
   }
+  let tech = null;
+  try { tech = await siteTechAnalysis(list, onProgress); } catch { /* skip */ }
   const tot = businesses.length || 1;
   const rank = numberStats(metrics.map(m => m.rank));
   const referringDomains = numberStats(metrics.map(m => m.referringDomains));
   const backlinks = numberStats(metrics.map(m => m.backlinks));
   const ownPct = Math.round((tally.own / tot) * 100);
+  const recParts = [];
+  if (metrics.length && rank) recParts.push(`Domain Rank médian ${rank.median}/1000${referringDomains ? `, ~${referringDomains.median} domaines référents` : ""}${backlinks ? `, ~${backlinks.median} backlinks` : ""}`);
+  if (tech) recParts.push(`${tech.httpsPct}% en HTTPS, ${tech.mobilePct}% mobile-friendly, ${tech.schemaPct}% avec balisage schema.org LocalBusiness`);
+  recParts.push(`${ownPct}% des fiches du top ${topN} ont un vrai site propre`);
   return {
     businesses: tot,
     breakdown: { ownSitePct: ownPct, socialOnlyPct: Math.round((tally.social / tot) * 100), aggregatorPct: Math.round((tally.aggregator / tot) * 100), noSitePct: Math.round((tally.none / tot) * 100) },
     sitesAnalyzed: metrics.length,
-    rank, referringDomains, backlinks,
+    rank, referringDomains, backlinks, tech,
     rows: metrics.slice().sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 40),
-    recommendation: (metrics.length && rank)
-      ? `Sites des fiches du top ${topN} : Domain Rank médian ${rank.median}/1000${referringDomains ? `, ~${referringDomains.median} domaines référents` : ""}${backlinks ? `, ~${backlinks.median} backlinks` : ""} → vise au moins ces niveaux pour ton site. (${ownPct}% des fiches du top ${topN} ont un vrai site propre.)`
-      : `${ownPct}% des fiches du top ${topN} ont un vrai site propre (le reste : page sociale/agrégateur ou pas de site) — peu de données de métriques exploitables.`,
+    recommendation: recParts.length
+      ? `Sites des fiches du top ${topN} : ${recParts.join(" · ")}.`
+      : `${ownPct}% des fiches du top ${topN} ont un vrai site propre.`,
   };
 }
 
@@ -695,6 +788,7 @@ export async function runAudit(opts) {
     gmbProfile: gmbProfileAnalysis(businesses, topN),
     ratingTarget: ratingTarget(businesses, topN),
     reviewFrequency: reviewFrequencyAnalysis(businesses),
+    reviewEngagement: reviewEngagementAnalysis(businesses),
     websiteRank: websiteRankAnalysis(businesses, organicByCity, topN),
     siteMetrics,
     haloscan: haloscanData,
@@ -716,6 +810,7 @@ export async function runAudit(opts) {
 
   report.descriptionGuide = descriptionGuide(report.descriptionKeywords, keyword, report.stats.descriptionLength, report.stats.descriptionWords);
   report.reviewGuide = reviewSemanticGuide(report.reviewTopics, report.reviewKeywords, keyword);
+  report.referenceChecklist = referenceChecklist(businesses, report);
 
   // Recommandations dérivées + résumé "accessible"
   report.recommendations = buildRecommendations(report);
@@ -727,6 +822,7 @@ export async function runAudit(opts) {
 function buildSummary(r) {
   const A = []; const add = (priority, text) => { if (text) A.push({ priority, text }); };
   const N = r.topN;
+  if (r.reviewEngagement && r.reviewEngagement.ownerResponseRate >= 30) add("haute", `Répondre à tous vos avis (les fiches du top ${N} répondent à ${r.reviewEngagement.ownerResponseRate}%).`);
   if (r.ratingTarget) add("haute", `Obtenir une note d'au moins ${r.ratingTarget.median}/5 et environ ${r.ratingTarget.medianReviews != null ? r.ratingTarget.medianReviews : (r.stats.reviewsCount ? r.stats.reviewsCount.median : "plusieurs dizaines d'")} avis — c'est le niveau du top ${N}.`);
   if (r.reviewFrequency?.perMonth) add("haute", `Récolter ~${r.reviewFrequency.perMonth.median} nouvel(s) avis par mois et répondre à chacun ; ne pas laisser passer plus de ~${r.reviewFrequency.lastReviewDays.p75} jours sans nouvel avis.`);
   if (r.categoryCombos?.mainCategory) add("haute", `Choisir comme catégorie principale « ${r.categoryCombos.mainCategory} »${r.categoryCombos.secondaryCategories?.length ? ` et ajouter en secondaires : ${r.categoryCombos.secondaryCategories.join(", ")}` : ""}.`);
@@ -746,12 +842,14 @@ function buildSummary(r) {
   else if (r.stats.reviewsCount) bits.push(`≈ ${r.stats.reviewsCount.median} avis`);
   if (r.categoryCombos?.mainCategory) bits.push(`la catégorie « ${r.categoryCombos.mainCategory} »`);
   if (r.descriptionGuide?.targetLength) bits.push(`une description d'≈ ${r.descriptionGuide.targetLength.median} caractères`);
-  const headline = `D'après l'analyse de ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} ville(s) pour « ${r.keyword} », les établissements bien placés ont en moyenne ${bits.join(", ")}. Voici, par ordre de priorité, ce qu'il faut faire pour s'en rapprocher.`;
+  const headline = `D'après l'analyse de ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} ville(s) pour « ${r.keyword} », les établissements bien placés ont en moyenne ${bits.join(", ")}${r.referenceChecklist ? ` et un score de complétude de fiche de ${r.referenceChecklist.score}/100` : ""}. Voici, par ordre de priorité, ce qu'il faut faire pour s'en rapprocher.`;
   return { headline, actions: A };
 }
 
 function buildRecommendations(r) {
   const recs = [];
+  if (r.referenceChecklist) recs.push(`Score de complétude moyen des fiches du top ${r.topN} : ${r.referenceChecklist.score}/100 — c'est la barre à atteindre.${r.referenceChecklist.essentials.length ? ` Pratiques quasi systématiques chez les leaders : ${r.referenceChecklist.essentials.slice(0, 8).join(", ")}.` : ""}`);
+  if (r.reviewEngagement) recs.push(`Réponses aux avis : les fiches du top ${r.topN} répondent à ${r.reviewEngagement.ownerResponseRate}% des avis${r.reviewEngagement.responseDelayDays ? ` (en ~${r.reviewEngagement.responseDelayDays.median} j en médiane)` : ""} — réponds à tous tes avis, vite. (${r.reviewEngagement.negativeReviewsPct}% d'avis ≤ 3/5 chez les leaders.)`);
   if (r.ratingTarget) {
     recs.push(r.ratingTarget.recommendation);
     if (r.ratingTarget.medianReviews != null) recs.push(`Nombre d'avis à atteindre : ≥ ${r.ratingTarget.minReviews} (minimum du top ${r.topN}), cible ${r.ratingTarget.medianReviews} (médiane)${r.stats.reviewsCount ? `, top ${r.topN} jusqu'à ${r.stats.reviewsCount.max} avis` : ""}.`);

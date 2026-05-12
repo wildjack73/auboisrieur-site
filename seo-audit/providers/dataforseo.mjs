@@ -171,6 +171,8 @@ export async function reviews(biz, { depth = 50, timeoutMs = 60000 } = {}) {
           text: r.review_text || "",
           rating: r.rating?.value ?? null,
           time: r.timestamp || null,
+          ownerAnswer: r.owner_answer || r.original_owner_answer || null,
+          ownerAnswerTime: r.owner_timestamp || null,
         })).filter(r => r.text);
       }
     } catch { /* keep polling */ }

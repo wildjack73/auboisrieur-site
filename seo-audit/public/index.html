@@ -379,6 +379,11 @@ function renderAudit(r, { compact=false } = {}) {
     ${r.summary ? `<div class="summary"><h3>En clair — que faut-il faire ?</h3><p>${esc(r.summary.headline)}</p>
       <ol class="actions">${r.summary.actions.map(a=>`<li class="prio-${a.priority}"><span class="badge">${a.priority==="haute"?"Priorité":a.priority==="moyenne"?"Important":"Bonus"}</span> ${esc(a.text)}</li>`).join("")}</ol></div>` : ""}
     ${r.recommendations?.length ? `<details><summary>Détail des recommandations (${r.recommendations.length})</summary><ul class="recs">${r.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+    ${r.referenceChecklist ? (c => `<h2>Score de référence du top ${r.topN}</h2>
+      <div class="stats" style="margin-top:8px"><div class="stat"><b>${c.score}/100</b><span>complétude moyenne des fiches du top ${r.topN} — la barre à atteindre</span></div>
+        ${c.essentials.length?`<div class="stat"><b>${c.essentials.length}</b><span>pratiques quasi systématiques (≥ 80 % des leaders) : ${esc(c.essentials.slice(0,6).join(", "))}…</span></div>`:""}</div>
+      <p class="plain">Ce que les fiches du top ${r.topN} respectent (% du top ${r.topN}) :</p>
+      ${bars(c.checks.map(x=>({term:x.label,count:x.pct,pct:null})))}` )(r.referenceChecklist) : ""}
     <div class="stats" style="margin-top:10px">
       ${statBox("Note", s.rating, "/5")}${statBox("Nombre d'avis", s.reviewsCount)}${statBox("Nombre de photos", s.photosCount)}${statBox("Longueur description (car.)", s.descriptionLength)}
     </div>
@@ -394,8 +399,9 @@ function renderAudit(r, { compact=false } = {}) {
     ${r.reviewFrequency ? (f => `<h2>Rythme &amp; ancienneté des avis</h2>
       <p class="reco">★ ~${f.perMonth.median} nouvel avis / mois (médiane) · dernier avis : il y a ${f.lastReviewDays.median} j en médiane (max ${f.lastReviewDays.max} j) · ${f.reviewsLast12m.median} avis sur 12 mois${f.ageYears?` · fiches actives depuis ~${f.ageYears.median} ans (min ${f.ageYears.min})`:""}</p>
       <p class="plain">En clair : les leaders reçoivent un avis tous les ${f.perMonth.median?Math.round(30/Math.max(0.1,f.perMonth.median)):"?"} jours environ et ont de l'historique. Récolte des avis régulièrement et réponds-y.</p>
-      <details><summary>Détail par fiche (${f.businessesWithDatedReviews})</summary><table><thead><tr><th>Fiche</th><th>#</th><th>Avis/mois</th><th>Avis 12 mois</th><th>Dernier avis (j)</th><th>Ancienneté (ans)</th></tr></thead><tbody>${
-        f.perBiz.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.rank}</td><td>${x.perMonth}</td><td>${x.reviewsLast12m}</td><td>${x.lastReviewDays}</td><td>${x.ageYears??"—"}</td></tr>`).join("")}</tbody></table></details>` )(r.reviewFrequency) : ""}
+      ${r.reviewEngagement?`<div class="stats" style="margin-top:8px"><div class="stat"><b>${r.reviewEngagement.ownerResponseRate}%</b><span>des avis ont une réponse du propriétaire${r.reviewEngagement.responseDelayDays?` · délai médian ${r.reviewEngagement.responseDelayDays.median} j`:""}</span></div><div class="stat"><b>${r.reviewEngagement.negativeReviewsPct}%</b><span>d'avis ≤ 3/5 chez les leaders</span></div></div>`:""}
+      <details><summary>Détail par fiche (${f.businessesWithDatedReviews})</summary><table><thead><tr><th>Fiche</th><th>#</th><th>Avis/mois</th><th>Avis 12 mois</th><th>Dernier avis (j)</th><th>Ancienneté (ans)</th>${r.reviewEngagement?"<th>Réponses</th>":""}</tr></thead><tbody>${
+        f.perBiz.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${x.rank}</td><td>${x.perMonth}</td><td>${x.reviewsLast12m}</td><td>${x.lastReviewDays}</td><td>${x.ageYears??"—"}</td>${r.reviewEngagement?`<td>${(r.reviewEngagement.perBiz[i]&&r.reviewEngagement.perBiz[i].answeredPct!=null)?r.reviewEngagement.perBiz[i].answeredPct+"%":"—"}</td>`:""}</tr>`).join("")}</tbody></table></details>` )(r.reviewFrequency) : (r.reviewEngagement?`<h2>Réponses aux avis</h2><p class="reco">★ Les fiches du top ${r.topN} répondent à ${r.reviewEngagement.ownerResponseRate}% des avis${r.reviewEngagement.responseDelayDays?` (délai médian ${r.reviewEngagement.responseDelayDays.median} j)`:""} · ${r.reviewEngagement.negativeReviewsPct}% d'avis ≤ 3/5.</p>`:"")}
     ${r.title?.words ? `<p class="pill">Nom de fiche : ~${r.title.words.median} mots / ${r.title.chars.median} car. (médiane) · ${r.stats.photosCount&&r.stats.photosCount.count?`photos : médiane ${r.stats.photosCount.median} (${r.stats.photosCount.min}–${r.stats.photosCount.max}) · `:""}description : ~${r.stats.descriptionWords?r.stats.descriptionWords.median:"?"} mots</p>` : ""}
     ${r.gmbProfile ? (p => `<h2>Complétude de la fiche GMB</h2>
       ${p.recommendation?`<p class="reco">★ ${esc(p.recommendation)}</p>`:""}
@@ -432,9 +438,12 @@ function renderAudit(r, { compact=false } = {}) {
         ${m.rank?`<div class="stat"><b>${m.rank.median}/1000</b><span>Domain Rank médian (${m.sitesAnalyzed} sites) — ${m.rank.min}–${m.rank.max}</span></div>`:""}
         ${m.referringDomains?`<div class="stat"><b>${m.referringDomains.median}</b><span>domaines référents (médiane) — ${m.referringDomains.min}–${m.referringDomains.max}</span></div>`:""}
         ${m.backlinks?`<div class="stat"><b>${m.backlinks.median}</b><span>backlinks (médiane)</span></div>`:""}
+        ${m.tech?`<div class="stat"><b>${m.tech.httpsPct}% / ${m.tech.mobilePct}% / ${m.tech.schemaPct}%</b><span>sites HTTPS / mobile-friendly / avec balisage schema.org LocalBusiness (${m.tech.sitesChecked} sites testés, ${m.tech.reachablePct}% joignables)</span></div>`:""}
       </div>
-      ${m.rows?.length?`<details><summary>Détail par site</summary><table><thead><tr><th>Domaine</th><th>Domain Rank</th><th>Dom. référents</th><th>Backlinks</th></tr></thead><tbody>${
-        m.rows.map(x=>`<tr><td>${esc(x.domain)}</td><td>${x.rank??"—"}</td><td>${x.referringDomains??"—"}</td><td>${x.backlinks??"—"}</td></tr>`).join("")}</tbody></table></details>`:""}` )(r.siteMetrics) : ""}
+      ${m.rows?.length?`<details><summary>Détail autorité par site</summary><table><thead><tr><th>Domaine</th><th>Domain Rank</th><th>Dom. référents</th><th>Backlinks</th></tr></thead><tbody>${
+        m.rows.map(x=>`<tr><td>${esc(x.domain)}</td><td>${x.rank??"—"}</td><td>${x.referringDomains??"—"}</td><td>${x.backlinks??"—"}</td></tr>`).join("")}</tbody></table></details>`:""}
+      ${m.tech?.rows?.length?`<details><summary>Détail technique par site</summary><table><thead><tr><th>Domaine</th><th>Joignable</th><th>HTTPS</th><th>Mobile</th><th>schema.org</th></tr></thead><tbody>${
+        m.tech.rows.map(x=>`<tr><td>${esc(x.domain)}</td><td>${x.ok?"oui":"non"}</td><td>${x.https===true?"oui":x.https===false?"non":"—"}</td><td>${x.mobileViewport===true?"oui":x.mobileViewport===false?"non":"—"}</td><td>${x.localBusinessSchema===true?"oui":x.localBusinessSchema===false?"non":"—"}</td></tr>`).join("")}</tbody></table></details>`:""}` )(r.siteMetrics) : ""}
     ${r.haloscan ? (h => `<h2>Haloscan — volume de recherche &amp; sites</h2>
       <p class="reco">★ ${esc(h.recommendation||"")}</p>
       <div class="stats" style="margin-top:8px">
@@ -517,6 +526,9 @@ function downloadCsv(list, filename){
   const rows = [["audit","section","terme","valeur","pct_fiches"]];
   const add=(a,sec,arr,termKey="term")=>{ for(const x of (arr||[])) rows.push([a._title||a.keyword, sec, x[termKey]??x.combo, x.count??x.value??"", x.pct??""]); };
   for(const a of list){
+    if(a.referenceChecklist){ rows.push([a._title||a.keyword,"score_reference_top","",a.referenceChecklist.score,""]); for(const c of a.referenceChecklist.checks)rows.push([a._title||a.keyword,"critere_top",c.label,c.pct+"%",""]); }
+    if(a.reviewEngagement){ rows.push([a._title||a.keyword,"taux_reponse_avis","",a.reviewEngagement.ownerResponseRate+"%",""]); rows.push([a._title||a.keyword,"avis_negatifs_pct","",a.reviewEngagement.negativeReviewsPct+"%",""]); }
+    if(a.siteMetrics?.tech){ const t=a.siteMetrics.tech; rows.push([a._title||a.keyword,"sites_https_pct","",t.httpsPct+"%",""]); rows.push([a._title||a.keyword,"sites_mobile_pct","",t.mobilePct+"%",""]); rows.push([a._title||a.keyword,"sites_schema_localbusiness_pct","",t.schemaPct+"%",""]); }
     if(a.descriptionGuide){ add(a,"description_a_mettre",a.descriptionGuide.mustUse); add(a,"description_recommande",a.descriptionGuide.recommended); add(a,"description_optionnel",a.descriptionGuide.optional); add(a,"description_expression",a.descriptionGuide.phrases); }
     add(a,"description_mot",a.descriptionKeywords?.unigrams);
     add(a,"description_bigramme",a.descriptionKeywords?.bigrams);
@@ -627,7 +639,7 @@ function handle(ev, data, title) {
   else if (ev === "progress") {
     const total = data.total || 1, done = data.done || 0;
     $("#progBar").style.width = Math.round((done/total)*100) + "%";
-    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", sitemetrics:"Métriques des sites", haloscan:"Haloscan (volume + sites)", photos:"Récupération des photos", vision:"Analyse des photos" };
+    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", sitemetrics:"Métriques des sites", sitetech:"Sites — contrôles techniques", haloscan:"Haloscan (volume + sites)", photos:"Récupération des photos", vision:"Analyse des photos" };
     $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
   }
   else if (ev === "done") { $("#prog").hidden = true; data._title = title || data.keyword; audits.push(data); saveAudits(); refreshList(); showOnScreen(data); }
