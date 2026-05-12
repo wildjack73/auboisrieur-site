@@ -3,6 +3,7 @@ import config from "./config.mjs";
 import dataforseo from "./providers/dataforseo.mjs";
 import valueserp from "./providers/valueserp.mjs";
 import { analyzeImages, visionConfigured } from "./vision.mjs";
+import serpapi from "./serpapi.mjs";
 
 const PROVIDERS = { dataforseo, valueserp };
 
@@ -325,24 +326,42 @@ export async function runAudit(opts) {
     citations = citationsAnalysis(byCity);
   }
 
-  // Vision (optionnel)
+  // Photos + Vision (optionnel)
   let visionAgg = null;
   if (withVision && visionConfigured()) {
-    const withImgs = businesses.filter(b => b.images?.length).slice(0, 25);
-    const labels = new Map();
-    let analyzed = 0, i = 0;
+    const targets = businesses.slice(0, 25);
+    // 1) compléter les photos via SerpApi (google_maps_photos) si configuré
+    if (serpapi.configured()) {
+      let i = 0;
+      for (const biz of targets) {
+        onProgress({ phase: "photos", done: i, total: targets.length, name: biz.name });
+        try {
+          const ph = await serpapi.getPlacePhotos(biz.place_id || (biz.cid ? String(biz.cid) : null));
+          if (ph.length) biz.images = [...new Set([...(biz.images || []), ...ph])];
+        } catch { /* skip */ }
+        i++;
+      }
+    }
+    // 2) Vision sur les photos
+    const withImgs = targets.filter(b => b.images?.length);
+    const O = new Map(), L = new Map(), T = new Map();
+    let imagesAnalyzed = 0, i = 0;
     for (const biz of withImgs) {
       onProgress({ phase: "vision", done: i, total: withImgs.length, name: biz.name });
-      const r = await analyzeImages(biz.images);
-      analyzed += r.analyzed;
-      for (const [k, v] of Object.entries(r.labels)) labels.set(k, (labels.get(k) || 0) + v);
+      const r = await analyzeImages(biz.images, { maxImages: 8 });
+      imagesAnalyzed += r.analyzed;
+      for (const [k, v] of Object.entries(r.objects)) O.set(k, (O.get(k) || 0) + v);
+      for (const [k, v] of Object.entries(r.labels)) L.set(k, (L.get(k) || 0) + v);
+      for (const [k, v] of Object.entries(r.texts)) T.set(k, (T.get(k) || 0) + v);
       i++;
     }
+    const top = (m, n) => [...m.entries()].map(([term, count]) => ({ term, count })).sort((a, b) => b.count - a.count).slice(0, n);
     visionAgg = {
-      imagesAnalyzed: analyzed,
-      businessesAnalyzed: withImgs.length,
-      topObjects: [...labels.entries()].map(([term, count]) => ({ term, count }))
-        .sort((a, b) => b.count - a.count).slice(0, 30),
+      imagesAnalyzed, businessesAnalyzed: withImgs.length,
+      photosSource: serpapi.configured() ? "SerpApi google_maps_photos + fiches" : "URLs des fiches",
+      topObjects: top(O, 30),
+      topLabels: top(L, 30),
+      topTexts: top(T, 40),
     };
   }
 
@@ -416,8 +435,10 @@ function buildRecommendations(r) {
   } else if (r.citations?.domains?.length) {
     recs.push(`Principaux annuaires à viser pour « ${r.keyword} » : ${r.citations.domains.slice(0, 10).map(d => d.domain).join(", ")}.`);
   }
-  if (r.vision?.topObjects?.length) {
-    recs.push(`Types de photos les plus présents dans le top ${r.topN} : ${r.vision.topObjects.slice(0, 6).map(o => o.term).join(", ")}.`);
+  if (r.vision) {
+    if (r.vision.topObjects?.length) recs.push(`Objets à faire apparaître en priorité sur vos photos (les plus présents dans le top ${r.topN}) : ${r.vision.topObjects.slice(0, 8).map(o => `${o.term} (${o.count})`).join(", ")}.`);
+    if (r.vision.topLabels?.length) recs.push(`Labels / ambiances d'image fréquents : ${r.vision.topLabels.slice(0, 8).map(o => o.term).join(", ")}.`);
+    if (r.vision.topTexts?.length) recs.push(`Mots souvent écrits sur les photos du top ${r.topN} : ${r.vision.topTexts.slice(0, 10).map(o => o.term).join(", ")}.`);
   }
   return recs;
 }

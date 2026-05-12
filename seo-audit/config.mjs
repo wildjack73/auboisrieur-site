@@ -21,10 +21,16 @@ export default {
     base: "https://api.valueserp.com",
   },
 
-  // Google Cloud Vision — clé API (LABEL_DETECTION + OBJECT_LOCALIZATION)
+  // Google Cloud Vision — clé API (OBJECT_LOCALIZATION + LABEL_DETECTION + TEXT_DETECTION)
   vision: {
-    apiKey: env("GOOGLE_VISION_API_KEY"),
+    apiKey: env("GOOGLE_VISION_API_KEY", "AIzaSyBFQl62uqJu2jB2TnzeFwwAzkteR5WrMmk"),
     base: "https://vision.googleapis.com/v1",
+  },
+
+  // SerpApi — pour récupérer toutes les photos d'une fiche (engine google_maps_photos)
+  serpapi: {
+    apiKey: env("SERPAPI_KEY", "2a925c23f5296924649975221cacf27f0b9effa882dea75f9dc9c2b7095f3c3d"),
+    base: "https://serpapi.com",
   },
 
   // Localisation / langue par défaut pour les requêtes SERP
