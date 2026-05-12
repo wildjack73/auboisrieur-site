@@ -101,12 +101,18 @@ export async function businessInfo(biz) {
     }
     workHours = { daysOpen, hoursPerWeek: Math.round(hoursPerWeek * 10) / 10 };
   }
+  const qaCount = Number.isFinite(it.questions_and_answers_count) ? it.questions_and_answers_count
+    : (Array.isArray(it.questions_and_answers) ? it.questions_and_answers.length : (biz.questionsAndAnswersCount ?? null));
   return {
     ...biz,
     claimed: typeof it.is_claimed === "boolean" ? it.is_claimed : biz.claimed,
     attributes: attrs.length ? attrs : (biz.attributes || []),
     priceLevel: it.price_level ?? biz.priceLevel ?? null,
     workHours: workHours ?? biz.workHours ?? null,
+    phone: it.phone || biz.phone || null,
+    questionsAndAnswersCount: qaCount,
+    website: it.url || biz.website || null,
+    domain: it.domain || biz.domain || (it.url ? hostname(it.url) : null),
     description: it.description || biz.description || null,
     category: biz.category || it.category || null,
     categories: (biz.categories?.length ? biz.categories : (it.additional_categories || [])),

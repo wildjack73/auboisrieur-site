@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import config from "./config.mjs";
-import { runAudit } from "./audit.mjs";
+import { runAudit, runListingAudit } from "./audit.mjs";
 import { visionConfigured } from "./vision.mjs";
 import { TOP_CITIES } from "./cities.mjs";
 
@@ -87,6 +87,26 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       emit("error", { error: String(e.message || e) });
     }
+    res.end();
+    return;
+  }
+
+  if (url.pathname === "/api/listing-audit" && req.method === "POST") {
+    let body;
+    try { body = await readBody(req); } catch { return send(res, 400, { error: "JSON invalide" }); }
+    const opts = {
+      keyword: String(body.keyword || "").trim(),
+      city: String(body.city || "").trim(),
+      target: { placeId: String(body.placeId || "").trim() || null, cid: String(body.cid || "").trim() || null, name: String(body.name || "").trim() || null },
+      providerName: body.provider || config.defaultProvider,
+    };
+    res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", "Connection": "keep-alive" });
+    const emit = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    emit("start", { keyword: opts.keyword, city: opts.city });
+    try {
+      const report = await runListingAudit({ ...opts, onProgress: p => emit("progress", p) });
+      emit("done", report);
+    } catch (e) { emit("error", { error: String(e.message || e) }); }
     res.end();
     return;
   }

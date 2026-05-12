@@ -846,6 +846,164 @@ function buildSummary(r) {
   return { headline, actions: A };
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  Mode "Audit d'une fiche" : score /100 + note A→F + rang + concurrents + plan
+// ════════════════════════════════════════════════════════════════════════════
+const SCORE_WEIGHTS = { profile: 20, reviews: 25, photos: 15, posts: 10, qa: 10, services: 10, attributes: 10 };
+
+function gradeFromScore(s) { return s >= 85 ? "A" : s >= 70 ? "B" : s >= 55 ? "C" : s >= 40 ? "D" : "F"; }
+function clamp100(n) { return Math.max(0, Math.min(100, Math.round(n))); }
+function reviewDates(b) { return (b.reviews || []).map(r => Date.parse(r.time)).filter(t => Number.isFinite(t) && t <= Date.now() + 864e5); }
+function recentReviews(b, days) { const c = Date.now() - days * 864e5; return reviewDates(b).filter(t => t >= c).length; }
+function ownerResponseRate(b) { const rv = b.reviews || []; if (!rv.length) return null; return Math.round((rv.filter(r => r.ownerAnswer).length / rv.length) * 100); }
+function negativeReviewPct(b) { const rv = (b.reviews || []).filter(r => typeof r.rating === "number"); if (!rv.length) return null; return Math.round((rv.filter(r => r.rating <= 3).length / rv.length) * 100); }
+
+function scoreListing(me, pack, rank) {
+  const comp = pack.filter(b => b !== me);
+  const compReviews = comp.map(b => b.reviewsCount).filter(n => typeof n === "number" && n > 0).sort((a, b) => a - b);
+  const compMedReviews = compReviews.length ? compReviews[Math.floor((compReviews.length - 1) / 2)] : null;
+  const cats = {};
+
+  // ── Profil (revendiquée, description, horaires, catégories secondaires) ──
+  {
+    const issues = [], recs = [];
+    let s = 0;
+    if (me.claimed === true) s += 30; else if (me.claimed === false) { issues.push("Fiche non revendiquée"); recs.push("Revendiquer la fiche dans Google Business Profile"); }
+    else s += 18; // inconnu : on suppose revendiquée (souvent le cas dans le top)
+    const dl = me.description ? me.description.trim().length : 0;
+    if (dl >= 250) s += 40; else if (dl > 0) { s += 22; issues.push(`Description courte (${dl} car.)`); recs.push("Étoffer la description (≥ 250 caractères, avec vos mots-clés)"); }
+    else { issues.push("Description absente"); recs.push("Ajouter une description détaillée pour améliorer la visibilité"); }
+    if (me.workHours && me.workHours.daysOpen >= 1) s += 15; else { issues.push("Horaires non renseignés"); recs.push("Renseigner vos horaires d'ouverture"); }
+    if ((me.categories || []).filter(Boolean).length >= 1) s += 15; else { issues.push("Pas de catégorie secondaire"); recs.push("Ajouter des catégories secondaires pertinentes"); }
+    cats.profile = { label: "Profil & description", weight: SCORE_WEIGHTS.profile, score: clamp100(s), issues, recommendations: recs };
+  }
+  // ── Avis & note ──────────────────────────────────────────────────────────
+  {
+    const issues = [], recs = [];
+    let s = 0;
+    const r = me.rating;
+    if (typeof r === "number") { if (r >= 4.8) s += 35; else if (r >= 4.5) s += 30; else if (r >= 4) s += 18; else { s += 5; issues.push(`Note faible (${r}/5)`); recs.push("Travailler la qualité de service pour remonter la note"); } }
+    const rc = me.reviewsCount;
+    if (typeof rc === "number") {
+      if (compMedReviews != null) { const ratio = rc / Math.max(1, compMedReviews); s += clamp100(Math.min(1, ratio) * 30); if (ratio < 0.6) { issues.push(`Moins d'avis que les concurrents (${rc} vs ~${compMedReviews})`); recs.push("Lancer une stratégie de collecte d'avis auprès de chaque client"); } }
+      else { s += rc >= 50 ? 30 : rc >= 20 ? 20 : 10; if (rc < 20) recs.push("Collecter plus d'avis (objectif : 50+)"); }
+    } else recs.push("Collecter des avis clients régulièrement");
+    const r30 = recentReviews(me, 30);
+    if (r30 >= 3) s += 20; else if (r30 >= 1) { s += 10; issues.push(`Peu d'avis récents (${r30} sur 30 j)`); recs.push("Maintenir un flux régulier de nouveaux avis"); }
+    else { issues.push("Aucun avis sur les 30 derniers jours"); recs.push("Relancer la collecte d'avis — la récence compte beaucoup"); }
+    const orr = ownerResponseRate(me);
+    if (orr != null) { s += clamp100((orr / 100) * 15); if (orr < 90) { issues.push(`Taux de réponse aux avis : ${orr}%`); recs.push("Répondre à tous les avis (objectif 90 %+) pour montrer l'engagement"); } }
+    else recs.push("Répondre systématiquement aux avis");
+    cats.reviews = { label: "Avis & note", weight: SCORE_WEIGHTS.reviews, score: clamp100(s), issues, recommendations: recs };
+  }
+  // ── Photos ───────────────────────────────────────────────────────────────
+  {
+    const issues = [], recs = [];
+    const pc = me.photosCount;
+    let s;
+    if (typeof pc === "number") { s = clamp100((pc / 25) * 100); if (pc < 25) { issues.push(`${pc} photos seulement`); recs.push("Ajouter des photos (objectif : 25+, variées : extérieur, intérieur, équipe, réalisations)"); } }
+    else { s = 50; recs.push("Ajouter régulièrement des photos variées (objectif : 25+)"); }
+    cats.photos = { label: "Photos", weight: SCORE_WEIGHTS.photos, score: clamp100(s), issues, recommendations: recs };
+  }
+  // ── Google Posts (non vérifiable via API) ────────────────────────────────
+  cats.posts = { label: "Google Posts", weight: SCORE_WEIGHTS.posts, score: 0, verified: false, issues: ["Pas vérifiable via l'API — supposé absent"], recommendations: ["Publier régulièrement des posts Google (actus, offres) pour rester actif"] };
+  // ── Questions / Réponses ─────────────────────────────────────────────────
+  {
+    const qa = me.questionsAndAnswersCount;
+    if (typeof qa === "number" && qa > 0) cats.qa = { label: "Questions / Réponses", weight: SCORE_WEIGHTS.qa, score: clamp100((qa / 8) * 100), issues: qa < 5 ? [`Peu de Q&R (${qa})`] : [], recommendations: qa < 5 ? ["Pré-remplir la section Q&R avec 5–10 questions fréquentes"] : [] };
+    else cats.qa = { label: "Questions / Réponses", weight: SCORE_WEIGHTS.qa, score: 0, verified: typeof qa === "number", issues: ["Section Q&R vide"], recommendations: ["Pré-remplir la section Q&R avec 5–10 questions fréquentes"] };
+  }
+  // ── Services / Produits (non vérifiable) ─────────────────────────────────
+  cats.services = { label: "Services / Produits", weight: SCORE_WEIGHTS.services, score: 0, verified: false, issues: ["Pas vérifiable via l'API — supposé absent"], recommendations: ["Lister vos services / produits sur la fiche"] };
+  // ── Attributs ────────────────────────────────────────────────────────────
+  {
+    const ac = (me.attributes || []).length;
+    const issues = [], recs = [];
+    const s = clamp100((ac / 10) * 100);
+    if (ac < 5) { issues.push(`Peu d'attributs (${ac})`); recs.push("Cocher les attributs essentiels (accessibilité PMR, Wi-Fi, parking, moyens de paiement…)"); }
+    if (ac < 10) recs.push("Compléter tous les attributs pertinents pour un meilleur appariement");
+    cats.attributes = { label: "Attributs", weight: SCORE_WEIGHTS.attributes, score: s, issues, recommendations: recs };
+  }
+
+  const totalW = Object.values(cats).reduce((a, c) => a + c.weight, 0);
+  const score = clamp100(Object.values(cats).reduce((a, c) => a + c.score * c.weight, 0) / totalW);
+  return { score, grade: gradeFromScore(score), categories: cats, compMedianReviews: compMedReviews };
+}
+
+function listingActionPlan(scorecard, me) {
+  const items = [];
+  for (const c of Object.values(scorecard.categories)) {
+    for (const rec of (c.recommendations || [])) {
+      let impact = "Faible";
+      if (c.weight >= 20 && c.score < 70) impact = "Élevé";
+      else if ((c.weight >= 15 && c.score < 70) || (c.weight >= 20 && c.score < 85)) impact = "Moyen";
+      items.push({ text: rec, category: c.label, impact });
+    }
+  }
+  const ord = { "Élevé": 0, "Moyen": 1, "Faible": 2 };
+  items.sort((a, b) => ord[a.impact] - ord[b.impact]);
+  return items.slice(0, 12);
+}
+
+// opts: { keyword, city, target:{placeId,cid,name}, providerName, onProgress }
+export async function runListingAudit(opts) {
+  const { keyword, city = "", target = {}, providerName = config.defaultProvider, onProgress = () => {} } = opts;
+  if (!keyword || !keyword.trim()) throw new Error("Mot-clé (métier) requis.");
+  if (!target.placeId && !target.cid && !target.name) throw new Error("Indique le Place ID, le CID ou le nom de la fiche.");
+  const provider = PROVIDERS[providerName];
+  if (!provider) throw new Error(`Fournisseur inconnu : ${providerName}`);
+  const query = city ? `${keyword} ${city}`.trim() : keyword.trim();
+
+  onProgress({ phase: "serp", done: 0, total: 1 });
+  const pack = await provider.localPack(keyword, city, 10);
+  onProgress({ phase: "serp", done: 1, total: 1 });
+  if (!pack.length) throw new Error(`Aucun résultat pour « ${query} ».`);
+
+  const norm = s => normalize(s || "");
+  let idx = -1;
+  if (target.placeId) idx = pack.findIndex(b => b.place_id && b.place_id === target.placeId);
+  if (idx < 0 && target.cid) idx = pack.findIndex(b => b.cid && String(b.cid) === String(target.cid));
+  if (idx < 0 && target.name) { const t = norm(target.name); idx = pack.findIndex(b => b.name && (norm(b.name).includes(t) || t.includes(norm(b.name)))); }
+  let me = idx >= 0 ? pack[idx] : (target.placeId || target.cid ? { name: target.name || null, place_id: target.placeId || null, cid: target.cid || null, city, rank: null, rating: null, reviewsCount: null, category: null, categories: [], images: [], reviews: [] } : null);
+  if (!me) throw new Error(`Fiche introuvable dans le top 10 de « ${query} » — précise le Place ID ou le CID.`);
+  const rank = (idx >= 0 ? (me.rank ?? idx + 1) : null);
+
+  onProgress({ phase: "infos", done: 0, total: 2 });
+  try { me = await provider.businessInfo(me); } catch { /* keep base */ }
+  onProgress({ phase: "reviews", done: 1, total: 2 });
+  try { const rv = await provider.reviews(me, { depth: 100 }); if (rv?.length) me.reviews = rv; } catch { /* skip */ }
+  if (providerName !== "dataforseo" && dataforseo.configured() && me.cid) {
+    try {
+      const d = await dataforseo.businessInfo(me);
+      me = { ...me, placeTopics: me.placeTopics?.length ? me.placeTopics : d.placeTopics, description: me.description || d.description, claimed: me.claimed ?? d.claimed, attributes: (me.attributes && me.attributes.length) ? me.attributes : d.attributes, workHours: me.workHours || d.workHours, phone: me.phone || d.phone, questionsAndAnswersCount: me.questionsAndAnswersCount ?? d.questionsAndAnswersCount, website: me.website || d.website, domain: me.domain || d.domain };
+    } catch { /* skip */ }
+  }
+  const scorecard = scoreListing(me, pack, rank);
+  const actionPlan = listingActionPlan(scorecard, me);
+  const competitors = pack.map((b, i) => ({
+    rank: b.rank ?? i + 1, name: b.name, isMe: i === idx,
+    rating: b.rating ?? null, reviewsCount: b.reviewsCount ?? null, photosCount: b.photosCount ?? null,
+    category: b.category || null, address: b.address || null,
+    beaten: (rank != null && (b.rank ?? i + 1) != null) ? (i !== idx && rank < (b.rank ?? i + 1)) : null,
+  }));
+
+  return {
+    mode: "listing", keyword, city, query, provider: providerName, generatedAt: new Date().toISOString(),
+    business: {
+      name: me.name, address: me.address || null, city, place_id: me.place_id || null, cid: me.cid || null, phone: me.phone || null,
+      rank, rating: me.rating ?? null, reviewsCount: me.reviewsCount ?? null, photosCount: me.photosCount ?? null,
+      category: me.category || null, categories: me.categories || [], website: me.website || me.domain || null,
+      description: me.description || null, descriptionLength: me.description ? me.description.trim().length : 0,
+      claimed: me.claimed ?? null, attributesCount: (me.attributes || []).length, attributes: (me.attributes || []).slice(0, 40),
+      workHours: me.workHours || null, qaCount: me.questionsAndAnswersCount ?? null,
+    },
+    headline: { reviews: me.reviewsCount ?? null, rating: me.rating ?? null, photos: me.photosCount ?? null, recent30d: recentReviews(me, 30), responseRate: ownerResponseRate(me), negativePct: negativeReviewPct(me), rank },
+    score: scorecard.score, grade: scorecard.grade, scoreWeights: SCORE_WEIGHTS, categories: scorecard.categories,
+    competitors, compMedianReviews: scorecard.compMedianReviews,
+    actionPlan,
+  };
+}
+
 function buildRecommendations(r) {
   const recs = [];
   if (r.referenceChecklist) recs.push(`Score de complétude moyen des fiches du top ${r.topN} : ${r.referenceChecklist.score}/100 — c'est la barre à atteindre.${r.referenceChecklist.essentials.length ? ` Pratiques quasi systématiques chez les leaders : ${r.referenceChecklist.essentials.slice(0, 8).join(", ")}.` : ""}`);
