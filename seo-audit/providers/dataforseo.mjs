@@ -93,6 +93,32 @@ export async function businessInfo(biz) {
   };
 }
 
+// ── SERP organique : domaines qui ressortent pour "<métier> <ville>" ────────
+// (annuaires / sites de citations NAP : Doctolib, PagesJaunes, StarOfService…)
+export async function organicResults(keyword, city, depth = 100) {
+  const json = await post("/serp/google/organic/live/advanced", [{
+    keyword: `${keyword} ${city}`.trim(),
+    location_name: config.locationName,
+    language_code: config.languageCode,
+    device: "desktop", os: "windows", depth,
+  }]);
+  const result = firstResult(json);
+  const out = [];
+  for (const it of (result?.items || [])) {
+    if ((it.type === "organic" || it.type === "compare_sites_element") && it.domain) {
+      out.push({ domain: it.domain, url: it.url || null, title: it.title || null, rank: it.rank_absolute ?? it.rank_group ?? null });
+    }
+    // blocs imbriqués (ex. "people also search", comparateurs)
+    if (Array.isArray(it.items)) for (const sub of it.items) {
+      const dom = sub.domain || (sub.url ? hostname(sub.url) : null);
+      if (dom) out.push({ domain: dom, url: sub.url || null, title: sub.title || null, rank: null });
+    }
+  }
+  return out;
+}
+
+function hostname(u) { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return null; } }
+
 // ── Avis : texte des avis (task-based, borné dans le temps) ──────────────────
 export async function reviews(biz, { depth = 50, timeoutMs = 60000 } = {}) {
   const task = { language_code: config.languageCode, location_name: config.locationName, depth };
@@ -127,4 +153,4 @@ export async function reviews(biz, { depth = 50, timeoutMs = 60000 } = {}) {
   return [];
 }
 
-export default { localPack, businessInfo, reviews, configured };
+export default { localPack, businessInfo, reviews, organicResults, configured };

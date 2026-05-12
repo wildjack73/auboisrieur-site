@@ -226,13 +226,39 @@ function placeTopicsAnalysis(businesses) {
   };
 }
 
+// Sites de citations / annuaires : domaines qui ressortent dans les SERP
+// organiques de "<métier> <ville>". On compte dans combien de villes chaque
+// domaine apparaît → les annuaires où il faut être présent pour ce métier.
+function citationsAnalysis(byCity) {
+  const citiesScanned = byCity.length;
+  const m = new Map(); // domain -> { cities:Set, occ, bestRank, sampleUrl, title }
+  for (const { city, items } of byCity) {
+    for (const it of items) {
+      if (!it.domain) continue;
+      const e = m.get(it.domain) || { cities: new Set(), occ: 0, bestRank: Infinity, sampleUrl: null, title: null };
+      e.cities.add(city); e.occ++;
+      if (Number.isFinite(it.rank) && it.rank < e.bestRank) e.bestRank = it.rank;
+      if (!e.sampleUrl && it.url) e.sampleUrl = it.url;
+      if (!e.title && it.title) e.title = it.title;
+      m.set(it.domain, e);
+    }
+  }
+  const domains = [...m.entries()].map(([domain, e]) => ({
+    domain, count: e.cities.size, occurrences: e.occ,
+    pct: citiesScanned ? Math.round((e.cities.size / citiesScanned) * 100) : 0,
+    bestRank: Number.isFinite(e.bestRank) ? e.bestRank : null,
+    sampleUrl: e.sampleUrl, title: e.title,
+  })).sort((a, b) => b.count - a.count || a.bestRank - b.bestRank || b.occurrences - a.occurrences);
+  return { citiesScanned, domains: domains.slice(0, 60), mustSubmit: domains.filter(d => d.pct >= 50).slice(0, 30) };
+}
+
 // ── Audit principal ─────────────────────────────────────────────────────────
-// opts: { keyword, cities[], topN, providerName, withReviews, withVision, onProgress }
+// opts: { keyword, cities[], topN, providerName, withReviews, withVision, withCitations, onProgress }
 export async function runAudit(opts) {
   const {
     keyword, cities, topN = 3,
     providerName = config.defaultProvider,
-    withReviews = false, withVision = false,
+    withReviews = false, withVision = false, withCitations = false,
     onProgress = () => {},
   } = opts;
 
@@ -285,6 +311,20 @@ export async function runAudit(opts) {
     }
   }
 
+  // Citations / annuaires (optionnel) : SERP organique par ville
+  let citations = null;
+  if (withCitations && typeof provider.organicResults === "function") {
+    const byCity = [];
+    let i = 0;
+    for (const city of limitedCities) {
+      onProgress({ phase: "citations", done: i, total: limitedCities.length, city });
+      try { byCity.push({ city, items: await provider.organicResults(keyword, city) }); }
+      catch (e) { byCity.push({ city, items: [] }); }
+      i++;
+    }
+    citations = citationsAnalysis(byCity);
+  }
+
   // Vision (optionnel)
   let visionAgg = null;
   if (withVision && visionConfigured()) {
@@ -332,6 +372,7 @@ export async function runAudit(opts) {
     snippetKeywords: keywordStats(snippets),
     reviewKeywords: keywordStats(reviewTexts),
     reviewTopics: placeTopicsAnalysis(businesses),
+    citations,
     vision: visionAgg,
     sample: businesses.slice(0, 50).map(b => ({
       name: b.name, city: b.city, rank: b.rank, rating: b.rating,
@@ -369,6 +410,11 @@ function buildRecommendations(r) {
   else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
   if (r.reviewTopics?.topics?.length) {
     recs.push(`Mots-clés à faire ressortir dans les avis (mentionnés par les clients du top ${r.topN}) : ${r.reviewTopics.topics.slice(0, 10).map(t => `${t.term} (${t.count})`).join(", ")}.`);
+  }
+  if (r.citations?.mustSubmit?.length) {
+    recs.push(`Annuaires / sites de citations où être présent pour « ${r.keyword} » (apparaissent dans ≥ 50 % des SERP analysées) : ${r.citations.mustSubmit.map(d => d.domain).join(", ")}.`);
+  } else if (r.citations?.domains?.length) {
+    recs.push(`Principaux annuaires à viser pour « ${r.keyword} » : ${r.citations.domains.slice(0, 10).map(d => d.domain).join(", ")}.`);
   }
   if (r.vision?.topObjects?.length) {
     recs.push(`Types de photos les plus présents dans le top ${r.topN} : ${r.vision.topObjects.slice(0, 6).map(o => o.term).join(", ")}.`);

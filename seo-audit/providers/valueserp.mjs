@@ -100,4 +100,19 @@ export async function reviews(biz) {
   return biz.reviews || [];
 }
 
-export default { localPack, businessInfo, reviews };
+// SERP organique pour "<métier> <ville>" → domaines (annuaires / citations).
+export async function organicResults(keyword, city) {
+  const json = await get({
+    q: `${keyword} ${city}`.trim(),
+    google_domain: "google.fr", gl: "fr", hl: "fr", num: "100",
+  });
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return null; } };
+  return (json.organic_results || []).map(o => ({
+    domain: o.domain || host(o.link),
+    url: o.link || null,
+    title: o.title || null,
+    rank: o.position || null,
+  })).filter(x => x.domain);
+}
+
+export default { localPack, businessInfo, reviews, organicResults };

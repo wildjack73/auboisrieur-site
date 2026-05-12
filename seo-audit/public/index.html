@@ -115,6 +115,7 @@
       <textarea id="citiesOverride" placeholder="Nice&#10;Lyon&#10;Marseille&#10;..."></textarea>
       <div class="checks">
         <label><input type="checkbox" id="withReviews"> Analyser le texte des avis (plus lent)</label>
+        <label><input type="checkbox" id="withCitations"> Audit citations / annuaires (1 requête SERP de plus par ville)</label>
         <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
         <span class="pill" id="visionPill"></span>
       </div>
@@ -157,6 +158,7 @@
     </div>
     <div class="checks">
       <label><input type="checkbox" id="defReviews"> Analyser les avis par défaut</label>
+      <label><input type="checkbox" id="defCitations"> Audit citations / annuaires par défaut</label>
       <label><input type="checkbox" id="defVision"> Analyser les photos par défaut</label>
       <span class="pill" id="visionPill2"></span>
     </div>
@@ -172,7 +174,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 let meta = {};
 let audits = [];
-let settings = { cities: null, topN: 3, provider: "", reviews: false, vision: false };
+let settings = { cities: null, topN: 3, provider: "", reviews: false, citations: false, vision: false };
 
 try { audits = JSON.parse(localStorage.getItem("seoAudits") || "[]"); } catch { audits = []; }
 try { Object.assign(settings, JSON.parse(localStorage.getItem("seoSettings") || "{}")); } catch {}
@@ -203,6 +205,7 @@ $$(".tabs button").forEach(b => b.onclick = () => {
   $("#citiesSettings").value = settings.cities.join("\n");
   $("#defTopN").value = settings.topN || 3;
   $("#defReviews").checked = !!settings.reviews;
+  $("#defCitations").checked = !!settings.citations;
   $("#defVision").checked = !!settings.vision && meta.visionAvailable;
   $("#citiesOverride").placeholder = meta.topCities.slice(0,6).join("\n") + "\n…";
   updateCitiesCount();
@@ -230,6 +233,7 @@ $("#saveDefaults").onclick = () => {
   settings.topN = parseInt($("#defTopN").value,10) || 3;
   settings.provider = $("#defProvider").value || meta.defaultProvider;
   settings.reviews = $("#defReviews").checked;
+  settings.citations = $("#defCitations").checked;
   settings.vision = $("#defVision").checked;
   saveSettings();
   $("#provider").querySelector("option[value='']").textContent = `(défaut : ${settings.provider})`;
@@ -287,6 +291,11 @@ function renderAudit(r, { compact=false } = {}) {
     </div>
     ${r.reviewTopics?.topics?.length ? `<h2>Mots-clés des avis selon Google — « place topics » (${r.reviewTopics.businessesWithTopics} fiches)</h2><p style="color:var(--mut);font-size:13px;margin:0 0 6px">Sujets que Google extrait des avis ; le nombre = total des mentions sur le top ${r.topN}.</p>${bars(r.reviewTopics.topics.slice(0,compact?20:40))}` : ""}
     ${r.reviewKeywords.documents ? `<h2>Mots-clés du texte des avis (${r.reviewKeywords.documents} avis)</h2><div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
+    ${r.citations ? (c => `<h2>Citations / annuaires où être présent <span class="pill">${c.citiesScanned} SERP analysées</span></h2>
+      <p style="color:var(--mut);font-size:13px;margin:0 0 6px">Domaines qui ressortent dans les résultats organiques de « ${esc(r.keyword)} + ville » ; nb = dans combien de villes le domaine apparaît.</p>
+      ${c.mustSubmit?.length ? `<p class="reco">★ À soumettre en priorité : ${esc(c.mustSubmit.map(d=>d.domain).join(", "))}</p>` : ""}
+      <table><thead><tr><th>Domaine</th><th>Villes</th><th>%</th><th>Meilleure pos.</th>${compact?"":"<th>Exemple d'URL</th>"}</tr></thead><tbody>${
+        c.domains.slice(0,compact?25:60).map(d=>`<tr><td>${esc(d.domain)}</td><td>${d.count}</td><td>${d.pct}%</td><td>${d.bestRank??"—"}</td>${compact?"":`<td>${d.sampleUrl?`<a href="${esc(d.sampleUrl)}" target="_blank" rel="noopener">${esc(d.sampleUrl).slice(0,70)}</a>`:"—"}</td>`}</tr>`).join("")}</tbody></table>` )(r.citations) : ""}
     ${r.vision ? `<h2>Photos — objets détectés (${r.vision.imagesAnalyzed} images, ${r.vision.businessesAnalyzed} fiches)</h2>${bars(r.vision.topObjects.slice(0,compact?15:30))}` : ""}`;
   if (compact) return head + `<h3>Échantillon du top ${r.topN}</h3><table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead><tbody>${r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>`;
   return head + `
@@ -328,6 +337,7 @@ function downloadCsv(list, filename){
     add(a,"categorie",a.categories);
     add(a,"categorie_combinaison",(a.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})));
     if(a.vision) add(a,"photo_objet",a.vision.topObjects);
+    if(a.citations) for(const d of (a.citations.domains||[])) rows.push([a._title||a.keyword,"citation_annuaire",d.domain,d.count,d.pct]);
     if(a.titleKeyword) rows.push([a._title||a.keyword,"nom_fiche_contient_motcle",a.keyword,a.titleKeyword.keywordInTitlePct+"%",""]);
   }
   const csv = rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
@@ -363,6 +373,7 @@ $("#run").addEventListener("click", () => {
     provider: $("#provider").value || settings.provider || meta.defaultProvider,
     cities,
     withReviews: $("#withReviews").checked || settings.reviews,
+    withCitations: $("#withCitations").checked || settings.citations,
     withVision: ($("#withVision").checked || settings.vision) && meta.visionAvailable,
   };
   const title = $("#title").value.trim();
@@ -394,7 +405,7 @@ function handle(ev, data, title) {
   else if (ev === "progress") {
     const total = data.total || 1, done = data.done || 0;
     $("#progBar").style.width = Math.round((done/total)*100) + "%";
-    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", vision:"Analyse des photos" };
+    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", vision:"Analyse des photos" };
     $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
   }
   else if (ev === "done") { $("#prog").hidden = true; data._title = title || data.keyword; audits.push(data); saveAudits(); refreshList(); showOnScreen(data); }
