@@ -711,9 +711,37 @@ export async function runAudit(opts) {
   report.descriptionGuide = descriptionGuide(report.descriptionKeywords, keyword, report.stats.descriptionLength, report.stats.descriptionWords);
   report.reviewGuide = reviewSemanticGuide(report.reviewTopics, report.reviewKeywords, keyword);
 
-  // Recommandations dérivées
+  // Recommandations dérivées + résumé "accessible"
   report.recommendations = buildRecommendations(report);
+  report.summary = buildSummary(report);
   return report;
+}
+
+// Résumé en langage clair : un constat + une liste d'actions classées par priorité.
+function buildSummary(r) {
+  const A = []; const add = (priority, text) => { if (text) A.push({ priority, text }); };
+  const N = r.topN;
+  if (r.ratingTarget) add("haute", `Obtenir une note d'au moins ${r.ratingTarget.median}/5 et environ ${r.ratingTarget.medianReviews != null ? r.ratingTarget.medianReviews : (r.stats.reviewsCount ? r.stats.reviewsCount.median : "plusieurs dizaines d'")} avis — c'est le niveau du top ${N}.`);
+  if (r.reviewFrequency?.perMonth) add("haute", `Récolter ~${r.reviewFrequency.perMonth.median} nouvel(s) avis par mois et répondre à chacun ; ne pas laisser passer plus de ~${r.reviewFrequency.lastReviewDays.p75} jours sans nouvel avis.`);
+  if (r.categoryCombos?.mainCategory) add("haute", `Choisir comme catégorie principale « ${r.categoryCombos.mainCategory} »${r.categoryCombos.secondaryCategories?.length ? ` et ajouter en secondaires : ${r.categoryCombos.secondaryCategories.join(", ")}` : ""}.`);
+  if (r.descriptionGuide?.mustUse?.length) add("moyenne", `Rédiger une description d'environ ${r.descriptionGuide.targetLength ? r.descriptionGuide.targetLength.median : 750} caractères${r.descriptionGuide.targetWords ? ` (~${r.descriptionGuide.targetWords.median} mots)` : ""} en y intégrant : ${r.descriptionGuide.mustUse.slice(0, 8).map(x => x.term).join(", ")}.`);
+  if (r.titleKeyword && r.titleKeyword.keywordInTitlePct >= 60) add("moyenne", `Faire apparaître « ${r.keyword} » dans le nom de la fiche (${r.titleKeyword.keywordInTitlePct}% du top ${N} le font) — sans abuser.`);
+  if (r.gmbProfile?.mustHaveAttributes?.length) add("moyenne", `Cocher les attributs : ${r.gmbProfile.mustHaveAttributes.slice(0, 8).map(x => x.term).join(", ")}.`);
+  if (r.stats.photosCount?.count) add("moyenne", `Mettre au moins ${r.stats.photosCount.median} photos.`);
+  if (r.vision?.topObjects?.length) add("basse", `Montrer sur les photos en priorité : ${r.vision.topObjects.slice(0, 5).map(o => o.term).join(", ")}.`);
+  if (r.reviewTopics?.topics?.length) add("basse", `Inciter les clients à mentionner dans leurs avis : ${r.reviewTopics.topics.slice(0, 6).map(t => t.term).join(", ")} (et reprendre ces mots dans vos réponses).`);
+  if (r.citations?.mustSubmit?.length) add("basse", `S'inscrire sur les annuaires : ${r.citations.mustSubmit.slice(0, 8).map(d => d.domain).join(", ")}.`);
+  if (r.siteMetrics?.rank?.median || r.haloscan?.sites?.trust?.median || r.haloscan?.sites?.keywordsCount?.median) add("basse", `Renforcer le site web (liens / contenu) : le top ${N} a des sites mieux référencés que la moyenne.`);
+  const ord = { haute: 0, moyenne: 1, basse: 2 };
+  A.sort((a, b) => ord[a.priority] - ord[b.priority]);
+  const bits = [];
+  if (r.ratingTarget) bits.push(`une note ≈ ${r.ratingTarget.median}/5`);
+  if (r.ratingTarget?.medianReviews != null) bits.push(`≈ ${r.ratingTarget.medianReviews} avis`);
+  else if (r.stats.reviewsCount) bits.push(`≈ ${r.stats.reviewsCount.median} avis`);
+  if (r.categoryCombos?.mainCategory) bits.push(`la catégorie « ${r.categoryCombos.mainCategory} »`);
+  if (r.descriptionGuide?.targetLength) bits.push(`une description d'≈ ${r.descriptionGuide.targetLength.median} caractères`);
+  const headline = `D'après l'analyse de ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} ville(s) pour « ${r.keyword} », les établissements bien placés ont en moyenne ${bits.join(", ")}. Voici, par ordre de priorité, ce qu'il faut faire pour s'en rapprocher.`;
+  return { headline, actions: A };
 }
 
 function buildRecommendations(r) {

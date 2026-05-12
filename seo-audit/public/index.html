@@ -60,6 +60,18 @@
   .imgGrid figure { margin:0; }
   .imgGrid img { width:100%; height:100px; object-fit:cover; border-radius:6px; background:#0c0e13; display:block; }
   .imgGrid figcaption { font-size:11px; color:var(--mut); margin-top:3px; line-height:1.3; }
+  .summary { background:#11161f; border:1px solid #233040; border-radius:10px; padding:14px 16px; margin:12px 0; }
+  .summary h3 { margin:0 0 6px; color:var(--txt); font-size:15px; }
+  .summary p { margin:0 0 10px; color:#c7d0dc; }
+  ol.actions { margin:0; padding-left:0; list-style:none; counter-reset:act; }
+  ol.actions li { counter-increment:act; position:relative; padding:7px 0 7px 30px; border-bottom:1px solid var(--line); font-size:14px; }
+  ol.actions li:last-child { border-bottom:0; }
+  ol.actions li::before { content:counter(act); position:absolute; left:0; top:7px; width:20px; height:20px; border-radius:50%; background:#222734; color:var(--mut); font-size:11px; text-align:center; line-height:20px; font-weight:700; }
+  ol.actions li.prio-haste::before, ol.actions li.prio-haute::before { background:#7a2230; color:#ffd0d6; }
+  ol.actions li.prio-moyenne::before { background:#7a5a20; color:#ffe6bf; }
+  .badge { display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:.04em; padding:1px 6px; border-radius:10px; background:#222734; color:var(--mut); margin-right:6px; vertical-align:middle; }
+  li.prio-haute .badge { background:#7a2230; color:#ffd0d6; } li.prio-moyenne .badge { background:#7a5a20; color:#ffe6bf; }
+  .plain { font-size:12.5px; color:var(--mut); margin:2px 0 8px; font-style:italic; }
 
   /* ── Vue imprimable / PDF ─────────────────────────────────────────────── */
   #printArea { display:none; }
@@ -85,6 +97,14 @@
     #printArea .imgGrid img { height:80px; }
     #printArea .imgGrid figcaption { color:#555; }
     figure { break-inside:avoid; }
+    #printArea .summary { background:#f3f7fb; border:1px solid #cdd9e5; }
+    #printArea .summary h3, #printArea .summary p { color:#111; }
+    #printArea ol.actions li { border-bottom:1px solid #ddd; }
+    #printArea ol.actions li::before { background:#e5e8ec; color:#555; }
+    #printArea ol.actions li.prio-haute::before, #printArea li.prio-haute .badge { background:#e9c4ca; color:#7a2230; }
+    #printArea ol.actions li.prio-moyenne::before, #printArea li.prio-moyenne .badge { background:#ecdcc0; color:#6b4f1c; }
+    #printArea .badge { background:#e5e8ec; color:#555; }
+    #printArea .plain { color:#666; }
     @page { margin:14mm 12mm; }
   }
 </style>
@@ -145,6 +165,23 @@
   </div>
 
   <div id="out"></div>
+
+  <div class="card">
+    <details><summary>Lexique — c'est quoi tous ces termes ?</summary>
+      <ul style="font-size:13px;line-height:1.6">
+        <li><b>Top 3 / local pack</b> : les 3 fiches qui apparaissent avec la carte quand on cherche « métier + ville » sur Google. Le but de l'audit : voir ce qu'ont en commun ces 3 fiches partout en France, pour faire pareil.</li>
+        <li><b>Catégorie principale / secondaire</b> : la catégorie d'activité de la fiche Google (ex. « Salon de coiffure »). On peut en ajouter d'autres en secondaires. C'est l'un des facteurs les plus importants.</li>
+        <li><b>Description</b> : le texte « de la part du propriétaire » sur la fiche. L'audit dit combien de caractères/mots écrire et quels mots-clés y mettre.</li>
+        <li><b>Avis (chips Google / « place topics »)</b> : les petites étiquettes sous « Avis » (ex. « gentillesse 23 »). Ce sont les mots que Google repère dans les avis des clients. À reprendre dans vos réponses et à suggérer à vos clients.</li>
+        <li><b>Citations / NAP</b> : les annuaires où votre établissement est listé (PagesJaunes, etc.). Plus vous y êtes (avec les mêmes nom/adresse/téléphone), mieux c'est.</li>
+        <li><b>Domain Rank / trust / backlinks / domaines référents</b> : la « popularité » d'un site web aux yeux de Google, basée sur les liens qu'il reçoit d'autres sites. Sur 1000 pour le Domain Rank.</li>
+        <li><b>Volume de recherche</b> : combien de fois par mois les gens tapent cette recherche sur Google.</li>
+        <li><b>Allintitle / KGR</b> : indicateurs de concurrence sur un mot-clé (combien de pages le ciblent dans leur titre).</li>
+        <li><b>Vision / objets / labels</b> : analyse automatique des photos pour savoir ce qu'elles montrent (devanture, équipe, produit…) → quoi photographier en priorité.</li>
+        <li><b>Posts Google</b> : les publications (actus, offres) qu'on peut poster sur sa fiche, comme sur un réseau social.</li>
+      </ul>
+    </details>
+  </div>
 </div>
 
 <!-- ─────────────── ONGLET PARAMÈTRES ─────────────── -->
@@ -273,7 +310,9 @@ function renderAudit(r, { compact=false } = {}) {
   const head = `
     <h2>${esc(r._title || r.keyword)} — top ${r.topN}</h2>
     <p class="pill">requête « ${esc(r.keyword)} » · ${r.cities.requested} villes · ${r.businesses.total} fiches · ${r.businesses.withDescription} avec description · fournisseur ${esc(r.provider)} · ${new Date(r.generatedAt).toLocaleString("fr-FR")}</p>
-    ${r.recommendations?.length ? `<h3>Recommandations</h3><ul class="recs">${r.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    ${r.summary ? `<div class="summary"><h3>En clair — que faut-il faire ?</h3><p>${esc(r.summary.headline)}</p>
+      <ol class="actions">${r.summary.actions.map(a=>`<li class="prio-${a.priority}"><span class="badge">${a.priority==="haute"?"Priorité":a.priority==="moyenne"?"Important":"Bonus"}</span> ${esc(a.text)}</li>`).join("")}</ol></div>` : ""}
+    ${r.recommendations?.length ? `<details><summary>Détail des recommandations (${r.recommendations.length})</summary><ul class="recs">${r.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
     <div class="stats" style="margin-top:10px">
       ${statBox("Note", s.rating, "/5")}${statBox("Nombre d'avis", s.reviewsCount)}${statBox("Nombre de photos", s.photosCount)}${statBox("Longueur description (car.)", s.descriptionLength)}
     </div>
