@@ -82,6 +82,8 @@
   .catScore .track > i { display:block; height:100%; }
   .catScore .pct { width:74px; flex:none; text-align:right; color:var(--mut); }
   .impact-Élevé { color:#ff7a7a; font-weight:700; } .impact-Moyen { color:#ffc46b; font-weight:700; } .impact-Faible { color:var(--mut); }
+  .geogrid { display:grid; gap:3px; max-width:340px; margin-top:8px; }
+  .geogrid .gcell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:700; border-radius:3px; }
 
   /* ── Vue imprimable / PDF (rapport pro) ───────────────────────────────── */
   #printArea { display:none; }
@@ -182,6 +184,11 @@
     #printArea figure { break-inside:avoid; margin:0; }
     #printArea pre { display:none; }   /* pas de JSON brut dans le PDF */
     #printArea section.audit { break-inside:auto; }
+    #printArea .gradeWrap { break-inside:avoid; }
+    #printArea .gradeCircle { width:60px; height:60px; } #printArea .gradeCircle b { font-size:18px; }
+    #printArea .catScore { font-size:9.5px; } #printArea .catScore .lbl { width:42mm; } #printArea .catScore .track { background:#e8eef6; height:12px; }
+    #printArea .geogrid { max-width:64mm; gap:2px; break-inside:avoid; } #printArea .geogrid .gcell { font-size:8px; }
+    #printArea .g-A{background:#1e9e5a}#printArea .g-B{background:#5aa83a}#printArea .g-C{background:#c79a1e}#printArea .g-D{background:#d97a2e}#printArea .g-F{background:#c0392b}
   }
 </style>
 </head>
@@ -275,6 +282,7 @@
       <div><label>ou CID</label><input type="text" id="lcid" placeholder="4272154961102027751"></div>
       <div><label>ou nom de la fiche</label><input type="text" id="lname" placeholder="SOFIAL Expert Comptable Nice"></div>
     </div>
+    <div class="checks"><label><input type="checkbox" id="lwithGrid"> Grille de visibilité géographique (5×5 = 25 requêtes SERP de plus — option)</label></div>
     <div class="toolbar"><button id="runListing" class="btn">Lancer l'audit de la fiche</button></div>
     <div class="progress" id="lprog" hidden><span id="lprogText">…</span><div class="bar"><i id="lprogBar"></i></div></div>
   </div>
@@ -656,6 +664,12 @@ function renderListing(r, { print=false } = {}){
     <table><thead><tr><th>#</th><th>Établissement</th><th>Note</th><th>Avis</th><th>Photos</th><th>Catégorie</th></tr></thead><tbody>${
       r.competitors.map(c=>`<tr${c.isMe?' style="font-weight:700;background:rgba(54,201,141,.08)"':""}><td>${c.rank}</td><td>${esc(c.name)}${c.isMe?" (vous)":""}</td><td>${c.rating??"—"}</td><td>${c.reviewsCount??"—"}</td><td>${c.photosCount??"—"}</td><td>${esc(c.category||"—")}</td></tr>`).join("")}</tbody></table>
     <p class="plain">Vert clair = votre fiche. Les fiches plus haut que vous sont vos cibles à dépasser (plus d'avis / meilleure note / plus de photos${r.compMedianReviews!=null?` — médiane d'avis des concurrents : ${r.compMedianReviews}`:""}).</p>
+    ${r.geoGrid ? (g => { const cell = c => { const v=c.rank; const col = v==null?"#c0392b":v===1?"#147a3f":v<=3?"#36c98d":v<=7?"#c79a1e":v<=10?"#d97a2e":"#a23b1e"; const txt = v==null?"–":v; return `<div class="gcell" style="background:${col}" title="lat ${c.lat}, lng ${c.lng} — rang ${v??"hors top 20"}">${txt}</div>`; };
+      return `<h2>Grille de visibilité géographique <span class="pill">${g.n}×${g.n} · maille ${g.stepKm} km · rayon ≈ ${g.radiusKm} km</span></h2>
+      <p class="reco">★ Vous apparaissez dans le top 3 sur ${g.inTop3Pct}% de la zone (${g.inTop3}/${g.points} points) · présent dans le top 20 sur ${g.rankedPct}% · rang moyen là où classé : ${g.avgRankWhereRanked??"—"}.</p>
+      <p class="plain">Chaque case = un point GPS autour de votre adresse ; le chiffre = votre rang Google Maps à cet endroit (« – » = hors top 20). Nord en haut.</p>
+      <div class="geogrid" style="grid-template-columns:repeat(${g.n},1fr)">${g.cells.map(cell).join("")}</div>
+      <p class="plain" style="margin-top:6px"><span style="color:#147a3f">■</span> #1 · <span style="color:#36c98d">■</span> top 3 · <span style="color:#c79a1e">■</span> 4–7 · <span style="color:#d97a2e">■</span> 8–10 · <span style="color:#a23b1e">■</span> 11–20 · <span style="color:#c0392b">■</span> absent</p>`; })(r.geoGrid) : ""}
     ${b.description?`<h3>Votre description actuelle (${b.descriptionLength} car.)</h3><textarea readonly style="min-height:70px">${esc(b.description)}</textarea>`:`<p class="plain">Aucune description sur la fiche — à ajouter.</p>`}
     ${b.categories?.length?`<p class="pill">Catégories : ${esc([b.category,...b.categories].filter(Boolean).join(", "))}</p>`:""}
     ${print?"":`<details><summary>JSON brut</summary><pre style="overflow:auto;font-size:12px">${esc(JSON.stringify(r,null,2))}</pre></details>`}`;
@@ -675,7 +689,7 @@ $("#runListing").addEventListener("click", () => {
   const keyword = $("#lkeyword").value.trim();
   if (!keyword) { alert("Indique un métier / une requête."); return; }
   if (!$("#lplaceId").value.trim() && !$("#lcid").value.trim() && !$("#lname").value.trim()) { alert("Indique le Place ID, le CID ou le nom de la fiche."); return; }
-  const payload = { keyword, city: $("#lcity").value.trim(), provider: $("#lprovider").value, placeId: $("#lplaceId").value.trim(), cid: $("#lcid").value.trim(), name: $("#lname").value.trim() };
+  const payload = { keyword, city: $("#lcity").value.trim(), provider: $("#lprovider").value, placeId: $("#lplaceId").value.trim(), cid: $("#lcid").value.trim(), name: $("#lname").value.trim(), withGrid: $("#lwithGrid").checked };
   $("#runListing").disabled = true; $("#listingOut").innerHTML = "";
   $("#lprog").hidden = false; $("#lprogText").textContent = "Démarrage…"; $("#lprogBar").style.width = "0%";
   fetch("/api/listing-audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) })
@@ -683,7 +697,7 @@ $("#runListing").addEventListener("click", () => {
       const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = "";
       for(;;){ const {value,done}=await reader.read(); if(done)break; buf+=dec.decode(value,{stream:true}); let idx;
         while((idx=buf.indexOf("\n\n"))>=0){ const chunk=buf.slice(0,idx); buf=buf.slice(idx+2); const ev=(chunk.match(/^event: (.*)$/m)||[])[1]; const dl=(chunk.match(/^data: (.*)$/m)||[])[1]; if(!dl)continue; const data=JSON.parse(dl);
-          if(ev==="progress"){ const t=data.total||1,d=data.done||0; $("#lprogBar").style.width=Math.round(d/t*100)+"%"; const L={serp:"Recherche du top 10",infos:"Infos de la fiche",reviews:"Avis"}; $("#lprogText").textContent=`${L[data.phase]||data.phase} — ${d}/${t}`; }
+          if(ev==="progress"){ const t=data.total||1,d=data.done||0; $("#lprogBar").style.width=Math.round(d/t*100)+"%"; const L={serp:"Recherche du top 10",infos:"Infos de la fiche",reviews:"Avis",grid:"Grille géographique"}; $("#lprogText").textContent=`${L[data.phase]||data.phase} — ${d}/${t}`; }
           else if(ev==="done"){ $("#lprog").hidden=true; $("#listingOut").innerHTML=`<div class="card"><div class="toolbar" style="margin-top:0;margin-bottom:10px"><button class="sec" id="lpdf">📄 PDF de cet audit</button></div>${renderListing(data)}</div>`; $("#lpdf").onclick=()=>exportListingPdf(data); window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }
           else if(ev==="error"){ $("#lprog").hidden=true; $("#listingOut").innerHTML=`<div class="card err">Erreur : ${esc(data.error)}</div>`; }
         }

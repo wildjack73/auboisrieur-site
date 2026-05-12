@@ -99,6 +99,7 @@ const server = http.createServer(async (req, res) => {
       city: String(body.city || "").trim(),
       target: { placeId: String(body.placeId || "").trim() || null, cid: String(body.cid || "").trim() || null, name: String(body.name || "").trim() || null },
       providerName: body.provider || config.defaultProvider,
+      withGrid: !!body.withGrid,
     };
     res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", "Connection": "keep-alive" });
     const emit = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);

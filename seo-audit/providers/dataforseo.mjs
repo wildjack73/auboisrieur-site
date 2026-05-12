@@ -54,9 +54,26 @@ export async function localPack(keyword, city, limit = 3) {
     address: it.address || null,
     website: it.url || null,
     domain: it.domain || (it.url ? hostname(it.url) : null),
+    latitude: it.latitude ?? null,
+    longitude: it.longitude ?? null,
     photosCount: null,
     images: [],
     reviews: [],
+  }));
+}
+
+// Local pack à un point GPS précis (pour la grille de visibilité).
+export async function localPackAtCoord(keyword, lat, lng, limit = 20, zoom = 14) {
+  const json = await post("/serp/google/maps/live/advanced", [{
+    keyword,
+    location_coordinate: `${lat},${lng},${zoom}`,
+    language_code: config.languageCode,
+    depth: 20,
+  }]);
+  const result = firstResult(json);
+  return (result?.items || []).filter(i => i.type === "maps_search").slice(0, limit).map((it, idx) => ({
+    name: it.title || null, cid: it.cid || null, place_id: it.place_id || null,
+    rank: it.rank_absolute ?? idx + 1, rating: it.rating?.value ?? null, reviewsCount: it.rating?.votes_count ?? null,
   }));
 }
 
@@ -111,6 +128,8 @@ export async function businessInfo(biz) {
     workHours: workHours ?? biz.workHours ?? null,
     phone: it.phone || biz.phone || null,
     questionsAndAnswersCount: qaCount,
+    latitude: it.latitude ?? biz.latitude ?? null,
+    longitude: it.longitude ?? biz.longitude ?? null,
     website: it.url || biz.website || null,
     domain: it.domain || biz.domain || (it.url ? hostname(it.url) : null),
     description: it.description || biz.description || null,
@@ -209,4 +228,4 @@ export async function domainMetrics(domain) {
   };
 }
 
-export default { localPack, businessInfo, reviews, organicResults, domainMetrics, configured };
+export default { localPack, localPackAtCoord, businessInfo, reviews, organicResults, domainMetrics, configured };

@@ -66,6 +66,8 @@ export async function localPack(keyword, city, limit = 3) {
     address: it.address || null,
     website: it.website || it.link || null,
     domain: (it.website || it.link) ? host(it.website || it.link) : null,
+    latitude: it.gps_coordinates?.latitude ?? it.coordinates?.latitude ?? null,
+    longitude: it.gps_coordinates?.longitude ?? it.coordinates?.longitude ?? null,
     photosCount: null,
     images: it.thumbnail ? [it.thumbnail] : [],
     reviews: [],
@@ -89,6 +91,8 @@ export async function businessInfo(biz) {
     rating: biz.rating ?? num(d.rating),
     reviewsCount: biz.reviewsCount ?? num(d.reviews_count ?? d.reviews),
     photosCount: Array.isArray(d.photos) ? d.photos.length : (biz.photosCount ?? null),
+    latitude: biz.latitude ?? d.gps_coordinates?.latitude ?? null,
+    longitude: biz.longitude ?? d.gps_coordinates?.longitude ?? null,
     images: (d.photos || []).map(p => p?.image || p?.thumbnail || p).filter(Boolean).slice(0, 8),
     reviews: userReviews.map(r => ({
       text: r.snippet || r.text || r.review || "",
@@ -102,6 +106,20 @@ export async function businessInfo(biz) {
 // déjà renvoyés par place_details (récupérés dans businessInfo()).
 export async function reviews(biz) {
   return biz.reviews || [];
+}
+
+// Local pack à un point GPS précis (grille de visibilité).
+export async function localPackAtCoord(keyword, lat, lng, limit = 20, zoom = 14) {
+  const json = await get({
+    search_type: "places", q: keyword,
+    ll: `@${lat},${lng},${zoom}z`,
+    google_domain: "google.fr", gl: "fr", hl: "fr",
+  });
+  const items = (json.places_results || json.local_results || []).slice(0, limit);
+  return items.map((it, idx) => ({
+    name: it.title || null, cid: it.data_cid || it.cid || null, place_id: it.data_id || it.place_id || null,
+    rank: it.position || idx + 1, rating: num(it.rating), reviewsCount: num(it.reviews),
+  }));
 }
 
 // SERP organique pour "<métier> <ville>" → domaines (annuaires / citations).
@@ -119,4 +137,4 @@ export async function organicResults(keyword, city) {
   })).filter(x => x.domain);
 }
 
-export default { localPack, businessInfo, reviews, organicResults };
+export default { localPack, localPackAtCoord, businessInfo, reviews, organicResults };

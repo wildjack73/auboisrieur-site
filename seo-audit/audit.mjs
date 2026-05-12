@@ -945,9 +945,40 @@ function listingActionPlan(scorecard, me) {
   return items.slice(0, 12);
 }
 
-// opts: { keyword, city, target:{placeId,cid,name}, providerName, onProgress }
+// Grille de visibilité géographique : on interroge le local pack à un
+// quadrillage de points GPS autour de la fiche et on relève son rang à chacun.
+async function geoGridAnalysis({ keyword, lat, lng, target, provider, n = 5, stepKm = 1, onProgress }) {
+  if (typeof provider.localPackAtCoord !== "function" || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const dLat = stepKm / 111;
+  const dLng = stepKm / (111 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+  const mid = (n - 1) / 2;
+  const norm = s => normalize(s || "");
+  const matches = b => (target.placeId && b.place_id === target.placeId)
+    || (target.cid && b.cid && String(b.cid) === String(target.cid))
+    || (target.name && b.name && (norm(b.name).includes(norm(target.name)) || norm(target.name).includes(norm(b.name))));
+  const cells = []; let i = 0, ranked = 0, inTop3 = 0, sumRank = 0;
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    const plat = lat + (mid - r) * dLat, plng = lng + (c - mid) * dLng; // ligne 0 = nord
+    onProgress?.({ phase: "grid", done: i, total: n * n }); i++;
+    let rank = null;
+    try { const pack = await provider.localPackAtCoord(keyword, plat, plng, 20); const f = pack.find(matches); if (f && Number.isFinite(f.rank)) rank = f.rank; } catch { /* skip */ }
+    if (rank != null) { ranked++; sumRank += rank; if (rank <= 3) inTop3++; }
+    cells.push({ row: r, col: c, lat: Math.round(plat * 1e5) / 1e5, lng: Math.round(plng * 1e5) / 1e5, rank });
+  }
+  const tot = n * n;
+  return {
+    keyword, center: { lat, lng }, n, stepKm, points: tot,
+    inTop3, inTop3Pct: Math.round((inTop3 / tot) * 100),
+    rankedPct: Math.round((ranked / tot) * 100),
+    avgRankWhereRanked: ranked ? Math.round((sumRank / ranked) * 10) / 10 : null,
+    radiusKm: Math.round(mid * stepKm * Math.SQRT2 * 10) / 10,
+    cells,
+  };
+}
+
+// opts: { keyword, city, target:{placeId,cid,name}, providerName, withGrid, onProgress }
 export async function runListingAudit(opts) {
-  const { keyword, city = "", target = {}, providerName = config.defaultProvider, onProgress = () => {} } = opts;
+  const { keyword, city = "", target = {}, providerName = config.defaultProvider, withGrid = false, onProgress = () => {} } = opts;
   if (!keyword || !keyword.trim()) throw new Error("Mot-clé (métier) requis.");
   if (!target.placeId && !target.cid && !target.name) throw new Error("Indique le Place ID, le CID ou le nom de la fiche.");
   const provider = PROVIDERS[providerName];
@@ -980,6 +1011,10 @@ export async function runListingAudit(opts) {
   }
   const scorecard = scoreListing(me, pack, rank);
   const actionPlan = listingActionPlan(scorecard, me);
+  let geoGrid = null;
+  if (withGrid) {
+    try { geoGrid = await geoGridAnalysis({ keyword, lat: Number(me.latitude), lng: Number(me.longitude), target: { placeId: me.place_id, cid: me.cid, name: me.name }, provider, n: 5, stepKm: 1, onProgress }); } catch { /* skip */ }
+  }
   const competitors = pack.map((b, i) => ({
     rank: b.rank ?? i + 1, name: b.name, isMe: i === idx,
     rating: b.rating ?? null, reviewsCount: b.reviewsCount ?? null, photosCount: b.photosCount ?? null,
@@ -996,7 +1031,9 @@ export async function runListingAudit(opts) {
       description: me.description || null, descriptionLength: me.description ? me.description.trim().length : 0,
       claimed: me.claimed ?? null, attributesCount: (me.attributes || []).length, attributes: (me.attributes || []).slice(0, 40),
       workHours: me.workHours || null, qaCount: me.questionsAndAnswersCount ?? null,
+      latitude: me.latitude ?? null, longitude: me.longitude ?? null,
     },
+    geoGrid,
     headline: { reviews: me.reviewsCount ?? null, rating: me.rating ?? null, photos: me.photosCount ?? null, recent30d: recentReviews(me, 30), responseRate: ownerResponseRate(me), negativePct: negativeReviewPct(me), rank },
     score: scorecard.score, grade: scorecard.grade, scoreWeights: SCORE_WEIGHTS, categories: scorecard.categories,
     competitors, compMedianReviews: scorecard.compMedianReviews,
