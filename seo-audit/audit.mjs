@@ -135,6 +135,29 @@ function categoryComboAnalysis(businesses, topN) {
   };
 }
 
+// Mots-clés des avis selon Google ("place topics") : Google associe à chaque
+// fiche des sujets fréquemment mentionnés dans les avis, avec un nombre de
+// mentions. On somme ces mentions sur tout le top N (comme le bot ZennoPoster).
+function placeTopicsAnalysis(businesses) {
+  const m = new Map(); // term -> { mentions, fiches }
+  let withTopics = 0;
+  for (const b of businesses) {
+    const topics = b.placeTopics || [];
+    if (topics.length) withTopics++;
+    for (const t of topics) {
+      const e = m.get(t.term) || { mentions: 0, fiches: 0 };
+      e.mentions += (Number(t.count) || 0); e.fiches += 1; m.set(t.term, e);
+    }
+  }
+  const total = [...m.values()].reduce((s, e) => s + e.mentions, 0) || 1;
+  return {
+    businessesWithTopics: withTopics,
+    topics: [...m.entries()]
+      .map(([term, e]) => ({ term, count: e.mentions, fiches: e.fiches, pct: Math.round((e.mentions / total) * 100) }))
+      .sort((a, b) => b.count - a.count).slice(0, 40),
+  };
+}
+
 // ── Audit principal ─────────────────────────────────────────────────────────
 // opts: { keyword, cities[], topN, providerName, withReviews, withVision, onProgress }
 export async function runAudit(opts) {
@@ -162,6 +185,15 @@ export async function runAudit(opts) {
       for (const biz of top) {
         let enriched = biz;
         try { enriched = await provider.businessInfo(biz); } catch (e) { /* keep base */ }
+        // Mots-clés des avis ("place topics") : seul DataForSEO les expose →
+        // si un autre fournisseur est utilisé mais DataForSEO est configuré,
+        // on complète la fiche avec ses place_topics.
+        if (providerName !== "dataforseo" && dataforseo.configured() && enriched.cid && !(enriched.placeTopics?.length)) {
+          try {
+            const d = await dataforseo.businessInfo(enriched);
+            if (d.placeTopics?.length) enriched = { ...enriched, placeTopics: d.placeTopics, description: enriched.description || d.description };
+          } catch { /* skip */ }
+        }
         businesses.push(enriched);
       }
     } catch (e) {
@@ -230,6 +262,7 @@ export async function runAudit(opts) {
     descriptionKeywords: keywordStats(descriptions),
     snippetKeywords: keywordStats(snippets),
     reviewKeywords: keywordStats(reviewTexts),
+    reviewTopics: placeTopicsAnalysis(businesses),
     vision: visionAgg,
     sample: businesses.slice(0, 50).map(b => ({
       name: b.name, city: b.city, rank: b.rank, rating: b.rating,
@@ -260,6 +293,9 @@ function buildRecommendations(r) {
   if (bg) recs.push(`Expressions fréquentes dans le top ${r.topN} : ${bg}.`);
   if (r.categoryCombos?.recommendation) recs.push(r.categoryCombos.recommendation);
   else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
+  if (r.reviewTopics?.topics?.length) {
+    recs.push(`Mots-clés à faire ressortir dans les avis (mentionnés par les clients du top ${r.topN}) : ${r.reviewTopics.topics.slice(0, 10).map(t => `${t.term} (${t.count})`).join(", ")}.`);
+  }
   if (r.vision?.topObjects?.length) {
     recs.push(`Types de photos les plus présents dans le top ${r.topN} : ${r.vision.topObjects.slice(0, 6).map(o => o.term).join(", ")}.`);
   }

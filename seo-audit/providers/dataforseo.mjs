@@ -3,6 +3,8 @@ import config from "../config.mjs";
 
 const { login, password, base } = config.dataforseo;
 
+export function configured() { return !!(login && password); }
+
 function authHeader() {
   if (!login || !password) {
     throw new Error("DataForSEO non configuré (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD manquants).");
@@ -72,6 +74,12 @@ export async function businessInfo(biz) {
   }
   const it = (result?.items || [])[0];
   if (!it) return biz;
+  // place_topics : mots-clés que Google extrait des avis ({ "sujet": nb_mentions })
+  const placeTopics = (it.place_topics && typeof it.place_topics === "object")
+    ? Object.entries(it.place_topics)
+        .map(([term, count]) => ({ term: String(term).trim(), count: Number(count) || 0 }))
+        .filter(t => t.term).sort((a, b) => b.count - a.count)
+    : (biz.placeTopics || []);
   return {
     ...biz,
     description: it.description || biz.description || null,
@@ -80,6 +88,7 @@ export async function businessInfo(biz) {
     rating: biz.rating ?? it.rating?.value ?? null,
     reviewsCount: biz.reviewsCount ?? it.rating?.votes_count ?? null,
     photosCount: it.total_photos ?? it.photos_count ?? null,
+    placeTopics,
     images: (it.images || []).map(im => im?.url || im).filter(Boolean).slice(0, 8),
   };
 }
@@ -118,4 +127,4 @@ export async function reviews(biz, { depth = 50, timeoutMs = 60000 } = {}) {
   return [];
 }
 
-export default { localPack, businessInfo, reviews };
+export default { localPack, businessInfo, reviews, configured };

@@ -267,7 +267,8 @@ function renderAudit(r, { compact=false } = {}) {
       <div><h3>Mots (% de fiches qui le contiennent)</h3>${bars((r.descriptionKeywords.unigrams||[]).slice(0,compact?20:40))}</div>
       <div><h3>Expressions (bigrammes)</h3>${bars((r.descriptionKeywords.bigrams||[]).slice(0,compact?15:25))}</div>
     </div>
-    ${r.reviewKeywords.documents ? `<h2>Mots-clés des avis (${r.reviewKeywords.documents} avis)</h2><div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
+    ${r.reviewTopics?.topics?.length ? `<h2>Mots-clés des avis selon Google — « place topics » (${r.reviewTopics.businessesWithTopics} fiches)</h2><p style="color:var(--mut);font-size:13px;margin:0 0 6px">Sujets que Google extrait des avis ; le nombre = total des mentions sur le top ${r.topN}.</p>${bars(r.reviewTopics.topics.slice(0,compact?20:40))}` : ""}
+    ${r.reviewKeywords.documents ? `<h2>Mots-clés du texte des avis (${r.reviewKeywords.documents} avis)</h2><div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
     ${r.vision ? `<h2>Photos — objets détectés (${r.vision.imagesAnalyzed} images, ${r.vision.businessesAnalyzed} fiches)</h2>${bars(r.vision.topObjects.slice(0,compact?15:30))}` : ""}`;
   if (compact) return head + `<h3>Échantillon du top ${r.topN}</h3><table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead><tbody>${r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>`;
   return head + `
