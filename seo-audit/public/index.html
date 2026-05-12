@@ -145,7 +145,11 @@ function render(r) {
   </div>` : ""}
 
   <div class="card">
-    <h2>Catégories les plus fréquentes</h2>${bars(r.categories)}
+    <h2>Catégories — combinaisons exactes du top ${r.topN}</h2>
+    ${r.categoryCombos?.recommendation ? `<p style="background:#0c2018;border:1px solid #1f4636;border-radius:8px;padding:10px 12px;color:#9be8c4">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
+    <h3>Combinaisons (principale ; secondaires) — ${r.categoryCombos?.businessesWithCategories||0} fiches avec catégorie</h3>
+    ${bars((r.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})))}
+    <details><summary>Catégories prises isolément (toutes positions confondues)</summary>${bars(r.categories)}</details>
   </div>
 
   ${r.vision ? `<div class="card">

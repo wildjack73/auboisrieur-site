@@ -73,6 +73,42 @@ function tally(items) {
   return [...m.entries()].map(([term, count]) => ({ term, count })).sort((a, b) => b.count - a.count);
 }
 
+// Catégories d'une fiche, normalisées sous la forme [principale, ...secondaires].
+function bizCategories(b) {
+  const list = [];
+  if (b.category) list.push(String(b.category).trim());
+  for (const c of (b.categories || [])) { const s = String(c).trim(); if (s) list.push(s); }
+  return [...new Set(list.filter(Boolean))];
+}
+
+// Reproduit la logique du bot ZennoPoster : on compte les COMBINAISONS exactes
+// de catégories (principale + secondaires) du top N, et on recommande la plus
+// fréquente, en distinguant catégorie principale et catégories secondaires.
+function categoryComboAnalysis(businesses, topN) {
+  const combos = new Map(); // "Cat A; Cat B" -> count
+  let withCats = 0;
+  for (const b of businesses) {
+    const cats = bizCategories(b);
+    if (!cats.length) continue;
+    withCats++;
+    const key = cats.join("; ");
+    combos.set(key, (combos.get(key) || 0) + 1);
+  }
+  const sorted = [...combos.entries()]
+    .map(([combo, count]) => ({ combo, count, pct: withCats ? Math.round((count / withCats) * 100) : 0 }))
+    .sort((a, b) => b.count - a.count);
+  let recommendation = null, mainCategory = null, secondaryCategories = [];
+  if (sorted.length) {
+    const parts = sorted[0].combo.split(";").map(s => s.trim()).filter(Boolean);
+    mainCategory = parts[0] || null;
+    secondaryCategories = parts.slice(1);
+    recommendation = secondaryCategories.length
+      ? `Catégorie principale à utiliser : ${mainCategory} — et catégories secondaires à utiliser : ${secondaryCategories.join(", ")}.`
+      : `Catégorie principale à utiliser : ${mainCategory} — sans catégories secondaires recommandées.`;
+  }
+  return { businessesWithCategories: withCats, combos: sorted.slice(0, 25), mainCategory, secondaryCategories, recommendation };
+}
+
 // ── Audit principal ─────────────────────────────────────────────────────────
 // opts: { keyword, cities[], topN, providerName, withReviews, withVision, onProgress }
 export async function runAudit(opts) {
@@ -164,6 +200,7 @@ export async function runAudit(opts) {
       descriptionLength: numberStats(descriptions.map(d => d.length)),
     },
     categories: tally(businesses.map(b => b.category)).slice(0, 25),
+    categoryCombos: categoryComboAnalysis(businesses, topN),
     descriptionKeywords: keywordStats(descriptions),
     snippetKeywords: keywordStats(snippets),
     reviewKeywords: keywordStats(reviewTexts),
@@ -195,7 +232,8 @@ function buildRecommendations(r) {
   if (kw) recs.push(`Intégrer ces mots-clés dans la description : ${kw}.`);
   const bg = r.descriptionKeywords.bigrams.slice(0, 5).map(k => k.term).join(" / ");
   if (bg) recs.push(`Expressions fréquentes dans le top ${r.topN} : ${bg}.`);
-  if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
+  if (r.categoryCombos?.recommendation) recs.push(r.categoryCombos.recommendation);
+  else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
   if (r.vision?.topObjects?.length) {
     recs.push(`Types de photos les plus présents dans le top ${r.topN} : ${r.vision.topObjects.slice(0, 6).map(o => o.term).join(", ")}.`);
   }
