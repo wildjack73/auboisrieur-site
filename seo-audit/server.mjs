@@ -69,6 +69,7 @@ const server = http.createServer(async (req, res) => {
       withVision: !!body.withVision,
       withCitations: !!body.withCitations,
       withSiteMetrics: !!body.withSiteMetrics,
+      withHaloscan: !!body.withHaloscan,
     };
 
     // Server-Sent Events : progression + résultat final

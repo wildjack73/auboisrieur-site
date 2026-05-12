@@ -5,6 +5,7 @@ import valueserp from "./providers/valueserp.mjs";
 import { analyzeImages, visionConfigured } from "./vision.mjs";
 import serpapi from "./serpapi.mjs";
 import { translate, translateConfigured } from "./translate.mjs";
+import haloscan from "./haloscan.mjs";
 
 const PROVIDERS = { dataforseo, valueserp };
 
@@ -290,6 +291,53 @@ async function siteMetricsAnalysis(businesses, topN, onProgress) {
   };
 }
 
+// Audit Haloscan : volume de recherche "<métier> <ville>" par ville,
+// métriques des sites des fiches (trust, domaines référents, mots-clés, trafic),
+// et position du site de chaque fiche sur sa requête.
+async function haloscanAnalysis({ keyword, cities, businesses, topN, onProgress }) {
+  if (!haloscan.configured()) return null;
+  // 1) volume du métier seul + par "métier + ville"
+  let baseKeyword = null;
+  try { baseKeyword = await haloscan.keywordOverview(keyword); } catch { /* skip */ }
+  const kw = [];
+  for (let i = 0; i < cities.length; i++) {
+    onProgress?.({ phase: "haloscan", done: i, total: cities.length + 1, city: cities[i] });
+    try { const o = await haloscan.keywordOverview(`${keyword} ${cities[i]}`); if (o) kw.push({ city: cities[i], ...o }); } catch { /* skip */ }
+  }
+  // 2) métriques + position des sites "propres" des fiches
+  const seen = new Set(); const sites = [];
+  for (const b of businesses) { if (classifyDomain(b.domain) === "own" && b.domain && !seen.has(b.domain)) { seen.add(b.domain); sites.push({ domain: b.domain, city: b.city }); } }
+  const siteRows = [];
+  const list = sites.slice(0, 40);
+  for (let i = 0; i < list.length; i++) {
+    onProgress?.({ phase: "haloscan", done: cities.length + i, total: cities.length + list.length, name: list[i].domain });
+    let ov = null, pos = null;
+    try { ov = await haloscan.domainOverview(list[i].domain); } catch { /* skip */ }
+    try { pos = await haloscan.domainPosition(list[i].domain, `${keyword} ${list[i].city}`); } catch { /* skip */ }
+    if (ov || pos != null) siteRows.push({ ...(ov || { domain: list[i].domain }), positionOnQuery: pos });
+  }
+  const vol = numberStats(kw.map(k => k.volume));
+  const totalVolume = kw.reduce((s, k) => s + (k.volume || 0), 0);
+  const trust = numberStats(siteRows.map(r => r.trust));
+  const refDomains = numberStats(siteRows.map(r => r.referringDomains));
+  const kwCount = numberStats(siteRows.map(r => r.keywordsCount));
+  const traffic = numberStats(siteRows.map(r => r.traffic));
+  const positions = numberStats(siteRows.map(r => r.positionOnQuery));
+  const recParts = [];
+  if (baseKeyword?.volume != null) recParts.push(`Volume « ${keyword} » : ${baseKeyword.volume}/mois`);
+  if (totalVolume) recParts.push(`volume cumulé « ${keyword} + ville » sur ${kw.length} villes : ${totalVolume}/mois (médiane ${vol ? vol.median : "?"}/ville)`);
+  if (trust) recParts.push(`sites du top ${topN} : trust médian ${trust.median}${refDomains ? `, ~${refDomains.median} domaines référents` : ""}${kwCount ? `, ~${kwCount.median} mots-clés positionnés` : ""}${traffic ? `, ~${traffic.median} visites/mois` : ""}`);
+  return {
+    baseKeyword, citiesQueried: kw.length,
+    totalVolume, volumePerCity: vol,
+    allintitle: numberStats(kw.map(k => k.allintitle)), kgr: numberStats(kw.map(k => k.kgr)),
+    topCitiesByVolume: kw.filter(k => typeof k.volume === "number").sort((a, b) => b.volume - a.volume).slice(0, 25).map(k => ({ term: k.city, count: k.volume })),
+    perCity: kw.map(k => ({ city: k.city, volume: k.volume, allintitle: k.allintitle, kgr: k.kgr, difficulty: k.difficulty })),
+    sites: { analyzed: siteRows.length, trust, referringDomains: refDomains, keywordsCount: kwCount, traffic, positionOnQuery: positions, rows: siteRows.slice(0, 40) },
+    recommendation: recParts.length ? recParts.join(" · ") + "." : "Aucune donnée Haloscan exploitable (vérifie la clé / les endpoints).",
+  };
+}
+
 // Position du SITE de la fiche dans le SERP organique de "<métier> <ville>"
 // (nécessite l'audit citations actif, qui fournit les résultats organiques).
 function websiteRankAnalysis(businesses, organicByCity, topN) {
@@ -369,7 +417,15 @@ function reviewSemanticGuide(reviewTopics, reviewKeywords, keyword) {
     `Toute l'équipe est ravie que votre expérience ait été à la hauteur` +
     (words.length ? ` — ${words.slice(0, 4).join(", ")} font partie de ce qui nous tient à cœur` : "") +
     `. Au plaisir de vous accueillir à nouveau. [Signature, ${keyword}]`;
-  return { mustMention, alsoUseful, fromReviewText, words, responseTemplate };
+  // Exemples d'avis "souhaités" à suggérer aux clients (en intégrant la sémantique du top N)
+  const pickN = (arr, n, off = 0) => arr.slice(off, off + n).join(", ");
+  const t = mustMention.map(m => m.term);
+  const sampleReviews = [
+    `J'ai fait appel à [nom] pour ${keyword} à [ville] et je recommande vivement. ${pickN(t, 3) ? pickN(t, 3) + " au rendez-vous. " : ""}Une équipe à l'écoute et un travail soigné — je reviendrai sans hésiter !`,
+    `Très satisfait·e de [nom] ! ${pickN(t, 2, 3) ? pickN(t, 2, 3) + " impeccables, " : ""}prestation ${keyword} de qualité, accueil chaleureux et bons conseils. Je conseille à 100 %.`,
+    `[nom] — ${keyword} sérieux et professionnel à [ville]. ${pickN(t, 3, 5) ? pickN(t, 3, 5) + ". " : ""}Merci pour votre réactivité et votre gentillesse, rien à redire.`,
+  ].filter(s => s && s.length > 30);
+  return { mustMention, alsoUseful, fromReviewText, words, responseTemplate, sampleReviews };
 }
 
 // Mots-clés des avis selon Google ("place topics") : Google associe à chaque
@@ -427,7 +483,7 @@ export async function runAudit(opts) {
   const {
     keyword, cities, topN = 3,
     providerName = config.defaultProvider,
-    withReviews = false, withVision = false, withCitations = false, withSiteMetrics = false,
+    withReviews = false, withVision = false, withCitations = false, withSiteMetrics = false, withHaloscan = false,
     onProgress = () => {},
   } = opts;
 
@@ -499,6 +555,12 @@ export async function runAudit(opts) {
   let siteMetrics = null;
   if (withSiteMetrics) {
     try { siteMetrics = await siteMetricsAnalysis(businesses, topN, onProgress); } catch { /* skip */ }
+  }
+
+  // Haloscan (optionnel) : volume mots-clés + métriques/positions des sites
+  let haloscanData = null;
+  if (withHaloscan) {
+    try { haloscanData = await haloscanAnalysis({ keyword, cities: limitedCities, businesses, topN, onProgress }); } catch { /* skip */ }
   }
 
   // Photos + Vision (optionnel)
@@ -598,6 +660,7 @@ export async function runAudit(opts) {
     reviewFrequency: reviewFrequencyAnalysis(businesses),
     websiteRank: websiteRankAnalysis(businesses, organicByCity, topN),
     siteMetrics,
+    haloscan: haloscanData,
     categories: weightedCategoryTally(businesses, topN),
     categoryCombos: categoryComboAnalysis(businesses, topN),
     titleKeyword: titleKeywordAnalysis(businesses, keyword, topN),
@@ -646,6 +709,7 @@ function buildRecommendations(r) {
   if (r.titleKeyword?.recommendation) recs.push(r.titleKeyword.recommendation);
   if (r.websiteRank?.recommendation) recs.push(r.websiteRank.recommendation);
   if (r.siteMetrics?.recommendation) recs.push(r.siteMetrics.recommendation);
+  if (r.haloscan?.recommendation) recs.push("Haloscan — " + r.haloscan.recommendation);
   if (r.categoryCombos?.recommendation) recs.push(r.categoryCombos.recommendation);
   else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
   if (r.reviewTopics?.topics?.length) {

@@ -125,6 +125,7 @@
         <label><input type="checkbox" id="withReviews"> Analyser le texte des avis (plus lent)</label>
         <label><input type="checkbox" id="withCitations"> Audit citations / annuaires (1 requête SERP de plus par ville)</label>
         <label><input type="checkbox" id="withSiteMetrics"> Métriques des sites web (Domain Rank, backlinks — DataForSEO)</label>
+        <label><input type="checkbox" id="withHaloscan"> Haloscan : volume mots-clés + métriques/positions des sites</label>
         <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
         <span class="pill" id="visionPill"></span>
       </div>
@@ -169,6 +170,7 @@
       <label><input type="checkbox" id="defReviews"> Analyser les avis par défaut</label>
       <label><input type="checkbox" id="defCitations"> Audit citations / annuaires par défaut</label>
       <label><input type="checkbox" id="defSiteMetrics"> Métriques des sites web par défaut</label>
+      <label><input type="checkbox" id="defHaloscan"> Haloscan par défaut</label>
       <label><input type="checkbox" id="defVision"> Analyser les photos par défaut</label>
       <span class="pill" id="visionPill2"></span>
     </div>
@@ -184,7 +186,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 let meta = {};
 let audits = [];
-let settings = { cities: null, topN: 3, provider: "", reviews: false, citations: false, siteMetrics: false, vision: false };
+let settings = { cities: null, topN: 3, provider: "", reviews: false, citations: false, siteMetrics: false, haloscan: false, vision: false };
 
 try { audits = JSON.parse(localStorage.getItem("seoAudits") || "[]"); } catch { audits = []; }
 try { Object.assign(settings, JSON.parse(localStorage.getItem("seoSettings") || "{}")); } catch {}
@@ -217,6 +219,7 @@ $$(".tabs button").forEach(b => b.onclick = () => {
   $("#defReviews").checked = !!settings.reviews;
   $("#defCitations").checked = !!settings.citations;
   $("#defSiteMetrics").checked = !!settings.siteMetrics;
+  $("#defHaloscan").checked = !!settings.haloscan;
   $("#defVision").checked = !!settings.vision && meta.visionAvailable;
   $("#citiesOverride").placeholder = meta.topCities.slice(0,6).join("\n") + "\n…";
   updateCitiesCount();
@@ -246,6 +249,7 @@ $("#saveDefaults").onclick = () => {
   settings.reviews = $("#defReviews").checked;
   settings.citations = $("#defCitations").checked;
   settings.siteMetrics = $("#defSiteMetrics").checked;
+  settings.haloscan = $("#defHaloscan").checked;
   settings.vision = $("#defVision").checked;
   saveSettings();
   $("#provider").querySelector("option[value='']").textContent = `(défaut : ${settings.provider})`;
@@ -316,6 +320,18 @@ function renderAudit(r, { compact=false } = {}) {
       </div>
       ${m.rows?.length?`<details><summary>Détail par site</summary><table><thead><tr><th>Domaine</th><th>Domain Rank</th><th>Dom. référents</th><th>Backlinks</th></tr></thead><tbody>${
         m.rows.map(x=>`<tr><td>${esc(x.domain)}</td><td>${x.rank??"—"}</td><td>${x.referringDomains??"—"}</td><td>${x.backlinks??"—"}</td></tr>`).join("")}</tbody></table></details>`:""}` )(r.siteMetrics) : ""}
+    ${r.haloscan ? (h => `<h2>Haloscan — volume de recherche &amp; sites</h2>
+      <p class="reco">★ ${esc(h.recommendation||"")}</p>
+      <div class="stats" style="margin-top:8px">
+        ${h.baseKeyword?.volume!=null?`<div class="stat"><b>${h.baseKeyword.volume}/mois</b><span>volume « ${esc(r.keyword)} » (Haloscan)${h.baseKeyword.difficulty!=null?` · difficulté ${h.baseKeyword.difficulty}`:""}</span></div>`:""}
+        ${h.totalVolume?`<div class="stat"><b>${h.totalVolume}/mois</b><span>volume cumulé « ${esc(r.keyword)} + ville » sur ${h.citiesQueried} villes · médiane ${h.volumePerCity?h.volumePerCity.median:"?"}/ville</span></div>`:""}
+        ${h.sites?.trust?`<div class="stat"><b>${h.sites.trust.median}</b><span>trust médian des sites du top ${r.topN} (${h.sites.analyzed} sites)</span></div>`:""}
+        ${h.sites?.keywordsCount?`<div class="stat"><b>${h.sites.keywordsCount.median}</b><span>mots-clés positionnés (médiane)${h.sites.traffic?` · ~${h.sites.traffic.median} visites/mois`:""}</span></div>`:""}
+        ${h.sites?.positionOnQuery?`<div class="stat"><b>${h.sites.positionOnQuery.median}</b><span>position médiane du site sur « métier + ville »</span></div>`:""}
+      </div>
+      ${h.topCitiesByVolume?.length?`<h3>Villes par volume « ${esc(r.keyword)} + ville »</h3>${bars(h.topCitiesByVolume.slice(0,compact?15:25))}`:""}
+      ${h.sites?.rows?.length?`<details><summary>Détail par site (Haloscan)</summary><table><thead><tr><th>Domaine</th><th>Trust</th><th>Dom. référents</th><th>Mots-clés</th><th>Trafic</th><th>Pos. requête</th></tr></thead><tbody>${
+        h.sites.rows.map(x=>`<tr><td>${esc(x.domain)}</td><td>${x.trust??"—"}</td><td>${x.referringDomains??"—"}</td><td>${x.keywordsCount??"—"}</td><td>${x.traffic??"—"}</td><td>${x.positionOnQuery??"—"}</td></tr>`).join("")}</tbody></table></details>`:""}` )(r.haloscan) : ""}
     <h2>Catégories du top ${r.topN} <span class="pill">pondéré — ${esc(r.categoryCombos?.weighting||"")}</span></h2>
     ${r.categoryCombos?.recommendation ? `<p class="reco">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
     <div class="cols">
@@ -339,7 +355,8 @@ function renderAudit(r, { compact=false } = {}) {
       ${g.mustMention?.length ? `<h3>Mots à reprendre en priorité</h3>${bars(g.mustMention)}` : ""}
       ${g.alsoUseful?.length ? `<p class="pill">Aussi utiles : ${esc(g.alsoUseful.join(", "))}</p>` : ""}
       ${g.fromReviewText?.length ? `<p style="font-size:13px"><b>Mots fréquents dans le texte des avis :</b> ${esc(g.fromReviewText.join(", "))}</p>` : ""}
-      <h3>Modèle de réponse aux avis (à adapter)</h3><textarea readonly style="min-height:80px">${esc(g.responseTemplate)}</textarea>` )(r.reviewGuide) : ""}
+      <h3>Modèle de réponse aux avis (à adapter)</h3><textarea readonly style="min-height:80px">${esc(g.responseTemplate)}</textarea>
+      ${g.sampleReviews?.length ? `<h3>Exemples d'avis souhaités (à suggérer à vos clients)</h3>${g.sampleReviews.map(s=>`<textarea readonly style="min-height:60px;margin-bottom:6px">${esc(s)}</textarea>`).join("")}` : ""}` )(r.reviewGuide) : ""}
     ${r.reviewKeywords.documents ? `<h2>Mots-clés du texte des avis (${r.reviewKeywords.documents} avis)</h2><div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams.slice(0,compact?15:30))}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams.slice(0,compact?12:20))}</div></div>` : ""}
     ${r.citations ? (c => `<h2>Citations / annuaires où être présent <span class="pill">${c.citiesScanned} SERP analysées</span></h2>
       <p style="color:var(--mut);font-size:13px;margin:0 0 6px">Domaines qui ressortent dans les résultats organiques de « ${esc(r.keyword)} + ville » ; nb = dans combien de villes le domaine apparaît.</p>
@@ -404,6 +421,7 @@ function downloadCsv(list, filename){
     if(a.reviewFrequency) rows.push([a._title||a.keyword,"avis_par_mois_mediane","",a.reviewFrequency.perMonth.median,""]);
     if(a.websiteRank) rows.push([a._title||a.keyword,"site_en_page1_pct","",a.websiteRank.top10Pct+"%",""]);
     if(a.siteMetrics){ rows.push([a._title||a.keyword,"site_propre_pct","",a.siteMetrics.breakdown.ownSitePct+"%",""]); if(a.siteMetrics.rank)rows.push([a._title||a.keyword,"domain_rank_median","",a.siteMetrics.rank.median,""]); if(a.siteMetrics.referringDomains)rows.push([a._title||a.keyword,"domaines_referents_median","",a.siteMetrics.referringDomains.median,""]); for(const x of (a.siteMetrics.rows||[]))rows.push([a._title||a.keyword,"site_metrique",x.domain,x.rank??"",x.referringDomains??""]); }
+    if(a.haloscan){ if(a.haloscan.baseKeyword?.volume!=null)rows.push([a._title||a.keyword,"haloscan_volume_motcle",a.keyword,a.haloscan.baseKeyword.volume,""]); if(a.haloscan.totalVolume)rows.push([a._title||a.keyword,"haloscan_volume_cumule_villes","",a.haloscan.totalVolume,""]); for(const x of (a.haloscan.topCitiesByVolume||[]))rows.push([a._title||a.keyword,"haloscan_volume_par_ville",x.term,x.count,""]); if(a.haloscan.sites?.trust)rows.push([a._title||a.keyword,"haloscan_trust_median","",a.haloscan.sites.trust.median,""]); for(const x of (a.haloscan.sites?.rows||[]))rows.push([a._title||a.keyword,"haloscan_site",x.domain,x.trust??"",x.keywordsCount??""]); }
   }
   const csv = rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
   const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
@@ -440,6 +458,7 @@ $("#run").addEventListener("click", () => {
     withReviews: $("#withReviews").checked || settings.reviews,
     withCitations: $("#withCitations").checked || settings.citations,
     withSiteMetrics: $("#withSiteMetrics").checked || settings.siteMetrics,
+    withHaloscan: $("#withHaloscan").checked || settings.haloscan,
     withVision: ($("#withVision").checked || settings.vision) && meta.visionAvailable,
   };
   const title = $("#title").value.trim();
@@ -471,7 +490,7 @@ function handle(ev, data, title) {
   else if (ev === "progress") {
     const total = data.total || 1, done = data.done || 0;
     $("#progBar").style.width = Math.round((done/total)*100) + "%";
-    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", sitemetrics:"Métriques des sites", photos:"Récupération des photos", vision:"Analyse des photos" };
+    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", sitemetrics:"Métriques des sites", haloscan:"Haloscan (volume + sites)", photos:"Récupération des photos", vision:"Analyse des photos" };
     $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
   }
   else if (ev === "done") { $("#prog").hidden = true; data._title = title || data.keyword; audits.push(data); saveAudits(); refreshList(); showOnScreen(data); }
