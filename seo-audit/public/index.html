@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit Google Local — Top 3</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#262b36; --txt:#e6e9ef; --mut:#9aa3b2; --acc:#4f8cff; --acc2:#36c98d; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:24px 20px; border-bottom:1px solid var(--line); }
+  header h1 { margin:0 0 4px; font-size:20px; }
+  header p { margin:0; color:var(--mut); font-size:13px; }
+  main { max-width:1000px; margin:0 auto; padding:20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:10px 0 4px; }
+  input[type=text], input[type=number], select, textarea { width:100%; background:#0c0e13; border:1px solid var(--line); color:var(--txt); border-radius:7px; padding:8px 10px; font:inherit; }
+  textarea { min-height:90px; resize:vertical; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:160px; }
+  .checks { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; }
+  .checks label { display:flex; align-items:center; gap:7px; margin:0; color:var(--txt); font-size:14px; cursor:pointer; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:11px 20px; font:inherit; font-weight:600; cursor:pointer; margin-top:16px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .progress { margin-top:14px; font-size:13px; color:var(--mut); }
+  .bar { height:8px; background:#0c0e13; border-radius:5px; overflow:hidden; margin-top:6px; }
+  .bar > i { display:block; height:100%; background:var(--acc); width:0; transition:width .2s; }
+  h2 { font-size:16px; border-bottom:1px solid var(--line); padding-bottom:6px; margin:0 0 12px; }
+  h3 { font-size:14px; color:var(--mut); margin:18px 0 8px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .stat { background:#0c0e13; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .stat b { font-size:20px; display:block; }
+  .stat span { font-size:12px; color:var(--mut); }
+  .kw { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:13px; }
+  .kw .t { width:190px; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .kw .b { flex:1; height:14px; background:#0c0e13; border-radius:3px; overflow:hidden; }
+  .kw .b > i { display:block; height:100%; background:var(--acc2); }
+  .kw .n { width:64px; flex:none; text-align:right; color:var(--mut); font-variant-numeric:tabular-nums; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media(max-width:720px){ .cols{ grid-template-columns:1fr; } }
+  ul.recs { padding-left:18px; }
+  ul.recs li { margin:6px 0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mut); font-weight:600; }
+  .err { color:#ff7a7a; font-size:13px; }
+  .pill { display:inline-block; background:#0c0e13; border:1px solid var(--line); border-radius:20px; padding:2px 9px; font-size:12px; color:var(--mut); }
+  details { margin-top:10px; } summary { cursor:pointer; color:var(--mut); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Audit Google Local — analyse du top 3</h1>
+  <p>Récupère les 3 (ou N) premiers résultats Google par ville pour un métier donné et analyse descriptions, avis, photos et statistiques.</p>
+</header>
+<main>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Métier / requête (sans la ville)</label>
+        <input type="text" id="keyword" placeholder="ex : expert-comptable">
+      </div>
+      <div style="flex:0 0 120px">
+        <label>Top N</label>
+        <input type="number" id="topN" value="3" min="1" max="20">
+      </div>
+      <div style="flex:0 0 180px">
+        <label>Fournisseur</label>
+        <select id="provider"></select>
+      </div>
+    </div>
+    <label>Villes (une par ligne ou séparées par des virgules — vide = liste des grandes villes françaises)</label>
+    <textarea id="cities" placeholder="Nice&#10;Lyon&#10;Marseille&#10;..."></textarea>
+    <div class="checks">
+      <label><input type="checkbox" id="withReviews"> Analyser le texte des avis (plus lent)</label>
+      <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
+      <span class="pill" id="visionPill"></span>
+    </div>
+    <button id="run">Lancer l'audit</button>
+    <div class="progress" id="prog" hidden>
+      <span id="progText">…</span>
+      <div class="bar"><i id="progBar"></i></div>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let meta = {};
+
+(async () => {
+  meta = await fetch("/api/meta").then(r => r.json());
+  $("#provider").innerHTML = meta.providers.map(p => `<option ${p===meta.defaultProvider?"selected":""}>${p}</option>`).join("");
+  $("#cities").placeholder = meta.topCities.slice(0,8).join("\n") + "\n…";
+  if (!meta.visionAvailable) { $("#withVision").disabled = true; $("#visionPill").textContent = "Vision non configurée (GOOGLE_VISION_API_KEY)"; }
+  else $("#visionPill").textContent = "Vision disponible";
+})();
+
+function parseCities(txt) {
+  return txt.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function bars(items, key="term") {
+  if (!items || !items.length) return '<p class="err">Aucune donnée.</p>';
+  const max = items[0].count || 1;
+  return items.map(it => `<div class="kw"><span class="t" title="${esc(it[key])}">${esc(it[key])}</span>`
+    + `<span class="b"><i style="width:${Math.round(it.count/max*100)}%"></i></span>`
+    + `<span class="n">${it.count}${it.pct!=null?` · ${it.pct}%`:""}</span></div>`).join("");
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function statBox(label, st, unit="") {
+  if (!st) return "";
+  return `<div class="stat"><b>${st.avg}${unit}</b><span>${esc(label)} — moy. (médiane ${st.median}${unit}, ${st.min}–${st.max}, n=${st.count})</span></div>`;
+}
+
+function render(r) {
+  const s = r.stats;
+  $("#out").innerHTML = `
+  <div class="card">
+    <h2>Synthèse — « ${esc(r.keyword)} » · top ${r.topN}</h2>
+    <p class="pill">${r.cities.requested} villes · ${r.businesses.total} fiches · ${r.businesses.withDescription} avec description · ${r.businesses.withReviewsText} avec avis · fournisseur ${esc(r.provider)}</p>
+    <div class="stats" style="margin-top:12px">
+      ${statBox("Note", s.rating, "/5")}
+      ${statBox("Nombre d'avis", s.reviewsCount)}
+      ${statBox("Nombre de photos", s.photosCount)}
+      ${statBox("Longueur description (car.)", s.descriptionLength)}
+    </div>
+    ${r.recommendations?.length ? `<h3>Recommandations</h3><ul class="recs">${r.recommendations.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+  </div>
+
+  <div class="card">
+    <h2>Mots-clés des descriptions du top ${r.topN}</h2>
+    <div class="cols">
+      <div><h3>Mots (% de fiches qui le contiennent)</h3>${bars(r.descriptionKeywords.unigrams)}</div>
+      <div><h3>Expressions (bigrammes)</h3>${bars(r.descriptionKeywords.bigrams)}</div>
+    </div>
+    <details><summary>Mots-clés des snippets éditoriaux Google</summary>
+      <div class="cols"><div>${bars(r.snippetKeywords.unigrams.slice(0,20))}</div><div>${bars(r.snippetKeywords.bigrams.slice(0,15))}</div></div>
+    </details>
+  </div>
+
+  ${r.reviewKeywords.documents ? `<div class="card">
+    <h2>Mots-clés des avis (${r.reviewKeywords.documents} avis analysés)</h2>
+    <div class="cols"><div><h3>Mots</h3>${bars(r.reviewKeywords.unigrams)}</div><div><h3>Expressions</h3>${bars(r.reviewKeywords.bigrams)}</div></div>
+  </div>` : ""}
+
+  <div class="card">
+    <h2>Catégories les plus fréquentes</h2>${bars(r.categories)}
+  </div>
+
+  ${r.vision ? `<div class="card">
+    <h2>Photos — objets/labels détectés (${r.vision.imagesAnalyzed} images, ${r.vision.businessesAnalyzed} fiches)</h2>
+    ${bars(r.vision.topObjects)}
+  </div>` : ""}
+
+  <div class="card">
+    <h2>Échantillon des fiches du top ${r.topN}</h2>
+    <table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th><th>Description</th></tr></thead>
+    <tbody>${r.sample.map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td><td>${esc(b.description||"—")}</td></tr>`).join("")}</tbody></table>
+  </div>
+
+  ${r.errors?.length ? `<div class="card"><h2>Erreurs (${r.errors.length})</h2><table><tbody>${r.errors.slice(0,30).map(e=>`<tr><td>${esc(e.city)}</td><td class="err">${esc(e.error)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+
+  <div class="card"><details><summary>JSON brut</summary><pre style="overflow:auto;font-size:12px">${esc(JSON.stringify(r,null,2))}</pre></details></div>
+  `;
+}
+
+$("#run").addEventListener("click", () => {
+  const keyword = $("#keyword").value.trim();
+  if (!keyword) { alert("Indique un métier / une requête."); return; }
+  const payload = {
+    keyword,
+    topN: parseInt($("#topN").value,10) || 3,
+    provider: $("#provider").value,
+    cities: parseCities($("#cities").value),
+    withReviews: $("#withReviews").checked,
+    withVision: $("#withVision").checked && !$("#withVision").disabled,
+  };
+  $("#run").disabled = true;
+  $("#out").innerHTML = "";
+  $("#prog").hidden = false;
+  $("#progText").textContent = "Démarrage…";
+  $("#progBar").style.width = "0%";
+
+  // EventSource ne supporte pas POST → on utilise fetch + ReadableStream pour le SSE.
+  fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) })
+    .then(async resp => {
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        let idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
+          const ev = (chunk.match(/^event: (.*)$/m)||[])[1];
+          const dataLine = (chunk.match(/^data: (.*)$/m)||[])[1];
+          if (!dataLine) continue;
+          const data = JSON.parse(dataLine);
+          handle(ev, data);
+        }
+      }
+    })
+    .catch(e => { $("#progText").textContent = "Erreur réseau : " + e; })
+    .finally(() => { $("#run").disabled = false; });
+});
+
+function handle(ev, data) {
+  if (ev === "start") { $("#progText").textContent = `Audit de ${data.cities} ville(s)…`; }
+  else if (ev === "progress") {
+    const total = data.total || 1, done = data.done || 0;
+    const pct = Math.round(done/total*100);
+    $("#progBar").style.width = pct + "%";
+    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", vision:"Analyse des photos" };
+    $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
+  }
+  else if (ev === "done") { $("#prog").hidden = true; render(data); }
+  else if (ev === "error") { $("#prog").hidden = true; $("#out").innerHTML = `<div class="card err">Erreur : ${esc(data.error)}</div>`; }
+}
+</script>
+</body>
+</html>
