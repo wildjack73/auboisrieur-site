@@ -67,12 +67,6 @@ function numberStats(values) {
   };
 }
 
-function tally(items) {
-  const m = new Map();
-  for (const it of items) { if (!it) continue; m.set(it, (m.get(it) || 0) + 1); }
-  return [...m.entries()].map(([term, count]) => ({ term, count })).sort((a, b) => b.count - a.count);
-}
-
 // Catégories d'une fiche, normalisées sous la forme [principale, ...secondaires].
 function bizCategories(b) {
   const list = [];
@@ -81,21 +75,48 @@ function bizCategories(b) {
   return [...new Set(list.filter(Boolean))];
 }
 
-// Reproduit la logique du bot ZennoPoster : on compte les COMBINAISONS exactes
-// de catégories (principale + secondaires) du top N, et on recommande la plus
-// fréquente, en distinguant catégorie principale et catégories secondaires.
+// Poids d'une fiche selon sa position dans le top N : le #1 pèse plus que le #N.
+// (#1 → topN, #2 → topN-1, … #N → 1). Une fiche sans rang connu vaut 1.
+function rankWeight(rank, topN) {
+  const r = Number.isFinite(rank) ? rank : topN;
+  return Math.max(1, topN - r + 1);
+}
+
+// Catégories du top N, prises isolément, pondérées par la position.
+function weightedCategoryTally(businesses, topN) {
+  const m = new Map(); // cat -> { score, fiches }
+  for (const b of businesses) {
+    const w = rankWeight(b.rank, topN);
+    for (const c of bizCategories(b)) {
+      const e = m.get(c) || { score: 0, fiches: 0 };
+      e.score += w; e.fiches += 1; m.set(c, e);
+    }
+  }
+  const total = [...m.values()].reduce((s, e) => s + e.score, 0) || 1;
+  return [...m.entries()]
+    .map(([term, e]) => ({ term, count: e.score, fiches: e.fiches, pct: Math.round((e.score / total) * 100) }))
+    .sort((a, b) => b.count - a.count).slice(0, 25);
+}
+
+// Reproduit la logique du bot ZennoPoster, en pondérant par la position :
+// on compte les COMBINAISONS exactes de catégories (principale + secondaires)
+// du top N, chaque fiche apportant un poids fonction de son rang, et on
+// recommande la combinaison au score le plus élevé.
 function categoryComboAnalysis(businesses, topN) {
-  const combos = new Map(); // "Cat A; Cat B" -> count
+  const combos = new Map(); // "Cat A; Cat B" -> { score, fiches }
   let withCats = 0;
   for (const b of businesses) {
     const cats = bizCategories(b);
     if (!cats.length) continue;
     withCats++;
+    const w = rankWeight(b.rank, topN);
     const key = cats.join("; ");
-    combos.set(key, (combos.get(key) || 0) + 1);
+    const e = combos.get(key) || { score: 0, fiches: 0 };
+    e.score += w; e.fiches += 1; combos.set(key, e);
   }
+  const total = [...combos.values()].reduce((s, e) => s + e.score, 0) || 1;
   const sorted = [...combos.entries()]
-    .map(([combo, count]) => ({ combo, count, pct: withCats ? Math.round((count / withCats) * 100) : 0 }))
+    .map(([combo, e]) => ({ combo, count: e.score, fiches: e.fiches, pct: Math.round((e.score / total) * 100) }))
     .sort((a, b) => b.count - a.count);
   let recommendation = null, mainCategory = null, secondaryCategories = [];
   if (sorted.length) {
@@ -106,7 +127,12 @@ function categoryComboAnalysis(businesses, topN) {
       ? `Catégorie principale à utiliser : ${mainCategory} — et catégories secondaires à utiliser : ${secondaryCategories.join(", ")}.`
       : `Catégorie principale à utiliser : ${mainCategory} — sans catégories secondaires recommandées.`;
   }
-  return { businessesWithCategories: withCats, combos: sorted.slice(0, 25), mainCategory, secondaryCategories, recommendation };
+  return {
+    weighting: `position : #1 = ${topN} pts … #${topN} = 1 pt`,
+    businessesWithCategories: withCats,
+    combos: sorted.slice(0, 25),
+    mainCategory, secondaryCategories, recommendation,
+  };
 }
 
 // ── Audit principal ─────────────────────────────────────────────────────────
@@ -199,7 +225,7 @@ export async function runAudit(opts) {
       photosCount: numberStats(businesses.map(b => b.photosCount)),
       descriptionLength: numberStats(descriptions.map(d => d.length)),
     },
-    categories: tally(businesses.map(b => b.category)).slice(0, 25),
+    categories: weightedCategoryTally(businesses, topN),
     categoryCombos: categoryComboAnalysis(businesses, topN),
     descriptionKeywords: keywordStats(descriptions),
     snippetKeywords: keywordStats(snippets),

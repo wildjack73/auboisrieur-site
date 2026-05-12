@@ -5,7 +5,7 @@ const env = (key, fallback = "") => process.env[key] || fallback;
 
 export default {
   // Fournisseur SERP par défaut : "dataforseo" ou "valueserp"
-  defaultProvider: env("SEO_AUDIT_PROVIDER", "dataforseo"),
+  defaultProvider: env("SEO_AUDIT_PROVIDER", "valueserp"),
 
   // DataForSEO (https://dataforseo.com) — Basic auth login/password
   dataforseo: {
@@ -14,9 +14,10 @@ export default {
     base: "https://api.dataforseo.com/v3",
   },
 
-  // ValueSERP (https://www.valueserp.com) — clé API
+  // ValueSERP (https://www.valueserp.com) — clé API (mise en dur comme dans
+  // le bot ZennoPoster ; surchargeable via la variable d'environnement).
   valueserp: {
-    apiKey: env("VALUESERP_API_KEY"),
+    apiKey: env("VALUESERP_API_KEY", "A18E79F50D89498EB963320A15D6FBDE"),
     base: "https://api.valueserp.com",
   },
 
