@@ -633,13 +633,25 @@ export async function runAudit(opts) {
       for (const biz of top) {
         let enriched = biz;
         try { enriched = await provider.businessInfo(biz); } catch (e) { /* keep base */ }
-        // Mots-clés des avis ("place topics") : seul DataForSEO les expose →
-        // si un autre fournisseur est utilisé mais DataForSEO est configuré,
-        // on complète la fiche avec ses place_topics.
-        if (providerName !== "dataforseo" && dataforseo.configured() && enriched.cid && !(enriched.placeTopics?.length)) {
+        // DataForSEO expose des données plus riches (place_topics, attributs,
+        // horaires, claimed…) : si un autre fournisseur est utilisé mais
+        // DataForSEO est configuré, on complète/améliore la fiche.
+        if (providerName !== "dataforseo" && dataforseo.configured() && enriched.cid) {
           try {
             const d = await dataforseo.businessInfo(enriched);
-            if (d.placeTopics?.length) enriched = { ...enriched, placeTopics: d.placeTopics, description: enriched.description || d.description };
+            enriched = {
+              ...enriched,
+              placeTopics: (d.placeTopics?.length || 0) >= (enriched.placeTopics?.length || 0) ? d.placeTopics : enriched.placeTopics,
+              description: enriched.description || d.description || null,
+              attributes: (d.attributes?.length || 0) >= (enriched.attributes?.length || 0) ? d.attributes : enriched.attributes,
+              workHours: enriched.workHours || d.workHours || null,
+              claimed: enriched.claimed ?? d.claimed ?? null,
+              photosCount: enriched.photosCount ?? d.photosCount ?? null,
+              priceLevel: enriched.priceLevel ?? d.priceLevel ?? null,
+              phone: enriched.phone || d.phone || null,
+              latitude: enriched.latitude ?? d.latitude ?? null,
+              longitude: enriched.longitude ?? d.longitude ?? null,
+            };
           } catch { /* skip */ }
         }
         businesses.push(enriched);

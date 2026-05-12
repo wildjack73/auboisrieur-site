@@ -12,18 +12,35 @@ function authHeader() {
   return "Basic " + Buffer.from(`${login}:${password}`).toString("base64");
 }
 
-async function post(path, body) {
-  const res = await fetch(base + path, {
-    method: "POST",
-    headers: { "Authorization": authHeader(), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`DataForSEO ${path} → HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.status_code && json.status_code !== 20000) {
-    throw new Error(`DataForSEO ${path} → ${json.status_code} ${json.status_message}`);
+async function post(path, body, { retries = 2 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(base + path, {
+        method: "POST",
+        headers: { "Authorization": authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`DataForSEO ${path} → HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.status_code && json.status_code !== 20000) {
+        // 40100 (auth) / 40000-* (requête) : inutile de retenter
+        if (String(json.status_code).startsWith("4")) throw new Error(`DataForSEO ${path} → ${json.status_code} ${json.status_message}`);
+        throw new Error(`DataForSEO ${path} → ${json.status_code} ${json.status_message}`);
+      }
+      // erreur au niveau task (ex. surcharge) → retenter
+      const t = json?.tasks?.[0];
+      if (t && t.status_code && t.status_code !== 20000 && !String(t.status_code).startsWith("4")) {
+        if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      }
+      return json;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < retries && !/40\d\d|auth|not authorized/i.test(String(e.message))) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      throw e;
+    }
   }
-  return json;
+  throw lastErr;
 }
 
 function firstResult(json) {
