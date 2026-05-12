@@ -223,15 +223,20 @@ function titleKeywordAnalysis(businesses, keyword, topN) {
 // Fréquence des avis : à partir des avis récupérés (datés), estimation du
 // rythme de nouveaux avis par mois et ancienneté du dernier avis.
 function reviewFrequencyAnalysis(businesses) {
-  const now = Date.now(), DAY = 86400000, MONTH = 30.44 * DAY;
+  const now = Date.now(), DAY = 86400000, MONTH = 30.44 * DAY, YEAR = 365.25 * DAY;
   const perBiz = [];
   for (const b of businesses) {
     const dates = (b.reviews || []).map(r => Date.parse(r.time)).filter(t => Number.isFinite(t) && t <= now + DAY);
     if (!dates.length) continue;
     dates.sort((a, b) => a - b);
-    const last = dates[dates.length - 1];
+    const first = dates[0], last = dates[dates.length - 1];
     const last12 = dates.filter(t => t >= now - 12 * MONTH).length;
-    perBiz.push({ name: b.name, rank: b.rank, lastReviewDays: Math.round((now - last) / DAY), reviewsLast12m: last12, perMonth: Math.round((last12 / 12) * 10) / 10 });
+    perBiz.push({
+      name: b.name, rank: b.rank,
+      lastReviewDays: Math.round((now - last) / DAY),
+      ageYears: Math.round(((now - first) / YEAR) * 10) / 10,   // ancienneté ≈ 1er avis connu
+      reviewsLast12m: last12, perMonth: Math.round((last12 / 12) * 10) / 10,
+    });
   }
   if (!perBiz.length) return null;
   return {
@@ -239,6 +244,7 @@ function reviewFrequencyAnalysis(businesses) {
     perMonth: numberStats(perBiz.map(p => p.perMonth)),
     reviewsLast12m: numberStats(perBiz.map(p => p.reviewsLast12m)),
     lastReviewDays: numberStats(perBiz.map(p => p.lastReviewDays)),
+    ageYears: numberStats(perBiz.map(p => p.ageYears)),
     perBiz: perBiz.slice(0, 30),
   };
 }
@@ -755,6 +761,7 @@ function buildRecommendations(r) {
   }
   if (r.stats.photosCount && r.stats.photosCount.count) recs.push(`Nombre de photos à atteindre : médiane ${r.stats.photosCount.median} (top ${r.topN} : ${r.stats.photosCount.min}–${r.stats.photosCount.max}).`);
   if (r.reviewFrequency?.perMonth) recs.push(`Fréquence d'avis à tenir : ~${r.reviewFrequency.perMonth.median} nouveau(x) avis / mois (médiane du top ${r.topN}) ; dernier avis du top ${r.topN} : il y a ${r.reviewFrequency.lastReviewDays.median} j en médiane — ne pas laisser passer plus de ~${r.reviewFrequency.lastReviewDays.p75} j sans nouvel avis.`);
+  if (r.reviewFrequency?.ageYears) recs.push(`Ancienneté des fiches du top ${r.topN} : ~${r.reviewFrequency.ageYears.median} ans d'avis (la plus jeune : ${r.reviewFrequency.ageYears.min} an(s)) — une fiche récente peut percer, mais l'historique compte ; commence à collecter des avis dès maintenant.`);
   const g = r.descriptionGuide;
   if (g) {
     if (g.targetLength) recs.push(`Rédiger une description d'environ ${g.targetLength.median} caractères${g.targetWords ? ` (~${g.targetWords.median} mots)` : ""} — fourchette observée : ${g.targetLength.p25}–${g.targetLength.p75} car.`);
