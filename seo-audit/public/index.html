@@ -122,6 +122,7 @@
     <div class="toolbar">
       <button id="run" class="btn">Lancer ce mini-audit</button>
       <button id="exportPdf" class="sec" disabled>📄 Générer le PDF complet (0)</button>
+      <button id="exportCsv" class="sec" disabled>⬇ CSV global</button>
       <button id="clearAll" class="sec" disabled>Tout effacer</button>
     </div>
     <div class="progress" id="prog" hidden><span id="progText">…</span><div class="bar"><i id="progBar"></i></div></div>
@@ -300,14 +301,41 @@ function showOnScreen(r) { $("#out").innerHTML = `<div class="card">${renderAudi
 function refreshList() {
   $("#exportPdf").textContent = `📄 Générer le PDF complet (${audits.length})`;
   $("#exportPdf").disabled = audits.length === 0;
+  $("#exportCsv").disabled = audits.length === 0;
   $("#clearAll").disabled = audits.length === 0;
   $("#listCard").hidden = audits.length === 0;
   $("#auditList").innerHTML = audits.map((a,i)=>`<li>
       <span class="meta"><b>${esc(a._title||a.keyword)}</b><br><small>requête « ${esc(a.keyword)} » · ${a.cities.requested} villes · top ${a.topN} · ${new Date(a.generatedAt).toLocaleString("fr-FR")}${a.categoryCombos?.mainCategory?` · ➜ ${esc(a.categoryCombos.mainCategory)}`:""}</small></span>
-      <button class="sec" data-view="${i}">Voir</button><button class="sec" data-del="${i}">✕</button></li>`).join("");
+      <button class="sec" data-view="${i}">Voir</button><button class="sec" data-csv1="${i}">⬇ CSV</button><button class="sec" data-del="${i}">✕</button></li>`).join("");
   $("#auditList").querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>showOnScreen(audits[+b.dataset.view]));
+  $("#auditList").querySelectorAll("[data-csv1]").forEach(b=>b.onclick=()=>downloadCsv([audits[+b.dataset.csv1]], `audit-${slug(audits[+b.dataset.csv1])}.csv`));
   $("#auditList").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ audits.splice(+b.dataset.del,1); saveAudits(); refreshList(); });
 }
+
+// ── Export CSV (mot-clé;occurrences;pct) — comme les sorties du bot ─────────
+function slug(a){ return String(a._title||a.keyword||"audit").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_").slice(0,60); }
+function csvCell(v){ const s=String(v==null?"":v); return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function downloadCsv(list, filename){
+  const rows = [["audit","section","terme","valeur","pct_fiches"]];
+  const add=(a,sec,arr,termKey="term")=>{ for(const x of (arr||[])) rows.push([a._title||a.keyword, sec, x[termKey]??x.combo, x.count??x.value??"", x.pct??""]); };
+  for(const a of list){
+    if(a.descriptionGuide){ add(a,"description_a_mettre",a.descriptionGuide.mustUse); add(a,"description_recommande",a.descriptionGuide.recommended); add(a,"description_optionnel",a.descriptionGuide.optional); add(a,"description_expression",a.descriptionGuide.phrases); }
+    add(a,"description_mot",a.descriptionKeywords?.unigrams);
+    add(a,"description_bigramme",a.descriptionKeywords?.bigrams);
+    add(a,"avis_place_topics",a.reviewTopics?.topics);
+    add(a,"avis_texte_mot",a.reviewKeywords?.unigrams);
+    add(a,"avis_texte_expression",a.reviewKeywords?.bigrams);
+    add(a,"categorie",a.categories);
+    add(a,"categorie_combinaison",(a.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})));
+    if(a.vision) add(a,"photo_objet",a.vision.topObjects);
+    if(a.titleKeyword) rows.push([a._title||a.keyword,"nom_fiche_contient_motcle",a.keyword,a.titleKeyword.keywordInTitlePct+"%",""]);
+  }
+  const csv = rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
+  const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob); const link=document.createElement("a");
+  link.href=url; link.download=filename||"audits.csv"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$("#exportCsv").onclick = () => audits.length && downloadCsv(audits, "audits-google-local.csv");
 
 // ── PDF ─────────────────────────────────────────────────────────────────────
 function exportPdf() {
