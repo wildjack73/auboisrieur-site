@@ -296,12 +296,12 @@ function renderAudit(r, { compact=false } = {}) {
       ${c.mustSubmit?.length ? `<p class="reco">★ À soumettre en priorité : ${esc(c.mustSubmit.map(d=>d.domain).join(", "))}</p>` : ""}
       <table><thead><tr><th>Domaine</th><th>Villes</th><th>%</th><th>Meilleure pos.</th>${compact?"":"<th>Exemple d'URL</th>"}</tr></thead><tbody>${
         c.domains.slice(0,compact?25:60).map(d=>`<tr><td>${esc(d.domain)}</td><td>${d.count}</td><td>${d.pct}%</td><td>${d.bestRank??"—"}</td>${compact?"":`<td>${d.sampleUrl?`<a href="${esc(d.sampleUrl)}" target="_blank" rel="noopener">${esc(d.sampleUrl).slice(0,70)}</a>`:"—"}</td>`}</tr>`).join("")}</tbody></table>` )(r.citations) : ""}
-    ${r.vision ? `<h2>Photos — que mettre en avant ? <span class="pill">${r.vision.imagesAnalyzed} images · ${r.vision.businessesAnalyzed} fiches · ${esc(r.vision.photosSource||"")}</span></h2>
+    ${r.vision ? (v => { const fmt = a => (a||[]).map(x=>({...x, term: x.original?`${x.term} (${x.original})`:x.term})); return `<h2>Photos — que mettre en avant ? <span class="pill">${v.imagesAnalyzed} images · ${v.businessesAnalyzed} fiches · ${esc(v.photosSource||"")}${v.translated?" · traduit FR":""}</span></h2>
       <div class="cols">
-        <div><h3>Objets détectés (à montrer en priorité)</h3>${bars(r.vision.topObjects.slice(0,compact?15:30))}</div>
-        <div><h3>Labels / ambiances</h3>${bars((r.vision.topLabels||[]).slice(0,compact?15:30))}</div>
+        <div><h3>Objets détectés (à montrer en priorité)</h3>${bars(fmt(v.topObjects).slice(0,compact?15:30))}</div>
+        <div><h3>Labels / ambiances</h3>${bars(fmt(v.topLabels).slice(0,compact?15:30))}</div>
       </div>
-      ${(r.vision.topTexts||[]).length ? `<h3>Mots écrits sur les photos</h3>${bars(r.vision.topTexts.slice(0,compact?20:40))}` : ""}` : ""}`;
+      ${(v.topTexts||[]).length ? `<h3>Mots écrits sur les photos</h3>${bars(v.topTexts.slice(0,compact?20:40))}` : ""}`; })(r.vision) : ""}`;
   if (compact) return head + `<h3>Échantillon du top ${r.topN}</h3><table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead><tbody>${r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>`;
   return head + `
     <h2>Échantillon des fiches du top ${r.topN}</h2>

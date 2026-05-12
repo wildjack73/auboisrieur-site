@@ -33,6 +33,12 @@ export default {
     base: "https://serpapi.com",
   },
 
+  // Google Cloud Translation v2 — pour traduire en français les labels/objets Vision
+  translate: {
+    apiKey: env("GOOGLE_TRANSLATE_API_KEY", env("GOOGLE_VISION_API_KEY", "AIzaSyBFQl62uqJu2jB2TnzeFwwAzkteR5WrMmk")),
+    base: "https://translation.googleapis.com/language/translate/v2",
+  },
+
   // Localisation / langue par défaut pour les requêtes SERP
   locationName: env("SEO_AUDIT_LOCATION", "France"),
   languageCode: env("SEO_AUDIT_LANGUAGE", "fr"),

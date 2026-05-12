@@ -4,6 +4,7 @@ import dataforseo from "./providers/dataforseo.mjs";
 import valueserp from "./providers/valueserp.mjs";
 import { analyzeImages, visionConfigured } from "./vision.mjs";
 import serpapi from "./serpapi.mjs";
+import { translateTerms, translateConfigured } from "./translate.mjs";
 
 const PROVIDERS = { dataforseo, valueserp };
 
@@ -356,11 +357,18 @@ export async function runAudit(opts) {
       i++;
     }
     const top = (m, n) => [...m.entries()].map(([term, count]) => ({ term, count })).sort((a, b) => b.count - a.count).slice(0, n);
+    let topObjects = top(O, 30), topLabels = top(L, 30);
+    // Vision renvoie les objets/labels en anglais → traduction en français.
+    if (translateConfigured()) {
+      onProgress({ phase: "vision", done: withImgs.length, total: withImgs.length, name: "traduction" });
+      try { topObjects = await translateTerms(topObjects); } catch { /* keep en */ }
+      try { topLabels = await translateTerms(topLabels); } catch { /* keep en */ }
+    }
     visionAgg = {
       imagesAnalyzed, businessesAnalyzed: withImgs.length,
       photosSource: serpapi.configured() ? "SerpApi google_maps_photos + fiches" : "URLs des fiches",
-      topObjects: top(O, 30),
-      topLabels: top(L, 30),
+      translated: translateConfigured(),
+      topObjects, topLabels,
       topTexts: top(T, 40),
     };
   }
