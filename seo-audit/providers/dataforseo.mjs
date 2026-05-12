@@ -52,6 +52,8 @@ export async function localPack(keyword, city, limit = 3) {
     categories: it.additional_categories || (it.category ? [it.category] : []),
     snippet: it.snippet || null,
     address: it.address || null,
+    website: it.url || null,
+    domain: it.domain || (it.url ? hostname(it.url) : null),
     photosCount: null,
     images: [],
     reviews: [],

@@ -26,6 +26,8 @@ function num(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function host(u) { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return null; } }
+
 // Catégories d'une fiche : ValueSERP renvoie en général `category` (principale)
 // et parfois des catégories supplémentaires dans `categories` ou `extensions`.
 function extractCategories(d) {
@@ -62,6 +64,8 @@ export async function localPack(keyword, city, limit = 3) {
     categories: it.category ? [String(it.category).trim()] : [],
     snippet: it.snippet || it.description || null,
     address: it.address || null,
+    website: it.website || it.link || null,
+    domain: (it.website || it.link) ? host(it.website || it.link) : null,
     photosCount: null,
     images: it.thumbnail ? [it.thumbnail] : [],
     reviews: [],

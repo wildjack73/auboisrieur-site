@@ -278,16 +278,30 @@ function renderAudit(r, { compact=false } = {}) {
       <h3>Par position</h3><table><thead><tr><th>Position</th><th>Fiches</th><th>Note moy.</th><th>Note min.</th><th>Avis moy.</th></tr></thead><tbody>${
         g.byRank.map(x=>`<tr><td>#${x.rank}</td><td>${x.n}</td><td>${x.avgRating}/5</td><td>${x.minRating}/5</td><td>${x.avgReviews??"—"}</td></tr>`).join("")}</tbody></table>
       ${g.distribution?.length?`<h3>Distribution des notes du top ${r.topN}</h3>${bars(g.distribution)}`:""}` )(r.ratingTarget) : ""}
-    ${r.titleKeyword?.businessesWithTitle ? `<h2>Mot-clé dans le nom de la fiche ?</h2>
+    ${r.reviewFrequency ? (f => `<h2>Rythme des avis</h2>
+      <p class="reco">★ ~${f.perMonth.median} nouvel avis / mois (médiane du top ${r.topN}) · dernier avis du top ${r.topN} : il y a ${f.lastReviewDays.median} j en médiane (max ${f.lastReviewDays.max} j) · ${f.reviewsLast12m.median} avis sur 12 mois</p>
+      <details><summary>Détail par fiche (${f.businessesWithDatedReviews})</summary><table><thead><tr><th>Fiche</th><th>#</th><th>Avis/mois</th><th>Avis 12 mois</th><th>Dernier avis (j)</th></tr></thead><tbody>${
+        f.perBiz.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.rank}</td><td>${x.perMonth}</td><td>${x.reviewsLast12m}</td><td>${x.lastReviewDays}</td></tr>`).join("")}</tbody></table></details>` )(r.reviewFrequency) : ""}
+    ${r.title?.words ? `<p class="pill">Nom de fiche : ~${r.title.words.median} mots / ${r.title.chars.median} car. (médiane) · ${r.stats.photosCount&&r.stats.photosCount.count?`photos : médiane ${r.stats.photosCount.median} (${r.stats.photosCount.min}–${r.stats.photosCount.max}) · `:""}description : ~${r.stats.descriptionWords?r.stats.descriptionWords.median:"?"} mots</p>` : ""}
+    ${r.titleKeyword?.businessesWithTitle ? `<h2>Mot-clé / ville dans le nom de la fiche ?</h2>
       <p class="reco">★ ${esc(r.titleKeyword.recommendation||"")}</p>
       <div class="stats" style="margin-top:8px">
-        <div class="stat"><b>${r.titleKeyword.keywordInTitlePct}%</b><span>des ${r.titleKeyword.businessesWithTitle} fiches du top ${r.topN} contiennent « ${esc(r.keyword)} » dans le nom</span></div>
-        <div class="stat"><b>${r.titleKeyword.anyTokenPct}%</b><span>en contiennent au moins un mot</span></div>
+        <div class="stat"><b>${r.titleKeyword.keywordInTitlePct}%</b><span>des ${r.titleKeyword.businessesWithTitle} fiches du top ${r.topN} ont « ${esc(r.keyword)} » dans le nom</span></div>
+        <div class="stat"><b>${r.titleKeyword.cityInTitlePct}%</b><span>ont la ville dans le nom</span></div>
+        <div class="stat"><b>${r.titleKeyword.keywordAndCityInTitlePct}%</b><span>ont « ${esc(r.keyword)} » + la ville</span></div>
       </div>
-      <h3>Par position</h3><table><thead><tr><th>Position</th><th>Fiches</th><th>Avec « ${esc(r.keyword)} » dans le nom</th></tr></thead><tbody>${
-        r.titleKeyword.byRank.map(x=>`<tr><td>#${x.rank}</td><td>${x.n}</td><td>${x.withKw} (${x.pct}%)</td></tr>`).join("")}</tbody></table>
+      <h3>Par position</h3><table><thead><tr><th>Position</th><th>Fiches</th><th>Mot-clé</th><th>Ville</th><th>Les deux</th></tr></thead><tbody>${
+        r.titleKeyword.byRank.map(x=>`<tr><td>#${x.rank}</td><td>${x.n}</td><td>${x.withKw}</td><td>${x.withCity}</td><td>${x.withBoth}</td></tr>`).join("")}</tbody></table>
       ${(r.titleKeyword.examples?.with?.length||r.titleKeyword.examples?.without?.length)?`<details><summary>Exemples de noms de fiches</summary>
-        <p style="font-size:13px"><b>Avec le mot-clé :</b> ${esc((r.titleKeyword.examples.with||[]).join(" · "))||"—"}<br><b>Sans :</b> ${esc((r.titleKeyword.examples.without||[]).join(" · "))||"—"}</p></details>`:""}` : ""}
+        <p style="font-size:13px"><b>Avec mot-clé/ville :</b> ${esc((r.titleKeyword.examples.with||[]).join(" · "))||"—"}<br><b>Sans :</b> ${esc((r.titleKeyword.examples.without||[]).join(" · "))||"—"}</p></details>`:""}` : ""}
+    ${r.websiteRank ? (w => `<h2>Position du site web pour « ${esc(r.keyword)} + ville »</h2>
+      <p class="reco">★ ${esc(w.recommendation)}</p>
+      <div class="stats" style="margin-top:8px">
+        <div class="stat"><b>${w.top10Pct}%</b><span>des ${w.businessesWithSite} fiches (avec site) ont leur site en page 1 (top 10)</span></div>
+        <div class="stat"><b>${w.medianOrganicRank??"—"}</b><span>rang organique médian de leur site</span></div>
+      </div>
+      <details><summary>Détail</summary><table><thead><tr><th>Fiche</th><th>Ville</th><th>#GMB</th><th>Domaine</th><th>Rang organique</th></tr></thead><tbody>${
+        w.rows.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.city)}</td><td>${x.rank}</td><td>${esc(x.domain||"—")}</td><td>${x.organicRank??"hors top"}</td></tr>`).join("")}</tbody></table></details>` )(r.websiteRank) : (r.citations?"":`<p class="pill">Active « Audit citations / annuaires » pour voir la position des sites des fiches sur « ${esc(r.keyword)} + ville ».</p>`)}
     <h2>Catégories du top ${r.topN} <span class="pill">pondéré — ${esc(r.categoryCombos?.weighting||"")}</span></h2>
     ${r.categoryCombos?.recommendation ? `<p class="reco">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
     <div class="cols">
@@ -369,7 +383,12 @@ function downloadCsv(list, filename){
     add(a,"categorie_combinaison",(a.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})));
     if(a.vision){ add(a,"photo_objet",a.vision.topObjects); add(a,"photo_label",a.vision.topLabels); add(a,"photo_texte",a.vision.topTexts); }
     if(a.citations) for(const d of (a.citations.domains||[])) rows.push([a._title||a.keyword,"citation_annuaire",d.domain,d.count,d.pct]);
-    if(a.titleKeyword) rows.push([a._title||a.keyword,"nom_fiche_contient_motcle",a.keyword,a.titleKeyword.keywordInTitlePct+"%",""]);
+    if(a.titleKeyword){ rows.push([a._title||a.keyword,"nom_fiche_contient_motcle",a.keyword,a.titleKeyword.keywordInTitlePct+"%",""]); rows.push([a._title||a.keyword,"nom_fiche_contient_ville","ville",a.titleKeyword.cityInTitlePct+"%",""]); rows.push([a._title||a.keyword,"nom_fiche_motcle_et_ville","",a.titleKeyword.keywordAndCityInTitlePct+"%",""]); }
+    if(a.title?.words) rows.push([a._title||a.keyword,"nom_fiche_longueur_mots_mediane","",a.title.words.median,""]);
+    if(a.stats?.descriptionWords) rows.push([a._title||a.keyword,"description_longueur_mots_mediane","",a.stats.descriptionWords.median,""]);
+    if(a.stats?.photosCount&&a.stats.photosCount.count) rows.push([a._title||a.keyword,"photos_mediane","",a.stats.photosCount.median,""]);
+    if(a.reviewFrequency) rows.push([a._title||a.keyword,"avis_par_mois_mediane","",a.reviewFrequency.perMonth.median,""]);
+    if(a.websiteRank) rows.push([a._title||a.keyword,"site_en_page1_pct","",a.websiteRank.top10Pct+"%",""]);
   }
   const csv = rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
   const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});

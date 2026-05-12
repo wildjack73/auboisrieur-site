@@ -60,7 +60,7 @@ function keywordStats(docs) {
 // descriptions du top N, on classe les mots en "à mettre impérativement",
 // "recommandés", "optionnels", on liste les expressions à reprendre, et on
 // génère un modèle de description prêt à adapter.
-function descriptionGuide(dk, keyword, lengthStats) {
+function descriptionGuide(dk, keyword, lengthStats, wordStats) {
   if (!dk || !dk.documents) return null;
   const u = dk.unigrams || [], b = dk.bigrams || [];
   const mustUse = u.filter(x => x.pct >= 60);
@@ -78,6 +78,7 @@ function descriptionGuide(dk, keyword, lengthStats) {
   return {
     documents: dk.documents,
     targetLength: lengthStats ? { median: lengthStats.median, p25: lengthStats.p25, p75: lengthStats.p75 } : null,
+    targetWords: wordStats ? { median: wordStats.median, p25: wordStats.p25, p75: wordStats.p75 } : null,
     mustUse, recommended, optional, phrases,
     draft: draftParts.join(" "),
   };
@@ -164,44 +165,115 @@ function categoryComboAnalysis(businesses, topN) {
   };
 }
 
-// Faut-il mettre le mot-clé dans le NOM de la fiche ? On regarde quelle part
-// des fiches du top N contient la requête (ex. "expert-comptable") dans leur
-// titre Google, globalement et par position.
+function nameNorm(s) { return normalize(s).replace(/-/g, " ").replace(/\s+/g, " ").trim(); }
+function wordCount(s) { return (String(s || "").trim().match(/\S+/g) || []).length; }
+
+// Statistiques sur le NOM de la fiche : longueur en mots / caractères du top N.
+function titleStats(businesses) {
+  const names = businesses.map(b => b.name).filter(Boolean);
+  return { count: names.length, words: numberStats(names.map(wordCount)), chars: numberStats(names.map(n => n.trim().length)) };
+}
+
+// Faut-il mettre le mot-clé (et/ou la ville) dans le NOM de la fiche ?
 function titleKeywordAnalysis(businesses, keyword, topN) {
   const kwTokens = tokenize(keyword);
-  const kwNorm = normalize(keyword).replace(/-/g, " ").replace(/\s+/g, " ").trim();
-  let withTitle = 0, hits = 0, anyToken = 0;
-  const perRank = new Map(); // rank -> { n, withKw }
+  const kwNorm = nameNorm(keyword);
+  let withTitle = 0, hitsKw = 0, hitsCity = 0, hitsBoth = 0, anyToken = 0;
+  const perRank = new Map();
   const examples = { with: [], without: [] };
   for (const b of businesses) {
     if (!b.name) continue;
     withTitle++;
-    const tNorm = normalize(b.name).replace(/-/g, " ").replace(/\s+/g, " ").trim();
+    const tNorm = nameNorm(b.name);
     const tTokens = new Set(tokenize(b.name));
     const matched = kwTokens.filter(t => tTokens.has(t));
-    const hasAll = (kwNorm && tNorm.includes(kwNorm)) || (kwTokens.length > 0 && matched.length === kwTokens.length);
+    const hasKw = (kwNorm && tNorm.includes(kwNorm)) || (kwTokens.length > 0 && matched.length === kwTokens.length);
+    // ville : on teste le nom de ville et son premier mot (pour "Saint-…")
+    const cNorm = nameNorm(b.city || "");
+    const cFirst = cNorm.split(" ")[0] || "";
+    const hasCity = !!cNorm && (tNorm.includes(cNorm) || (cFirst.length >= 4 && tNorm.includes(cFirst)));
     if (matched.length) anyToken++;
-    if (hasAll) hits++;
+    if (hasKw) hitsKw++;
+    if (hasCity) hitsCity++;
+    if (hasKw && hasCity) hitsBoth++;
     const r = Number.isFinite(b.rank) ? b.rank : topN;
-    const e = perRank.get(r) || { n: 0, withKw: 0 }; e.n++; if (hasAll) e.withKw++; perRank.set(r, e);
-    const bucket = hasAll ? examples.with : examples.without;
-    if (bucket.length < 8) bucket.push(`${b.name} (${b.city})`);
+    const e = perRank.get(r) || { n: 0, kw: 0, city: 0, both: 0 }; e.n++; if (hasKw) e.kw++; if (hasCity) e.city++; if (hasKw && hasCity) e.both++; perRank.set(r, e);
+    const bucket = (hasKw || hasCity) ? examples.with : examples.without;
+    if (bucket.length < 8) bucket.push(b.name);
   }
   const pct = n => withTitle ? Math.round((n / withTitle) * 100) : 0;
-  const p = pct(hits);
+  const pKw = pct(hitsKw), pCity = pct(hitsCity), pBoth = pct(hitsBoth);
   let recommendation = null;
   if (withTitle) {
-    if (p >= 60) recommendation = `${p}% des fiches du top ${topN} ont « ${keyword} » dans le nom de la fiche → conseillé de l'intégrer au nom (en restant réaliste : Google sanctionne le name stuffing).`;
-    else if (p >= 25) recommendation = `${p}% des fiches du top ${topN} ont « ${keyword} » dans le nom → optionnel, ça peut aider mais ce n'est pas déterminant ici.`;
-    else recommendation = `Seulement ${p}% des fiches du top ${topN} ont « ${keyword} » dans le nom → pas nécessaire de l'ajouter au nom de ta fiche.`;
+    const verdict = pKw >= 60 ? "conseillé de l'intégrer au nom (en restant réaliste : Google sanctionne le name stuffing)"
+      : pKw >= 25 ? "optionnel — ça peut aider mais ce n'est pas déterminant ici"
+      : "pas nécessaire de l'ajouter au nom";
+    recommendation = `${pKw}% des fiches du top ${topN} ont « ${keyword} » dans le nom (${pCity}% ont la ville, ${pBoth}% ont les deux) → ${verdict}.`;
   }
   return {
     businessesWithTitle: withTitle,
-    keywordInTitlePct: p,
-    anyTokenPct: pct(anyToken),
-    byRank: [...perRank.entries()].map(([rank, v]) => ({ rank, n: v.n, withKw: v.withKw, pct: v.n ? Math.round((v.withKw / v.n) * 100) : 0 })).sort((a, b) => a.rank - b.rank),
+    keywordInTitlePct: pKw, cityInTitlePct: pCity, keywordAndCityInTitlePct: pBoth, anyTokenPct: pct(anyToken),
+    byRank: [...perRank.entries()].map(([rank, v]) => ({ rank, n: v.n, withKw: v.kw, withCity: v.city, withBoth: v.both, pctKw: v.n ? Math.round((v.kw / v.n) * 100) : 0 })).sort((a, b) => a.rank - b.rank),
     examples,
     recommendation,
+  };
+}
+
+// Fréquence des avis : à partir des avis récupérés (datés), estimation du
+// rythme de nouveaux avis par mois et ancienneté du dernier avis.
+function reviewFrequencyAnalysis(businesses) {
+  const now = Date.now(), DAY = 86400000, MONTH = 30.44 * DAY;
+  const perBiz = [];
+  for (const b of businesses) {
+    const dates = (b.reviews || []).map(r => Date.parse(r.time)).filter(t => Number.isFinite(t) && t <= now + DAY);
+    if (!dates.length) continue;
+    dates.sort((a, b) => a - b);
+    const last = dates[dates.length - 1];
+    const last12 = dates.filter(t => t >= now - 12 * MONTH).length;
+    perBiz.push({ name: b.name, rank: b.rank, lastReviewDays: Math.round((now - last) / DAY), reviewsLast12m: last12, perMonth: Math.round((last12 / 12) * 10) / 10 });
+  }
+  if (!perBiz.length) return null;
+  return {
+    businessesWithDatedReviews: perBiz.length,
+    perMonth: numberStats(perBiz.map(p => p.perMonth)),
+    reviewsLast12m: numberStats(perBiz.map(p => p.reviewsLast12m)),
+    lastReviewDays: numberStats(perBiz.map(p => p.lastReviewDays)),
+    perBiz: perBiz.slice(0, 30),
+  };
+}
+
+// Position du SITE de la fiche dans le SERP organique de "<métier> <ville>"
+// (nécessite l'audit citations actif, qui fournit les résultats organiques).
+function websiteRankAnalysis(businesses, organicByCity, topN) {
+  if (!organicByCity?.length) return null;
+  const byCity = new Map(organicByCity.map(o => [o.city, o.items || []]));
+  const rows = [];
+  let withSite = 0, ranked = 0, top10 = 0, top20 = 0;
+  for (const b of businesses) {
+    if (!b.domain) continue;
+    withSite++;
+    const items = byCity.get(b.city) || [];
+    let best = null;
+    for (const it of items) {
+      if (it.domain && (it.domain === b.domain || it.domain.endsWith("." + b.domain) || b.domain.endsWith("." + it.domain))) {
+        if (best == null || (Number.isFinite(it.rank) && it.rank < best)) best = Number.isFinite(it.rank) ? it.rank : best ?? 999;
+      }
+    }
+    if (best != null) { ranked++; if (best <= 10) top10++; if (best <= 20) top20++; }
+    rows.push({ name: b.name, city: b.city, rank: b.rank, domain: b.domain, organicRank: best });
+  }
+  if (!withSite) return null;
+  const pct = n => Math.round((n / withSite) * 100);
+  const ranks = rows.map(r => r.organicRank).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+  const median = ranks.length ? ranks[Math.floor((ranks.length - 1) / 2)] : null;
+  return {
+    businessesWithSite: withSite,
+    rankedPct: pct(ranked), top10Pct: pct(top10), top20Pct: pct(top20),
+    medianOrganicRank: median,
+    rows: rows.slice(0, 40),
+    recommendation: ranked
+      ? `${pct(top10)}% des fiches du top ${topN} ont aussi leur site web en page 1 sur « <métier> <ville> » (rang organique médian : ${median}) → avoir un site qui se positionne sur la requête locale aide nettement.`
+      : `Les sites des fiches du top ${topN} ne se positionnent pas dans les ${organicByCity[0]?.items?.length || 100} premiers résultats organiques → le classement local ne dépend pas ici du site web.`,
   };
 }
 
@@ -361,7 +433,7 @@ export async function runAudit(opts) {
   }
 
   // Citations / annuaires (optionnel) : SERP organique par ville
-  let citations = null;
+  let citations = null, organicByCity = null;
   if (withCitations && typeof provider.organicResults === "function") {
     const byCity = [];
     let i = 0;
@@ -371,6 +443,7 @@ export async function runAudit(opts) {
       catch (e) { byCity.push({ city, items: [] }); }
       i++;
     }
+    organicByCity = byCity;
     citations = citationsAnalysis(byCity);
   }
 
@@ -464,8 +537,12 @@ export async function runAudit(opts) {
       reviewsCount: numberStats(businesses.map(b => b.reviewsCount)),
       photosCount: numberStats(businesses.map(b => b.photosCount)),
       descriptionLength: numberStats(descriptions.map(d => d.length)),
+      descriptionWords: numberStats(descriptions.map(d => wordCount(d))),
     },
+    title: titleStats(businesses),
     ratingTarget: ratingTarget(businesses, topN),
+    reviewFrequency: reviewFrequencyAnalysis(businesses),
+    websiteRank: websiteRankAnalysis(businesses, organicByCity, topN),
     categories: weightedCategoryTally(businesses, topN),
     categoryCombos: categoryComboAnalysis(businesses, topN),
     titleKeyword: titleKeywordAnalysis(businesses, keyword, topN),
@@ -477,12 +554,12 @@ export async function runAudit(opts) {
     vision: visionAgg,
     sample: businesses.slice(0, 50).map(b => ({
       name: b.name, city: b.city, rank: b.rank, rating: b.rating,
-      reviewsCount: b.reviewsCount, category: b.category,
+      reviewsCount: b.reviewsCount, category: b.category, domain: b.domain || null,
       description: b.description ? b.description.slice(0, 300) : null,
     })),
   };
 
-  report.descriptionGuide = descriptionGuide(report.descriptionKeywords, keyword, report.stats.descriptionLength);
+  report.descriptionGuide = descriptionGuide(report.descriptionKeywords, keyword, report.stats.descriptionLength, report.stats.descriptionWords);
   report.reviewGuide = reviewSemanticGuide(report.reviewTopics, report.reviewKeywords, keyword);
 
   // Recommandations dérivées
@@ -499,16 +576,20 @@ function buildRecommendations(r) {
     if (r.stats.reviewsCount) recs.push(`Viser au moins ${r.stats.reviewsCount.median} avis (médiane du top ${r.topN}), idéalement ${r.stats.reviewsCount.p75}+.`);
     if (r.stats.rating) recs.push(`Note moyenne du top ${r.topN} : ${r.stats.rating.avg}/5 — rester au-dessus de ${r.stats.rating.p25}/5.`);
   }
+  if (r.stats.photosCount && r.stats.photosCount.count) recs.push(`Nombre de photos à atteindre : médiane ${r.stats.photosCount.median} (top ${r.topN} : ${r.stats.photosCount.min}–${r.stats.photosCount.max}).`);
+  if (r.reviewFrequency?.perMonth) recs.push(`Fréquence d'avis à tenir : ~${r.reviewFrequency.perMonth.median} nouveau(x) avis / mois (médiane du top ${r.topN}) ; dernier avis du top ${r.topN} : il y a ${r.reviewFrequency.lastReviewDays.median} j en médiane — ne pas laisser passer plus de ~${r.reviewFrequency.lastReviewDays.p75} j sans nouvel avis.`);
   const g = r.descriptionGuide;
   if (g) {
-    if (g.targetLength) recs.push(`Rédiger une description d'environ ${g.targetLength.median} caractères (fourchette observée : ${g.targetLength.p25}–${g.targetLength.p75}).`);
+    if (g.targetLength) recs.push(`Rédiger une description d'environ ${g.targetLength.median} caractères${g.targetWords ? ` (~${g.targetWords.median} mots)` : ""} — fourchette observée : ${g.targetLength.p25}–${g.targetLength.p75} car.`);
     if (g.mustUse.length) recs.push(`Mots à intégrer impérativement dans la description (présents dans ≥ 60 % du top ${r.topN}) : ${g.mustUse.map(x => `${x.term} (${x.pct}%)`).join(", ")}.`);
     if (g.recommended.length) recs.push(`Mots recommandés (≥ 30 %) : ${g.recommended.slice(0, 12).map(x => x.term).join(", ")}.`);
     if (g.phrases.length) recs.push(`Expressions à reprendre : ${g.phrases.slice(0, 6).map(x => x.term).join(" / ")}.`);
   } else if (r.stats.descriptionLength) {
     recs.push(`Rédiger une description d'environ ${r.stats.descriptionLength.median} caractères (médiane observée).`);
   }
+  if (r.title?.words) recs.push(`Longueur du nom de la fiche : ~${r.title.words.median} mots / ${r.title.chars.median} caractères (médiane du top ${r.topN}).`);
   if (r.titleKeyword?.recommendation) recs.push(r.titleKeyword.recommendation);
+  if (r.websiteRank?.recommendation) recs.push(r.websiteRank.recommendation);
   if (r.categoryCombos?.recommendation) recs.push(r.categoryCombos.recommendation);
   else if (r.categories.length) recs.push(`Catégorie principale à privilégier : « ${r.categories[0].term} ».`);
   if (r.reviewTopics?.topics?.length) {
