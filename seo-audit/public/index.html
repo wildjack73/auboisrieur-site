@@ -256,6 +256,16 @@ function renderAudit(r, { compact=false } = {}) {
     <div class="stats" style="margin-top:10px">
       ${statBox("Note", s.rating, "/5")}${statBox("Nombre d'avis", s.reviewsCount)}${statBox("Nombre de photos", s.photosCount)}${statBox("Longueur description (car.)", s.descriptionLength)}
     </div>
+    ${r.titleKeyword?.businessesWithTitle ? `<h2>Mot-clé dans le nom de la fiche ?</h2>
+      <p class="reco">★ ${esc(r.titleKeyword.recommendation||"")}</p>
+      <div class="stats" style="margin-top:8px">
+        <div class="stat"><b>${r.titleKeyword.keywordInTitlePct}%</b><span>des ${r.titleKeyword.businessesWithTitle} fiches du top ${r.topN} contiennent « ${esc(r.keyword)} » dans le nom</span></div>
+        <div class="stat"><b>${r.titleKeyword.anyTokenPct}%</b><span>en contiennent au moins un mot</span></div>
+      </div>
+      <h3>Par position</h3><table><thead><tr><th>Position</th><th>Fiches</th><th>Avec « ${esc(r.keyword)} » dans le nom</th></tr></thead><tbody>${
+        r.titleKeyword.byRank.map(x=>`<tr><td>#${x.rank}</td><td>${x.n}</td><td>${x.withKw} (${x.pct}%)</td></tr>`).join("")}</tbody></table>
+      ${(r.titleKeyword.examples?.with?.length||r.titleKeyword.examples?.without?.length)?`<details><summary>Exemples de noms de fiches</summary>
+        <p style="font-size:13px"><b>Avec le mot-clé :</b> ${esc((r.titleKeyword.examples.with||[]).join(" · "))||"—"}<br><b>Sans :</b> ${esc((r.titleKeyword.examples.without||[]).join(" · "))||"—"}</p></details>`:""}` : ""}
     <h2>Catégories du top ${r.topN} <span class="pill">pondéré — ${esc(r.categoryCombos?.weighting||"")}</span></h2>
     ${r.categoryCombos?.recommendation ? `<p class="reco">★ ${esc(r.categoryCombos.recommendation)}</p>` : ""}
     <div class="cols">

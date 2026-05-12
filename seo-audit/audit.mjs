@@ -135,6 +135,47 @@ function categoryComboAnalysis(businesses, topN) {
   };
 }
 
+// Faut-il mettre le mot-clé dans le NOM de la fiche ? On regarde quelle part
+// des fiches du top N contient la requête (ex. "expert-comptable") dans leur
+// titre Google, globalement et par position.
+function titleKeywordAnalysis(businesses, keyword, topN) {
+  const kwTokens = tokenize(keyword);
+  const kwNorm = normalize(keyword).replace(/-/g, " ").replace(/\s+/g, " ").trim();
+  let withTitle = 0, hits = 0, anyToken = 0;
+  const perRank = new Map(); // rank -> { n, withKw }
+  const examples = { with: [], without: [] };
+  for (const b of businesses) {
+    if (!b.name) continue;
+    withTitle++;
+    const tNorm = normalize(b.name).replace(/-/g, " ").replace(/\s+/g, " ").trim();
+    const tTokens = new Set(tokenize(b.name));
+    const matched = kwTokens.filter(t => tTokens.has(t));
+    const hasAll = (kwNorm && tNorm.includes(kwNorm)) || (kwTokens.length > 0 && matched.length === kwTokens.length);
+    if (matched.length) anyToken++;
+    if (hasAll) hits++;
+    const r = Number.isFinite(b.rank) ? b.rank : topN;
+    const e = perRank.get(r) || { n: 0, withKw: 0 }; e.n++; if (hasAll) e.withKw++; perRank.set(r, e);
+    const bucket = hasAll ? examples.with : examples.without;
+    if (bucket.length < 8) bucket.push(`${b.name} (${b.city})`);
+  }
+  const pct = n => withTitle ? Math.round((n / withTitle) * 100) : 0;
+  const p = pct(hits);
+  let recommendation = null;
+  if (withTitle) {
+    if (p >= 60) recommendation = `${p}% des fiches du top ${topN} ont « ${keyword} » dans le nom de la fiche → conseillé de l'intégrer au nom (en restant réaliste : Google sanctionne le name stuffing).`;
+    else if (p >= 25) recommendation = `${p}% des fiches du top ${topN} ont « ${keyword} » dans le nom → optionnel, ça peut aider mais ce n'est pas déterminant ici.`;
+    else recommendation = `Seulement ${p}% des fiches du top ${topN} ont « ${keyword} » dans le nom → pas nécessaire de l'ajouter au nom de ta fiche.`;
+  }
+  return {
+    businessesWithTitle: withTitle,
+    keywordInTitlePct: p,
+    anyTokenPct: pct(anyToken),
+    byRank: [...perRank.entries()].map(([rank, v]) => ({ rank, n: v.n, withKw: v.withKw, pct: v.n ? Math.round((v.withKw / v.n) * 100) : 0 })).sort((a, b) => a.rank - b.rank),
+    examples,
+    recommendation,
+  };
+}
+
 // Mots-clés des avis selon Google ("place topics") : Google associe à chaque
 // fiche des sujets fréquemment mentionnés dans les avis, avec un nombre de
 // mentions. On somme ces mentions sur tout le top N (comme le bot ZennoPoster).
@@ -259,6 +300,7 @@ export async function runAudit(opts) {
     },
     categories: weightedCategoryTally(businesses, topN),
     categoryCombos: categoryComboAnalysis(businesses, topN),
+    titleKeyword: titleKeywordAnalysis(businesses, keyword, topN),
     descriptionKeywords: keywordStats(descriptions),
     snippetKeywords: keywordStats(snippets),
     reviewKeywords: keywordStats(reviewTexts),
@@ -287,6 +329,7 @@ function buildRecommendations(r) {
   if (r.stats.descriptionLength) {
     recs.push(`Rédiger une description d'environ ${r.stats.descriptionLength.median} caractères (médiane observée).`);
   }
+  if (r.titleKeyword?.recommendation) recs.push(r.titleKeyword.recommendation);
   const kw = r.descriptionKeywords.unigrams.slice(0, 8).map(k => k.term).join(", ");
   if (kw) recs.push(`Intégrer ces mots-clés dans la description : ${kw}.`);
   const bg = r.descriptionKeywords.bigrams.slice(0, 5).map(k => k.term).join(" / ");
