@@ -291,6 +291,15 @@ function renderAudit(r, { compact=false } = {}) {
       <details><summary>Détail par fiche (${f.businessesWithDatedReviews})</summary><table><thead><tr><th>Fiche</th><th>#</th><th>Avis/mois</th><th>Avis 12 mois</th><th>Dernier avis (j)</th></tr></thead><tbody>${
         f.perBiz.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.rank}</td><td>${x.perMonth}</td><td>${x.reviewsLast12m}</td><td>${x.lastReviewDays}</td></tr>`).join("")}</tbody></table></details>` )(r.reviewFrequency) : ""}
     ${r.title?.words ? `<p class="pill">Nom de fiche : ~${r.title.words.median} mots / ${r.title.chars.median} car. (médiane) · ${r.stats.photosCount&&r.stats.photosCount.count?`photos : médiane ${r.stats.photosCount.median} (${r.stats.photosCount.min}–${r.stats.photosCount.max}) · `:""}description : ~${r.stats.descriptionWords?r.stats.descriptionWords.median:"?"} mots</p>` : ""}
+    ${r.gmbProfile ? (p => `<h2>Complétude de la fiche GMB</h2>
+      ${p.recommendation?`<p class="reco">★ ${esc(p.recommendation)}</p>`:""}
+      <div class="stats" style="margin-top:8px">
+        ${p.claimedPct!=null?`<div class="stat"><b>${p.claimedPct}%</b><span>fiches revendiquées</span></div>`:""}
+        ${p.hoursPerWeek?`<div class="stat"><b>${p.hoursPerWeek.median} h/sem</b><span>amplitude horaire médiane · ${p.daysOpen?p.daysOpen.median:"?"} jours ouverts (${p.hoursPerWeek.min}–${p.hoursPerWeek.max} h)</span></div>`:""}
+        ${p.commonPriceLevel?`<div class="stat"><b>${esc(String(p.commonPriceLevel))}</b><span>niveau de prix le plus courant</span></div>`:""}
+        ${p.businessesWithAttributes?`<div class="stat"><b>${p.mustHaveAttributes.length}</b><span>attributs présents chez ≥ 50 % du top ${r.topN}</span></div>`:""}
+      </div>
+      ${p.attributes?.length?`<h3>Attributs GMB les plus cochés</h3>${bars(p.attributes.slice(0,compact?15:30))}`:""}` )(r.gmbProfile) : ""}
     ${r.titleKeyword?.businessesWithTitle ? `<h2>Mot-clé / ville dans le nom de la fiche ?</h2>
       <p class="reco">★ ${esc(r.titleKeyword.recommendation||"")}</p>
       <div class="stats" style="margin-top:8px">
@@ -416,6 +425,7 @@ function downloadCsv(list, filename){
     if(a.citations) for(const d of (a.citations.domains||[])) rows.push([a._title||a.keyword,"citation_annuaire",d.domain,d.count,d.pct]);
     if(a.titleKeyword){ rows.push([a._title||a.keyword,"nom_fiche_contient_motcle",a.keyword,a.titleKeyword.keywordInTitlePct+"%",""]); rows.push([a._title||a.keyword,"nom_fiche_contient_ville","ville",a.titleKeyword.cityInTitlePct+"%",""]); rows.push([a._title||a.keyword,"nom_fiche_motcle_et_ville","",a.titleKeyword.keywordAndCityInTitlePct+"%",""]); }
     if(a.title?.words) rows.push([a._title||a.keyword,"nom_fiche_longueur_mots_mediane","",a.title.words.median,""]);
+    if(a.gmbProfile){ if(a.gmbProfile.claimedPct!=null)rows.push([a._title||a.keyword,"fiches_revendiquees_pct","",a.gmbProfile.claimedPct+"%",""]); if(a.gmbProfile.hoursPerWeek)rows.push([a._title||a.keyword,"horaires_h_par_semaine_mediane","",a.gmbProfile.hoursPerWeek.median,""]); for(const x of (a.gmbProfile.attributes||[]))rows.push([a._title||a.keyword,"attribut_gmb",x.term,x.count,x.pct]); }
     if(a.stats?.descriptionWords) rows.push([a._title||a.keyword,"description_longueur_mots_mediane","",a.stats.descriptionWords.median,""]);
     if(a.stats?.photosCount&&a.stats.photosCount.count) rows.push([a._title||a.keyword,"photos_mediane","",a.stats.photosCount.median,""]);
     if(a.reviewFrequency) rows.push([a._title||a.keyword,"avis_par_mois_mediane","",a.reviewFrequency.perMonth.median,""]);

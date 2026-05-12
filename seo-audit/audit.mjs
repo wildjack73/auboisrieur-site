@@ -243,6 +243,36 @@ function reviewFrequencyAnalysis(businesses) {
   };
 }
 
+// Audit "complétude de la fiche GMB" : revendiquée, attributs cochés, horaires.
+function gmbProfileAnalysis(businesses, topN) {
+  const claimedKnown = businesses.filter(b => typeof b.claimed === "boolean");
+  const claimed = claimedKnown.filter(b => b.claimed).length;
+  const attrMap = new Map();
+  let withAttrs = 0;
+  for (const b of businesses) { const a = b.attributes || []; if (a.length) withAttrs++; for (const x of new Set(a)) attrMap.set(x, (attrMap.get(x) || 0) + 1); }
+  const attrBase = withAttrs || businesses.length || 1;
+  const attributes = [...attrMap.entries()].map(([term, count]) => ({ term, count, pct: Math.round((count / attrBase) * 100) })).sort((a, b) => b.count - a.count).slice(0, 40);
+  const mustHaveAttrs = attributes.filter(a => a.pct >= 50);
+  const hw = businesses.map(b => b.workHours).filter(Boolean);
+  const hoursPerWeek = numberStats(hw.map(w => w.hoursPerWeek));
+  const daysOpen = numberStats(hw.map(w => w.daysOpen));
+  const priceLevels = businesses.map(b => b.priceLevel).filter(p => p != null);
+  const priceTally = [...priceLevels.reduce((m, p) => m.set(p, (m.get(p) || 0) + 1), new Map()).entries()].sort((a, b) => b[1] - a[1]);
+  if (!claimedKnown.length && !withAttrs && !hw.length) return null;
+  const recParts = [];
+  if (claimedKnown.length) recParts.push(`${Math.round((claimed / claimedKnown.length) * 100)}% des fiches du top ${topN} sont revendiquées`);
+  if (mustHaveAttrs.length) recParts.push(`attributs à cocher (présents chez ≥ 50 % du top ${topN}) : ${mustHaveAttrs.slice(0, 10).map(a => a.term).join(", ")}`);
+  if (hoursPerWeek) recParts.push(`amplitude horaire médiane : ${hoursPerWeek.median} h/sem sur ${daysOpen ? daysOpen.median : "?"} jours — un horaire large aide`);
+  return {
+    claimedPct: claimedKnown.length ? Math.round((claimed / claimedKnown.length) * 100) : null,
+    businessesWithAttributes: withAttrs,
+    attributes, mustHaveAttributes: mustHaveAttrs,
+    hoursPerWeek, daysOpen,
+    commonPriceLevel: priceTally.length ? priceTally[0][0] : null,
+    recommendation: recParts.length ? recParts.join(" · ") + "." : null,
+  };
+}
+
 // Gros sites souvent reliés aux fiches (réseaux sociaux / agrégateurs / places
 // de marché) qu'on EXCLUT quand on étudie le "vrai" site du business.
 const SOCIAL_DOMAINS = new Set(["facebook.com", "fb.com", "fb.me", "instagram.com", "linkedin.com", "twitter.com", "x.com", "youtube.com", "youtu.be", "tiktok.com", "pinterest.com", "pinterest.fr", "snapchat.com", "wa.me", "linktr.ee", "beacons.ai"]);
@@ -656,6 +686,7 @@ export async function runAudit(opts) {
       descriptionWords: numberStats(descriptions.map(d => wordCount(d))),
     },
     title: titleStats(businesses),
+    gmbProfile: gmbProfileAnalysis(businesses, topN),
     ratingTarget: ratingTarget(businesses, topN),
     reviewFrequency: reviewFrequencyAnalysis(businesses),
     websiteRank: websiteRankAnalysis(businesses, organicByCity, topN),
@@ -706,6 +737,7 @@ function buildRecommendations(r) {
     recs.push(`Rédiger une description d'environ ${r.stats.descriptionLength.median} caractères (médiane observée).`);
   }
   if (r.title?.words) recs.push(`Longueur du nom de la fiche : ~${r.title.words.median} mots / ${r.title.chars.median} caractères (médiane du top ${r.topN}).`);
+  if (r.gmbProfile?.recommendation) recs.push(r.gmbProfile.recommendation);
   if (r.titleKeyword?.recommendation) recs.push(r.titleKeyword.recommendation);
   if (r.websiteRank?.recommendation) recs.push(r.websiteRank.recommendation);
   if (r.siteMetrics?.recommendation) recs.push(r.siteMetrics.recommendation);

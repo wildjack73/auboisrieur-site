@@ -82,8 +82,31 @@ export async function businessInfo(biz) {
         .map(([term, count]) => ({ term: String(term).trim(), count: Number(count) || 0 }))
         .filter(t => t.term).sort((a, b) => b.count - a.count)
     : (biz.placeTopics || []);
+  // attributs GMB cochés (available_attributes : { groupe: [attribut, …] })
+  const attrs = [];
+  const av = it.attributes?.available_attributes;
+  if (av && typeof av === "object") for (const list of Object.values(av)) if (Array.isArray(list)) for (const a of list) { const s = String(a || "").trim(); if (s) attrs.push(s); }
+  // horaires : timetable { lundi: [{open:{hour,minute}, close:{hour,minute}}, …] }
+  let workHours = null;
+  const tt = it.work_time?.work_hours?.timetable;
+  if (tt && typeof tt === "object") {
+    let hoursPerWeek = 0, daysOpen = 0;
+    for (const day of Object.values(tt)) {
+      if (!Array.isArray(day) || !day.length) continue;
+      daysOpen++;
+      for (const slot of day) {
+        const o = slot?.open, c = slot?.close;
+        if (o && c) { const h = (c.hour + (c.minute || 0) / 60) - (o.hour + (o.minute || 0) / 60); if (h > 0) hoursPerWeek += h; }
+      }
+    }
+    workHours = { daysOpen, hoursPerWeek: Math.round(hoursPerWeek * 10) / 10 };
+  }
   return {
     ...biz,
+    claimed: typeof it.is_claimed === "boolean" ? it.is_claimed : biz.claimed,
+    attributes: attrs.length ? attrs : (biz.attributes || []),
+    priceLevel: it.price_level ?? biz.priceLevel ?? null,
+    workHours: workHours ?? biz.workHours ?? null,
     description: it.description || biz.description || null,
     category: biz.category || it.category || null,
     categories: (biz.categories?.length ? biz.categories : (it.additional_categories || [])),
