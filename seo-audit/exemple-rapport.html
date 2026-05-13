@@ -199,8 +199,8 @@
     #printArea .geogrid { max-width:64mm; gap:2px; break-inside:avoid; } #printArea .geogrid .gcell { font-size:8px; }
     #printArea .g-A{background:#1e9e5a}#printArea .g-B{background:#5aa83a}#printArea .g-C{background:#c79a1e}#printArea .g-D{background:#d97a2e}#printArea .g-F{background:#c0392b}
     /* modules en PDF */
-    #printArea .module { border:1px solid var(--line); border-radius:7px; margin:0 0 12px; overflow:hidden; break-inside:avoid; background:#fff; }
-    #printArea .module-h { all:unset; display:flex; align-items:flex-start; gap:9px; padding:8px 11px; background:var(--accent-l); border-bottom:1px solid var(--accent-b); }
+    #printArea .module { border:1px solid var(--line); border-radius:7px; margin:0 0 12px; overflow:visible; break-inside:auto; background:#fff; }
+    #printArea .module-h { all:unset; display:flex; align-items:flex-start; gap:9px; padding:8px 11px; background:var(--accent-l); border-bottom:1px solid var(--accent-b); break-inside:avoid; break-after:avoid; }
     #printArea .module-n { flex:none; width:18px; height:18px; border-radius:4px; background:var(--accent); color:#fff; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center; }
     #printArea .module-t { all:unset; display:block; font-size:11.5px; font-weight:800; color:var(--p); text-transform:uppercase; letter-spacing:.03em; }
     #printArea .module-sub { all:unset; display:block; font-size:8.8px; color:var(--muted); margin-top:2px; line-height:1.35; }
