@@ -115,16 +115,15 @@
     #printArea { display:block; color:var(--ink); }
     a { color:var(--accent); text-decoration:none; }
 
-    /* pied de page répété */
-    #printArea .pdf-footer { position:fixed; bottom:-12mm; left:0; right:0; font-size:8px; color:var(--muted); border-top:1px solid var(--line); padding-top:3px; display:flex; justify-content:space-between; }
+    #printArea .pdf-footer { display:none; }
 
     /* couverture */
-    #printArea .cover { page-break-after:always; padding-top:34mm; }
-    #printArea .cover .band { height:6px; background:var(--accent); border-radius:3px; width:60mm; margin-bottom:24mm; }
-    #printArea .cover .kicker { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:10px; margin-bottom:8px; }
-    #printArea .cover h1 { font-size:30px; line-height:1.15; color:var(--p); margin:0 0 10px; font-weight:800; letter-spacing:-.01em; }
-    #printArea .cover .lead { font-size:13px; color:var(--p2); max-width:130mm; }
-    #printArea .cover .facts { margin-top:30mm; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    #printArea .cover { page-break-after:always; min-height:242mm; display:flex; flex-direction:column; padding-top:14mm; }
+    #printArea .cover .band { height:8px; background:var(--accent); border-radius:4px; width:90mm; margin-bottom:22mm; }
+    #printArea .cover .kicker { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:10px; margin-bottom:10px; }
+    #printArea .cover h1 { display:block; font-size:34px; line-height:1.12; color:var(--p); margin:0 0 12px; font-weight:800; letter-spacing:-.01em; }
+    #printArea .cover .lead { font-size:13.5px; color:var(--p2); max-width:140mm; line-height:1.5; }
+    #printArea .cover .facts { margin-top:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
     #printArea .cover .facts div { background:var(--zebra); border:1px solid var(--line); border-radius:5px; padding:10px 12px; }
     #printArea .cover .facts b { display:block; font-size:18px; color:var(--p); }
     #printArea .cover .facts span { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
@@ -147,7 +146,7 @@
     #printArea .chapter-head .sub { margin-left:auto; font-size:9px; color:#aebfda; }
 
     /* en-têtes de section */
-    #printArea h1 { display:none; }
+    #printArea > h1, #printArea section > h1 { display:none; }
     #printArea h2 { font-size:11.5px; color:var(--p); font-weight:800; text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px; padding-bottom:3px; border-bottom:2px solid var(--accent-b); page-break-after:avoid; }
     #printArea h2 .pill { float:right; text-transform:none; letter-spacing:0; }
     #printArea h3 { font-size:9.5px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin:12px 0 5px; page-break-after:avoid; }
@@ -633,7 +632,7 @@ function exportPdf() {
       <div class="chapter-head"><span class="num">${String(i+1).padStart(2,"0")}</span><span class="ttl">${esc(a._title||a.keyword)}</span><span class="sub">« ${esc(a.keyword)} » · ${a.cities.requested} villes · ${new Date(a.generatedAt).toLocaleDateString("fr-FR")}</span></div>
       ${renderAudit(a,{compact:true})}
     </section>`).join("");
-  $("#printArea").innerHTML = `<div class="pdf-footer"><span>Objectif Top 3 — votre place sur le podium</span><span>${now}</span></div>` + cover + chapters;
+  $("#printArea").innerHTML = cover + chapters;
   $("#printArea").querySelectorAll("details").forEach(el => el.open = true); // tout déplier pour le PDF
   document.title = "Objectif Top 3 — rapport d'audit — " + now;
   setTimeout(()=>window.print(), 60);
@@ -685,8 +684,7 @@ function renderListing(r, { print=false } = {}){
 }
 function exportListingPdf(r){
   const now = new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
-  $("#printArea").innerHTML = `<div class="pdf-footer"><span>Objectif Top 3 — audit de fiche</span><span>${now}</span></div>
-    <div class="cover"><div class="band"></div><div class="kicker">Objectif Top 3 · audit de fiche Google Business Profile</div>
+  $("#printArea").innerHTML = `<div class="cover"><div class="band"></div><div class="kicker">Objectif Top 3 · audit de fiche Google Business Profile</div>
       <h1>${esc(r.business.name||"Audit de fiche")}</h1><p class="lead">Score ${r.score}/100 (note ${r.grade})${r.headline.rank?` · #${r.headline.rank} sur « ${esc(r.query)} »`:""} — ${esc(r.business.address||"")}. Plan d'action priorisé pour grimper dans le top 3.</p>
       <div class="facts"><div><b>${r.score}/100</b><span>score</span></div><div><b>${r.grade}</b><span>note</span></div><div><b>${r.headline.rank?"#"+r.headline.rank:"—"}</b><span>rang « ${esc(r.query)} »</span></div><div><b>${r.headline.reviews??"—"}</b><span>avis · ${r.headline.rating??"—"}/5</span></div><div><b>${r.headline.photos??"—"}</b><span>photos</span></div><div><b>${now}</b><span>date</span></div></div></div>
     <section class="chapter"><div class="chapter-head"><span class="num">01</span><span class="ttl">${esc(r.business.name||"Fiche")}</span><span class="sub">« ${esc(r.query)} » · ${new Date(r.generatedAt).toLocaleDateString("fr-FR")}</span></div>${renderListing(r,{print:true})}</section>`;

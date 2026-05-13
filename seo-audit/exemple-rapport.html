@@ -109,16 +109,15 @@
     #printArea { display:block; color:var(--ink); }
     a { color:var(--accent); text-decoration:none; }
 
-    /* pied de page répété */
-    #printArea .pdf-footer { position:fixed; bottom:-12mm; left:0; right:0; font-size:8px; color:var(--muted); border-top:1px solid var(--line); padding-top:3px; display:flex; justify-content:space-between; }
+    #printArea .pdf-footer { display:none; }
 
     /* couverture */
-    #printArea .cover { page-break-after:always; padding-top:34mm; }
-    #printArea .cover .band { height:6px; background:var(--accent); border-radius:3px; width:60mm; margin-bottom:24mm; }
-    #printArea .cover .kicker { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:10px; margin-bottom:8px; }
-    #printArea .cover h1 { font-size:30px; line-height:1.15; color:var(--p); margin:0 0 10px; font-weight:800; letter-spacing:-.01em; }
-    #printArea .cover .lead { font-size:13px; color:var(--p2); max-width:130mm; }
-    #printArea .cover .facts { margin-top:30mm; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    #printArea .cover { page-break-after:always; min-height:242mm; display:flex; flex-direction:column; padding-top:14mm; }
+    #printArea .cover .band { height:8px; background:var(--accent); border-radius:4px; width:90mm; margin-bottom:22mm; }
+    #printArea .cover .kicker { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:10px; margin-bottom:10px; }
+    #printArea .cover h1 { display:block; font-size:34px; line-height:1.12; color:var(--p); margin:0 0 12px; font-weight:800; letter-spacing:-.01em; }
+    #printArea .cover .lead { font-size:13.5px; color:var(--p2); max-width:140mm; line-height:1.5; }
+    #printArea .cover .facts { margin-top:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
     #printArea .cover .facts div { background:var(--zebra); border:1px solid var(--line); border-radius:5px; padding:10px 12px; }
     #printArea .cover .facts b { display:block; font-size:18px; color:var(--p); }
     #printArea .cover .facts span { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
@@ -141,7 +140,7 @@
     #printArea .chapter-head .sub { margin-left:auto; font-size:9px; color:#aebfda; }
 
     /* en-têtes de section */
-    #printArea h1 { display:none; }
+    #printArea > h1, #printArea section > h1 { display:none; }
     #printArea h2 { font-size:11.5px; color:var(--p); font-weight:800; text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px; padding-bottom:3px; border-bottom:2px solid var(--accent-b); page-break-after:avoid; }
     #printArea h2 .pill { float:right; text-transform:none; letter-spacing:0; }
     #printArea h3 { font-size:9.5px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin:12px 0 5px; page-break-after:avoid; }
@@ -242,8 +241,7 @@
  body>.banner kbd{background:#222734;border:1px solid #3a4252;border-radius:4px;padding:1px 5px;font-size:12px}
 }
 @media print{body>.banner{display:none}}
-</style></head><body><div class="banner"><b>Exemple de rapport « Objectif Top 3 »</b> — généré le 13 mai 2026 (audit réel « expert comptable » sur 5 villes). Pour obtenir le <b>PDF</b> : <kbd>Ctrl</kbd>+<kbd>P</kbd> → « Enregistrer au format PDF » ; dans les options du navigateur, décoche « En-têtes et pieds de page » et garde « Graphiques d'arrière-plan » coché.</div><div id="printArea"><div class="pdf-footer"><span>Objectif Top 3 — votre place sur le podium</span><span>13 mai 2026</span></div>
-<div class="cover"><div class="band"></div><div class="kicker">Objectif Top 3 · audit de visibilité locale — Google Business Profile</div>
+</style></head><body><div class="banner"><b>Exemple de rapport « Objectif Top 3 »</b> — généré le 13 mai 2026 (audit réel « expert comptable » sur 5 villes). Pour obtenir le <b>PDF</b> : <kbd>Ctrl</kbd>+<kbd>P</kbd> → « Enregistrer au format PDF » ; dans les options du navigateur, décoche « En-têtes et pieds de page » et garde « Graphiques d'arrière-plan » coché.</div><div id="printArea"><div class="cover"><div class="band"></div><div class="kicker">Objectif Top 3 · audit de visibilité locale — Google Business Profile</div>
 <h1>Votre place sur le podium</h1><p class="lead">Rien n'est laissé au hasard : analyse exhaustive du top 3 (« local pack ») pour « expert comptable » sur 5 requêtes ville, et plan d'action précis pour s'en rapprocher.</p>
 <div class="facts"><div><b>15</b><span>fiches analysées</span></div><div><b>5</b><span>villes</span></div><div><b>Top 3</b><span>profondeur</span></div><div><b>4.9/5</b><span>note cible</span></div><div><b>188</b><span>avis cible</span></div><div><b>13 mai 2026</b><span>date du rapport</span></div></div></div>
 <div class="toc"><h2>Sommaire</h2><ol><li><span class="t">« expert comptable » — analyse complète & plan d'action</span><span class="s">catégorie : Expert-comptable · note 4.9/5 · 188 avis</span></li></ol></div>
