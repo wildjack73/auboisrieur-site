@@ -221,42 +221,215 @@
     #printArea h2 { /* on n'utilise plus h2 directement dans les modules, mais au cas où */ }
   }
 </style>
-<style>
-  header h1 .tag { color:var(--mut); font-weight:400; font-size:14px; }
-  .hint { color:var(--mut); font-weight:400; font-size:12px; }
-  .ok { color:var(--acc2); font-size:13px; margin-left:10px; }
-  textarea#cities { min-height:140px; }
-  main { max-width:800px; }
-</style>
-
+</head>
 <body>
 <header>
-  <h1>Objectif Top 3 <span class="tag">— votre place sur le podium</span></h1>
-  <p>Rien n'est laissé au hasard. On scrape le <b>top 3 Google</b> pour un métier sur des centaines de villes, et on en fait un <b>PDF propre</b> avec le plan d'action pour s'en rapprocher.</p>
+  <h1>Objectif Top 3 <span style="color:var(--mut);font-weight:400;font-size:14px">— votre place sur le podium</span></h1>
+  <p><b>Rien n'est laissé au hasard.</b> On analyse le top 3 Google (« local pack ») pour un métier × ville sur des centaines de communes, on mesure tout ce que font les leaders — catégories, nom de fiche, description, avis & sémantique, photos, attributs, citations, site web, volumes de recherche — et on en déduit le plan d'action précis. Empile tes mini-audits puis exporte un PDF pro.</p>
 </header>
+<nav class="tabs">
+  <button data-tab="audit" class="active">Audit du marché</button>
+  <button data-tab="listing">Audit d'une fiche</button>
+  <button data-tab="settings">Paramètres</button>
+</nav>
 <main>
+
+<!-- ─────────────── ONGLET AUDIT ─────────────── -->
+<div class="tabpane active" id="tab-audit">
   <div class="card">
-    <label>Métier (sans la ville)</label>
-    <input type="text" id="keyword" placeholder="ex : expert comptable, plombier, coiffeur…" autofocus>
-    <label>Villes <span class="hint">(une par ligne — vide = liste fournie par défaut, 198 villes)</span></label>
-    <textarea id="cities" rows="6" placeholder="Paris&#10;Lyon&#10;Marseille&#10;…"></textarea>
+    <div class="row">
+      <div>
+        <label>Métier / requête (sans la ville)</label>
+        <input type="text" id="keyword" placeholder="ex : expert-comptable">
+      </div>
+      <div>
+        <label>Titre du mini-audit (optionnel)</label>
+        <input type="text" id="title" placeholder="ex : Experts-comptables — France">
+      </div>
+    </div>
+    <details>
+      <summary>Options pour ce run (sinon : valeurs des Paramètres)</summary>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:0 0 110px"><label>Top N</label><input type="number" id="topN" min="1" max="20" placeholder="3"></div>
+        <div style="flex:0 0 170px"><label>Fournisseur</label><select id="provider"><option value="">(défaut)</option><option>valueserp</option><option>dataforseo</option></select></div>
+      </div>
+      <label>Villes pour ce run (vide = liste des Paramètres)</label>
+      <textarea id="citiesOverride" placeholder="Nice&#10;Lyon&#10;Marseille&#10;..."></textarea>
+      <div class="checks">
+        <label><input type="checkbox" id="withReviews"> Analyser le texte des avis (plus lent)</label>
+        <label><input type="checkbox" id="withCitations"> Audit citations / annuaires (1 requête SERP de plus par ville)</label>
+        <label><input type="checkbox" id="withSiteMetrics"> Métriques des sites web (Domain Rank, backlinks — DataForSEO)</label>
+        <label><input type="checkbox" id="withHaloscan"> Haloscan : volume mots-clés + métriques/positions des sites</label>
+        <label><input type="checkbox" id="withVision"> Analyser les photos (Google Vision)</label>
+        <span class="pill" id="visionPill"></span>
+      </div>
+    </details>
     <div class="toolbar">
-      <button id="run" class="btn">Générer le rapport</button>
-      <span id="hint" class="ok" hidden>Le PDF s'ouvrira après l'analyse — choisis « Enregistrer au format PDF » dans la fenêtre d'impression.</span>
+      <button id="run" class="btn">Lancer ce mini-audit</button>
+      <button id="exportPdf" class="sec" disabled>📄 Générer le PDF complet (0)</button>
+      <button id="exportCsv" class="sec" disabled>⬇ CSV global</button>
+      <button id="clearAll" class="sec" disabled>Tout effacer</button>
     </div>
     <div class="progress" id="prog" hidden><span id="progText">…</span><div class="bar"><i id="progBar"></i></div></div>
   </div>
+
+  <div class="card" id="listCard" hidden>
+    <h2>Mes mini-audits</h2>
+    <ul class="auditList" id="auditList"></ul>
+  </div>
+
   <div id="out"></div>
+
+  <div class="card">
+    <details><summary>Lexique — c'est quoi tous ces termes ?</summary>
+      <ul style="font-size:13px;line-height:1.6">
+        <li><b>Top 3 / local pack</b> : les 3 fiches qui apparaissent avec la carte quand on cherche « métier + ville » sur Google. Le but de l'audit : voir ce qu'ont en commun ces 3 fiches partout en France, pour faire pareil.</li>
+        <li><b>Catégorie principale / secondaire</b> : la catégorie d'activité de la fiche Google (ex. « Salon de coiffure »). On peut en ajouter d'autres en secondaires. C'est l'un des facteurs les plus importants.</li>
+        <li><b>Description</b> : le texte « de la part du propriétaire » sur la fiche. L'audit dit combien de caractères/mots écrire et quels mots-clés y mettre.</li>
+        <li><b>Avis (chips Google / « place topics »)</b> : les petites étiquettes sous « Avis » (ex. « gentillesse 23 »). Ce sont les mots que Google repère dans les avis des clients. À reprendre dans vos réponses et à suggérer à vos clients.</li>
+        <li><b>Citations / NAP</b> : les annuaires où votre établissement est listé (PagesJaunes, etc.). Plus vous y êtes (avec les mêmes nom/adresse/téléphone), mieux c'est.</li>
+        <li><b>Domain Rank / trust / backlinks / domaines référents</b> : la « popularité » d'un site web aux yeux de Google, basée sur les liens qu'il reçoit d'autres sites. Sur 1000 pour le Domain Rank.</li>
+        <li><b>Volume de recherche</b> : combien de fois par mois les gens tapent cette recherche sur Google.</li>
+        <li><b>Allintitle / KGR</b> : indicateurs de concurrence sur un mot-clé (combien de pages le ciblent dans leur titre).</li>
+        <li><b>Vision / objets / labels</b> : analyse automatique des photos pour savoir ce qu'elles montrent (devanture, équipe, produit…) → quoi photographier en priorité.</li>
+        <li><b>Posts Google</b> : les publications (actus, offres) qu'on peut poster sur sa fiche, comme sur un réseau social.</li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<!-- ─────────────── ONGLET AUDIT D'UNE FICHE ─────────────── -->
+<div class="tabpane" id="tab-listing">
+  <div class="card">
+    <p style="margin:0 0 10px;color:var(--mut);font-size:13px">Audit complet d'une fiche Google Business Profile précise : score /100 + note, rang sur la requête, comparaison aux concurrents, plan d'action priorisé.</p>
+    <div class="row">
+      <div><label>Métier / requête (sans la ville)</label><input type="text" id="lkeyword" placeholder="ex : expert comptable"></div>
+      <div><label>Ville</label><input type="text" id="lcity" placeholder="ex : Nice"></div>
+      <div style="flex:0 0 170px"><label>Fournisseur</label><select id="lprovider"></select></div>
+    </div>
+    <div class="row">
+      <div><label>Place ID (recommandé)</label><input type="text" id="lplaceId" placeholder="ChIJ…"></div>
+      <div><label>ou CID</label><input type="text" id="lcid" placeholder="4272154961102027751"></div>
+      <div><label>ou nom de la fiche</label><input type="text" id="lname" placeholder="SOFIAL Expert Comptable Nice"></div>
+    </div>
+    <div class="checks"><label><input type="checkbox" id="lwithGrid"> Grille de visibilité géographique (5×5 = 25 requêtes SERP de plus — option)</label></div>
+    <div class="toolbar"><button id="runListing" class="btn">Lancer l'audit de la fiche</button></div>
+    <div class="progress" id="lprog" hidden><span id="lprogText">…</span><div class="bar"><i id="lprogBar"></i></div></div>
+  </div>
+  <div id="listingOut"></div>
+</div>
+
+<!-- ─────────────── ONGLET PARAMÈTRES ─────────────── -->
+<div class="tabpane" id="tab-settings">
+  <div class="card">
+    <h2>Villes utilisées par défaut</h2>
+    <p style="color:var(--mut);font-size:13px;margin:0 0 6px">Une ville par ligne (ou séparées par virgule/point-virgule). C'est cette liste qui est utilisée pour chaque audit, sauf si tu remplis « Villes pour ce run ».</p>
+    <textarea id="citiesSettings" class="tall"></textarea>
+    <div class="toolbar">
+      <button id="saveCities" class="btn">Enregistrer</button>
+      <button id="resetCities" class="sec">Réinitialiser (liste fournie)</button>
+      <span id="citiesCount" class="pill"></span>
+      <span id="citiesSaved" class="ok" hidden>Enregistré ✓</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Valeurs par défaut des audits</h2>
+    <div class="row">
+      <div style="flex:0 0 130px"><label>Top N</label><input type="number" id="defTopN" min="1" max="20"></div>
+      <div style="flex:0 0 200px"><label>Fournisseur</label><select id="defProvider"></select></div>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" id="defReviews"> Analyser les avis par défaut</label>
+      <label><input type="checkbox" id="defCitations"> Audit citations / annuaires par défaut</label>
+      <label><input type="checkbox" id="defSiteMetrics"> Métriques des sites web par défaut</label>
+      <label><input type="checkbox" id="defHaloscan"> Haloscan par défaut</label>
+      <label><input type="checkbox" id="defVision"> Analyser les photos par défaut</label>
+      <span class="pill" id="visionPill2"></span>
+    </div>
+    <div class="toolbar"><button id="saveDefaults" class="btn">Enregistrer</button><span id="defSaved" class="ok" hidden>Enregistré ✓</span></div>
+  </div>
+</div>
+
 </main>
 <div id="printArea"></div>
+
 <script>
 const $ = s => document.querySelector(s);
-let meta = null;
+const $$ = s => [...document.querySelectorAll(s)];
+let meta = {};
+let audits = [];
+let settings = { cities: null, topN: 3, provider: "", reviews: false, citations: false, siteMetrics: false, haloscan: false, vision: false };
 
-(async () => { try { meta = await fetch("/api/meta").then(r => r.json()); } catch {} })();
+try { audits = JSON.parse(localStorage.getItem("seoAudits") || "[]"); } catch { audits = []; }
+try { Object.assign(settings, JSON.parse(localStorage.getItem("seoSettings") || "{}")); } catch {}
 
-function parseCities(t){ return t.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean); }
+function saveAudits() { try { localStorage.setItem("seoAudits", JSON.stringify(audits)); } catch {} }
+function saveSettings() { try { localStorage.setItem("seoSettings", JSON.stringify(settings)); } catch {} }
+function parseCities(txt) { return txt.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// Tabs
+$$(".tabs button").forEach(b => b.onclick = () => {
+  $$(".tabs button").forEach(x => x.classList.toggle("active", x === b));
+  $$(".tabpane").forEach(p => p.classList.toggle("active", p.id === "tab-" + b.dataset.tab));
+});
+
+(async () => {
+  meta = await fetch("/api/meta").then(r => r.json());
+  if (settings.cities == null) settings.cities = meta.topCities.slice();
+  if (!settings.provider) settings.provider = meta.defaultProvider;
+  // selects
+  $("#provider").innerHTML = `<option value="">(défaut : ${esc(settings.provider)})</option>` + meta.providers.map(p=>`<option>${p}</option>`).join("");
+  $("#defProvider").innerHTML = meta.providers.map(p=>`<option ${p===settings.provider?"selected":""}>${p}</option>`).join("");
+  $("#lprovider").innerHTML = meta.providers.map(p=>`<option ${p===settings.provider?"selected":""}>${p}</option>`).join("");
+  // vision availability
+  const vTxt = meta.visionAvailable ? "Vision disponible" : "Vision non configurée (GOOGLE_VISION_API_KEY)";
+  $("#visionPill").textContent = vTxt; $("#visionPill2").textContent = vTxt;
+  if (!meta.visionAvailable) { $("#withVision").disabled = true; $("#defVision").disabled = true; }
+  // populate settings UI
+  $("#citiesSettings").value = settings.cities.join("\n");
+  $("#defTopN").value = settings.topN || 3;
+  $("#defReviews").checked = !!settings.reviews;
+  $("#defCitations").checked = !!settings.citations;
+  $("#defSiteMetrics").checked = !!settings.siteMetrics;
+  $("#defHaloscan").checked = !!settings.haloscan;
+  $("#defVision").checked = !!settings.vision && meta.visionAvailable;
+  $("#citiesOverride").placeholder = meta.topCities.slice(0,6).join("\n") + "\n…";
+  updateCitiesCount();
+  refreshList();
+})();
+
+// ── Paramètres : villes ─────────────────────────────────────────────────────
+function updateCitiesCount() {
+  const n = parseCities($("#citiesSettings").value).length;
+  $("#citiesCount").textContent = `${n} ville${n>1?"s":""}`;
+}
+$("#citiesSettings").addEventListener("input", updateCitiesCount);
+$("#saveCities").onclick = () => {
+  settings.cities = parseCities($("#citiesSettings").value);
+  saveSettings(); updateCitiesCount();
+  const m = $("#citiesSaved"); m.hidden = false; setTimeout(()=>m.hidden=true, 1800);
+};
+$("#resetCities").onclick = () => {
+  if (!confirm("Remplacer la liste par la liste fournie par défaut ?")) return;
+  settings.cities = meta.topCities.slice(); $("#citiesSettings").value = settings.cities.join("\n");
+  saveSettings(); updateCitiesCount();
+};
+// ── Paramètres : valeurs par défaut ─────────────────────────────────────────
+$("#saveDefaults").onclick = () => {
+  settings.topN = parseInt($("#defTopN").value,10) || 3;
+  settings.provider = $("#defProvider").value || meta.defaultProvider;
+  settings.reviews = $("#defReviews").checked;
+  settings.citations = $("#defCitations").checked;
+  settings.siteMetrics = $("#defSiteMetrics").checked;
+  settings.haloscan = $("#defHaloscan").checked;
+  settings.vision = $("#defVision").checked;
+  saveSettings();
+  $("#provider").querySelector("option[value='']").textContent = `(défaut : ${settings.provider})`;
+  const m = $("#defSaved"); m.hidden = false; setTimeout(()=>m.hidden=true, 1800);
+};
+
+// ── Rendu d'un audit (écran + PDF) ──────────────────────────────────────────
 function bars(items, key="term") {
   if (!items || !items.length) return '<p class="err">Aucune donnée.</p>';
   const max = items[0].count || 1;
@@ -264,9 +437,10 @@ function bars(items, key="term") {
     + `<span class="b"><i style="width:${Math.round((it.count/max)*100)}%"></i></span>`
     + `<span class="n">${it.count}${it.pct!=null?` · ${it.pct}%`:""}</span></div>`).join("");
 }
-function statBox(label, st, unit=""){ if(!st)return""; return `<div class="stat"><b>${st.avg}${unit}</b><span>${esc(label)} — moy. (médiane ${st.median}${unit}, ${st.min}–${st.max}, n=${st.count})</span></div>`; }
-
-// renderAudit identique à la version « avancée » (généré dans index-advanced.html)
+function statBox(label, st, unit="") {
+  if (!st) return "";
+  return `<div class="stat"><b>${st.avg}${unit}</b><span>${esc(label)} — moy. (médiane ${st.median}${unit}, ${st.min}–${st.max}, n=${st.count})</span></div>`;
+}
 function renderAudit(r, { compact=false } = {}) {
   const s = r.stats, N = r.topN, kw = esc(r.keyword);
   let n = 0;
@@ -377,61 +551,223 @@ function renderAudit(r, { compact=false } = {}) {
   if (!compact) out.push(`${r.errors?.length?`<details><summary>Erreurs (${r.errors.length})</summary><table><tbody>${r.errors.slice(0,40).map(e=>`<tr><td>${esc(e.city)}</td><td class="err">${esc(e.error)}</td></tr>`).join("")}</tbody></table></details>`:""}<details><summary>JSON brut</summary><pre style="overflow:auto;font-size:12px">${esc(JSON.stringify(r,null,2))}</pre></details>`);
   return out.join("\n");
 }
+function showOnScreen(r) { $("#out").innerHTML = `<div class="card">${renderAudit(r)}</div>`; window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }
 
-
-function buildPdfView(r){
-  const d = new Date();
-  const now = d.toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
-  const cover = `<div class="cover">
-    <div class="band"></div>
-    <div class="kicker">Objectif Top 3 · audit de visibilité locale — Google Business Profile</div>
-    <h1>Votre place sur le podium</h1>
-    <p class="lead">Rien n'est laissé au hasard : analyse exhaustive du top ${r.topN} (« local pack ») pour « ${esc(r.keyword)} » sur ${r.cities.requested} requêtes ville, et plan d'action précis pour s'en rapprocher.</p>
-    <div class="facts">
-      <div><b>${r.businesses.total}</b><span>fiches analysées</span></div>
-      <div><b>${r.cities.requested}</b><span>villes</span></div>
-      <div><b>Top ${r.topN}</b><span>profondeur</span></div>
-      <div><b>${r.ratingTarget?r.ratingTarget.median+"/5":"—"}</b><span>note cible</span></div>
-      <div><b>${r.ratingTarget&&r.ratingTarget.medianReviews!=null?r.ratingTarget.medianReviews:"—"}</b><span>avis cible</span></div>
-      <div><b>${now}</b><span>date du rapport</span></div>
-    </div></div>
-    <div class="toc"><h2>Sommaire</h2><ol><li><span class="t">« ${esc(r.keyword)} » — analyse complète & plan d'action</span><span class="s">catégorie : ${esc(r.categoryCombos?.mainCategory||"—")} · note ${r.ratingTarget?r.ratingTarget.median:"—"}/5 · ${r.ratingTarget&&r.ratingTarget.medianReviews!=null?r.ratingTarget.medianReviews:"—"} avis</span></li></ol></div>
-    <section class="chapter"><div class="chapter-head"><span class="num">01</span><span class="ttl">${esc(r.keyword)}</span><span class="sub">${r.cities.requested} villes · ${r.businesses.total} fiches · ${now}</span></div>${renderAudit(r,{compact:true})}</section>`;
-  $("#printArea").innerHTML = cover;
-  $("#printArea").querySelectorAll("details").forEach(el => el.open = true);
-  document.title = "Objectif Top 3 — " + r.keyword + " — " + now;
+function refreshList() {
+  $("#exportPdf").textContent = `📄 Générer le PDF complet (${audits.length})`;
+  $("#exportPdf").disabled = audits.length === 0;
+  $("#exportCsv").disabled = audits.length === 0;
+  $("#clearAll").disabled = audits.length === 0;
+  $("#listCard").hidden = audits.length === 0;
+  $("#auditList").innerHTML = audits.map((a,i)=>`<li>
+      <span class="meta"><b>${esc(a._title||a.keyword)}</b><br><small>requête « ${esc(a.keyword)} » · ${a.cities.requested} villes · top ${a.topN} · ${new Date(a.generatedAt).toLocaleString("fr-FR")}${a.categoryCombos?.mainCategory?` · ➜ ${esc(a.categoryCombos.mainCategory)}`:""}</small></span>
+      <button class="sec" data-view="${i}">Voir</button><button class="sec" data-csv1="${i}">⬇ CSV</button><button class="sec" data-del="${i}">✕</button></li>`).join("");
+  $("#auditList").querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>showOnScreen(audits[+b.dataset.view]));
+  $("#auditList").querySelectorAll("[data-csv1]").forEach(b=>b.onclick=()=>downloadCsv([audits[+b.dataset.csv1]], `audit-${slug(audits[+b.dataset.csv1])}.csv`));
+  $("#auditList").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ audits.splice(+b.dataset.del,1); saveAudits(); refreshList(); });
 }
 
+// ── Export CSV (mot-clé;occurrences;pct) — comme les sorties du bot ─────────
+function slug(a){ return String(a._title||a.keyword||"audit").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_").slice(0,60); }
+function csvCell(v){ const s=String(v==null?"":v); return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function downloadCsv(list, filename){
+  const rows = [["audit","section","terme","valeur","pct_fiches"]];
+  const add=(a,sec,arr,termKey="term")=>{ for(const x of (arr||[])) rows.push([a._title||a.keyword, sec, x[termKey]??x.combo, x.count??x.value??"", x.pct??""]); };
+  for(const a of list){
+    if(a.referenceChecklist){ rows.push([a._title||a.keyword,"score_reference_top","",a.referenceChecklist.score,""]); for(const c of a.referenceChecklist.checks)rows.push([a._title||a.keyword,"critere_top",c.label,c.pct+"%",""]); }
+    if(a.reviewEngagement){ rows.push([a._title||a.keyword,"taux_reponse_avis","",a.reviewEngagement.ownerResponseRate+"%",""]); rows.push([a._title||a.keyword,"avis_negatifs_pct","",a.reviewEngagement.negativeReviewsPct+"%",""]); }
+    if(a.siteMetrics?.tech){ const t=a.siteMetrics.tech; rows.push([a._title||a.keyword,"sites_https_pct","",t.httpsPct+"%",""]); rows.push([a._title||a.keyword,"sites_mobile_pct","",t.mobilePct+"%",""]); rows.push([a._title||a.keyword,"sites_schema_localbusiness_pct","",t.schemaPct+"%",""]); }
+    if(a.descriptionGuide){ add(a,"description_a_mettre",a.descriptionGuide.mustUse); add(a,"description_recommande",a.descriptionGuide.recommended); add(a,"description_optionnel",a.descriptionGuide.optional); add(a,"description_expression",a.descriptionGuide.phrases); }
+    add(a,"description_mot",a.descriptionKeywords?.unigrams);
+    add(a,"description_bigramme",a.descriptionKeywords?.bigrams);
+    add(a,"avis_place_topics",a.reviewTopics?.topics);
+    add(a,"avis_a_reprendre",a.reviewGuide?.mustMention);
+    add(a,"avis_texte_mot",a.reviewKeywords?.unigrams);
+    add(a,"avis_texte_expression",a.reviewKeywords?.bigrams);
+    if(a.ratingTarget){ rows.push([a._title||a.keyword,"note_a_atteindre_mediane",a.ratingTarget.median+"/5",a.ratingTarget.median,""]); rows.push([a._title||a.keyword,"avis_a_atteindre_mediane",a.ratingTarget.medianReviews??"",a.ratingTarget.medianReviews??"",""]); add(a,"note_distribution",a.ratingTarget.distribution); }
+    add(a,"categorie",a.categories);
+    add(a,"categorie_combinaison",(a.categoryCombos?.combos||[]).map(c=>({term:c.combo,count:c.count,pct:c.pct})));
+    if(a.vision){ add(a,"photo_objet",a.vision.topObjects); add(a,"photo_label",a.vision.topLabels); add(a,"photo_texte",a.vision.topTexts); }
+    if(a.citations) for(const d of (a.citations.domains||[])) rows.push([a._title||a.keyword,"citation_annuaire",d.domain,d.count,d.pct]);
+    if(a.titleKeyword){ rows.push([a._title||a.keyword,"nom_fiche_contient_motcle",a.keyword,a.titleKeyword.keywordInTitlePct+"%",""]); rows.push([a._title||a.keyword,"nom_fiche_contient_ville","ville",a.titleKeyword.cityInTitlePct+"%",""]); rows.push([a._title||a.keyword,"nom_fiche_motcle_et_ville","",a.titleKeyword.keywordAndCityInTitlePct+"%",""]); }
+    if(a.title?.words) rows.push([a._title||a.keyword,"nom_fiche_longueur_mots_mediane","",a.title.words.median,""]);
+    if(a.gmbProfile){ if(a.gmbProfile.claimedPct!=null)rows.push([a._title||a.keyword,"fiches_revendiquees_pct","",a.gmbProfile.claimedPct+"%",""]); if(a.gmbProfile.hoursPerWeek)rows.push([a._title||a.keyword,"horaires_h_par_semaine_mediane","",a.gmbProfile.hoursPerWeek.median,""]); for(const x of (a.gmbProfile.attributes||[]))rows.push([a._title||a.keyword,"attribut_gmb",x.term,x.count,x.pct]); }
+    if(a.stats?.descriptionWords) rows.push([a._title||a.keyword,"description_longueur_mots_mediane","",a.stats.descriptionWords.median,""]);
+    if(a.stats?.photosCount&&a.stats.photosCount.count) rows.push([a._title||a.keyword,"photos_mediane","",a.stats.photosCount.median,""]);
+    if(a.reviewFrequency){ rows.push([a._title||a.keyword,"avis_par_mois_mediane","",a.reviewFrequency.perMonth.median,""]); if(a.reviewFrequency.ageYears)rows.push([a._title||a.keyword,"anciennete_fiches_ans_mediane","",a.reviewFrequency.ageYears.median,""]); }
+    if(a.websiteRank) rows.push([a._title||a.keyword,"site_en_page1_pct","",a.websiteRank.top10Pct+"%",""]);
+    if(a.siteMetrics){ rows.push([a._title||a.keyword,"site_propre_pct","",a.siteMetrics.breakdown.ownSitePct+"%",""]); if(a.siteMetrics.rank)rows.push([a._title||a.keyword,"domain_rank_median","",a.siteMetrics.rank.median,""]); if(a.siteMetrics.referringDomains)rows.push([a._title||a.keyword,"domaines_referents_median","",a.siteMetrics.referringDomains.median,""]); for(const x of (a.siteMetrics.rows||[]))rows.push([a._title||a.keyword,"site_metrique",x.domain,x.rank??"",x.referringDomains??""]); }
+    if(a.haloscan){ if(a.haloscan.baseKeyword?.volume!=null)rows.push([a._title||a.keyword,"haloscan_volume_motcle",a.keyword,a.haloscan.baseKeyword.volume,""]); if(a.haloscan.totalVolume)rows.push([a._title||a.keyword,"haloscan_volume_cumule_villes","",a.haloscan.totalVolume,""]); for(const x of (a.haloscan.topCitiesByVolume||[]))rows.push([a._title||a.keyword,"haloscan_volume_par_ville",x.term,x.count,""]); if(a.haloscan.sites?.trust)rows.push([a._title||a.keyword,"haloscan_trust_median","",a.haloscan.sites.trust.median,""]); for(const x of (a.haloscan.sites?.rows||[]))rows.push([a._title||a.keyword,"haloscan_site",x.domain,x.trust??"",x.keywordsCount??""]); }
+  }
+  const csv = rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
+  const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob); const link=document.createElement("a");
+  link.href=url; link.download=filename||"audits.csv"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$("#exportCsv").onclick = () => audits.length && downloadCsv(audits, "objectif-top-3-audits.csv");
+
+// ── PDF ─────────────────────────────────────────────────────────────────────
+function exportPdf() {
+  if (!audits.length) return;
+  const d = new Date();
+  const now = d.toLocaleDateString("fr-FR", { day:"2-digit", month:"long", year:"numeric" });
+  const totBiz = audits.reduce((s,a)=>s+(a.businesses?.total||0),0);
+  const totCities = audits.reduce((s,a)=>s+(a.cities?.requested||0),0);
+  const cover = `<div class="cover">
+      <div class="band"></div>
+      <div class="kicker">Objectif Top 3 · audit de visibilité locale — Google Business Profile</div>
+      <h1>Votre place sur le podium</h1>
+      <p class="lead">Rien n'est laissé au hasard : analyse exhaustive des établissements les mieux positionnés (« top 3 / local pack ») pour ${audits.length} requête${audits.length>1?"s":""} métier&nbsp;+&nbsp;ville, et plan d'action précis pour s'en rapprocher.</p>
+      <div class="facts">
+        <div><b>${audits.length}</b><span>audit${audits.length>1?"s":""} consolidé${audits.length>1?"s":""}</span></div>
+        <div><b>${totBiz}</b><span>fiches analysées</span></div>
+        <div><b>${totCities}</b><span>requêtes ville</span></div>
+        <div><b>${now}</b><span>date du rapport</span></div>
+        <div><b>Top ${audits[0]?.topN||3}</b><span>profondeur analysée</span></div>
+        <div><b>Confidentiel</b><span>usage interne</span></div>
+      </div>
+    </div>
+    <div class="toc"><h2>Sommaire</h2><ol>${audits.map(a=>`<li><span class="t">${esc(a._title||a.keyword)}</span><span class="s">« ${esc(a.keyword)} » · ${a.cities.requested} villes${a.categoryCombos?.mainCategory?` · ${esc(a.categoryCombos.mainCategory)}`:""}${a.ratingTarget?` · note ${a.ratingTarget.median}/5`:""}</span></li>`).join("")}</ol></div>`;
+  const chapters = audits.map((a,i)=>`<section class="chapter">
+      <div class="chapter-head"><span class="num">${String(i+1).padStart(2,"0")}</span><span class="ttl">${esc(a._title||a.keyword)}</span><span class="sub">« ${esc(a.keyword)} » · ${a.cities.requested} villes · ${new Date(a.generatedAt).toLocaleDateString("fr-FR")}</span></div>
+      ${renderAudit(a,{compact:true})}
+    </section>`).join("");
+  $("#printArea").innerHTML = cover + chapters;
+  $("#printArea").querySelectorAll("details").forEach(el => el.open = true); // tout déplier pour le PDF
+  document.title = "Objectif Top 3 — rapport d'audit — " + now;
+  setTimeout(()=>window.print(), 60);
+}
+$("#exportPdf").onclick = exportPdf;
+
+// ── Audit d'une fiche (scorecard) ───────────────────────────────────────────
+function catBar(c){
+  const col = c.score>=80?"#36c98d":c.score>=55?"#c79a1e":c.score>=30?"#d97a2e":"#c0392b";
+  return `<div class="catScore"><span class="lbl">${esc(c.label)} <span style="color:var(--mut);font-size:11px">(${c.weight}%)</span></span><span class="track"><i style="width:${c.score}%;background:${col}"></i></span><span class="pct">${c.score}/100</span></div>`;
+}
+function renderListing(r, { print=false } = {}){
+  const b = r.business, h = r.headline;
+  const cats = Object.values(r.categories);
+  const issues = cats.flatMap(c=>(c.issues||[]).map(t=>({t, c:c.label})));
+  return `
+    ${print?"":`<h2>${esc(b.name||"Fiche")} — « ${esc(r.query)} »</h2>`}
+    <div class="gradeWrap" style="margin:8px 0 14px">
+      <div class="gradeCircle g-${r.grade}"><b>${r.score}</b><span>/ 100</span></div>
+      <div>
+        <div style="font-size:20px;font-weight:700">Note ${r.grade}${h.rank?` · <span style="color:var(--acc2)">#${h.rank}</span> sur « ${esc(r.query)} »`:` · non classée dans le top 10`}</div>
+        <div style="color:var(--mut);font-size:13px">${esc(b.address||"")}${b.phone?` · ${esc(b.phone)}`:""}${b.website?` · <a href="${/^https?:/.test(b.website)?esc(b.website):"https://"+esc(b.website)}" target="_blank" rel="noopener">site</a>`:""}</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>${h.rating??"—"}/5</b><span>note · ${h.reviews??"—"} avis</span></div>
+      <div class="stat"><b>${h.photos??"—"}</b><span>photos${h.photos!=null&&h.photos<25?" · à compléter":""}</span></div>
+      <div class="stat"><b>${h.responseRate!=null?h.responseRate+"%":"—"}</b><span>taux de réponse aux avis</span></div>
+      <div class="stat"><b>${h.recent30d??"—"}</b><span>avis sur les 30 derniers jours</span></div>
+    </div>
+    <h2>Score détaillé par critère</h2>
+    ${cats.map(catBar).join("")}
+    ${issues.length?`<h3>Problèmes détectés (${issues.length})</h3><ul class="recs" style="font-size:13px">${issues.map(i=>`<li><b>${esc(i.c)} :</b> ${esc(i.t)}</li>`).join("")}</ul>`:""}
+    <h2>Plan d'action priorisé</h2>
+    <ol class="actions">${r.actionPlan.map(a=>`<li class="${a.impact==="Élevé"?"prio-haute":a.impact==="Moyen"?"prio-moyenne":""}"><span class="badge impact-${esc(a.impact)}">${esc(a.impact)}</span> ${esc(a.text)} <span style="color:var(--mut);font-size:11px">— ${esc(a.category)}</span></li>`).join("")}</ol>
+    <h2>Concurrents sur « ${esc(r.query)} »</h2>
+    <table><thead><tr><th>#</th><th>Établissement</th><th>Note</th><th>Avis</th><th>Photos</th><th>Catégorie</th></tr></thead><tbody>${
+      r.competitors.map(c=>`<tr${c.isMe?' style="font-weight:700;background:rgba(54,201,141,.08)"':""}><td>${c.rank}</td><td>${esc(c.name)}${c.isMe?" (vous)":""}</td><td>${c.rating??"—"}</td><td>${c.reviewsCount??"—"}</td><td>${c.photosCount??"—"}</td><td>${esc(c.category||"—")}</td></tr>`).join("")}</tbody></table>
+    <p class="plain">Vert clair = votre fiche. Les fiches plus haut que vous sont vos cibles à dépasser (plus d'avis / meilleure note / plus de photos${r.compMedianReviews!=null?` — médiane d'avis des concurrents : ${r.compMedianReviews}`:""}).</p>
+    ${r.geoGrid ? (g => { const cell = c => { const v=c.rank; const col = v==null?"#c0392b":v===1?"#147a3f":v<=3?"#36c98d":v<=7?"#c79a1e":v<=10?"#d97a2e":"#a23b1e"; const txt = v==null?"–":v; return `<div class="gcell" style="background:${col}" title="lat ${c.lat}, lng ${c.lng} — rang ${v??"hors top 20"}">${txt}</div>`; };
+      return `<h2>Grille de visibilité géographique <span class="pill">${g.n}×${g.n} · maille ${g.stepKm} km · rayon ≈ ${g.radiusKm} km</span></h2>
+      <p class="reco">★ Vous apparaissez dans le top 3 sur ${g.inTop3Pct}% de la zone (${g.inTop3}/${g.points} points) · présent dans le top 20 sur ${g.rankedPct}% · rang moyen là où classé : ${g.avgRankWhereRanked??"—"}.</p>
+      <p class="plain">Chaque case = un point GPS autour de votre adresse ; le chiffre = votre rang Google Maps à cet endroit (« – » = hors top 20). Nord en haut.</p>
+      <div class="geogrid" style="grid-template-columns:repeat(${g.n},1fr)">${g.cells.map(cell).join("")}</div>
+      <p class="plain" style="margin-top:6px"><span style="color:#147a3f">■</span> #1 · <span style="color:#36c98d">■</span> top 3 · <span style="color:#c79a1e">■</span> 4–7 · <span style="color:#d97a2e">■</span> 8–10 · <span style="color:#a23b1e">■</span> 11–20 · <span style="color:#c0392b">■</span> absent</p>`; })(r.geoGrid) : ""}
+    ${b.description?`<h3>Votre description actuelle (${b.descriptionLength} car.)</h3><textarea readonly style="min-height:70px">${esc(b.description)}</textarea>`:`<p class="plain">Aucune description sur la fiche — à ajouter.</p>`}
+    ${b.categories?.length?`<p class="pill">Catégories : ${esc([b.category,...b.categories].filter(Boolean).join(", "))}</p>`:""}
+    ${print?"":`<details><summary>JSON brut</summary><pre style="overflow:auto;font-size:12px">${esc(JSON.stringify(r,null,2))}</pre></details>`}`;
+}
+function exportListingPdf(r){
+  const now = new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
+  $("#printArea").innerHTML = `<div class="cover"><div class="band"></div><div class="kicker">Objectif Top 3 · audit de fiche Google Business Profile</div>
+      <h1>${esc(r.business.name||"Audit de fiche")}</h1><p class="lead">Score ${r.score}/100 (note ${r.grade})${r.headline.rank?` · #${r.headline.rank} sur « ${esc(r.query)} »`:""} — ${esc(r.business.address||"")}. Plan d'action priorisé pour grimper dans le top 3.</p>
+      <div class="facts"><div><b>${r.score}/100</b><span>score</span></div><div><b>${r.grade}</b><span>note</span></div><div><b>${r.headline.rank?"#"+r.headline.rank:"—"}</b><span>rang « ${esc(r.query)} »</span></div><div><b>${r.headline.reviews??"—"}</b><span>avis · ${r.headline.rating??"—"}/5</span></div><div><b>${r.headline.photos??"—"}</b><span>photos</span></div><div><b>${now}</b><span>date</span></div></div></div>
+    <section class="chapter"><div class="chapter-head"><span class="num">01</span><span class="ttl">${esc(r.business.name||"Fiche")}</span><span class="sub">« ${esc(r.query)} » · ${new Date(r.generatedAt).toLocaleDateString("fr-FR")}</span></div>${renderListing(r,{print:true})}</section>`;
+  $("#printArea").querySelectorAll("details").forEach(el=>el.open=true);
+  document.title = "Objectif Top 3 — audit de fiche — " + (r.business.name||"");
+  setTimeout(()=>window.print(), 60);
+}
+$("#runListing").addEventListener("click", () => {
+  const keyword = $("#lkeyword").value.trim();
+  if (!keyword) { alert("Indique un métier / une requête."); return; }
+  if (!$("#lplaceId").value.trim() && !$("#lcid").value.trim() && !$("#lname").value.trim()) { alert("Indique le Place ID, le CID ou le nom de la fiche."); return; }
+  const payload = { keyword, city: $("#lcity").value.trim(), provider: $("#lprovider").value, placeId: $("#lplaceId").value.trim(), cid: $("#lcid").value.trim(), name: $("#lname").value.trim(), withGrid: $("#lwithGrid").checked };
+  $("#runListing").disabled = true; $("#listingOut").innerHTML = "";
+  $("#lprog").hidden = false; $("#lprogText").textContent = "Démarrage…"; $("#lprogBar").style.width = "0%";
+  fetch("/api/listing-audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) })
+    .then(async resp => {
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = "";
+      for(;;){ const {value,done}=await reader.read(); if(done)break; buf+=dec.decode(value,{stream:true}); let idx;
+        while((idx=buf.indexOf("\n\n"))>=0){ const chunk=buf.slice(0,idx); buf=buf.slice(idx+2); const ev=(chunk.match(/^event: (.*)$/m)||[])[1]; const dl=(chunk.match(/^data: (.*)$/m)||[])[1]; if(!dl)continue; const data=JSON.parse(dl);
+          if(ev==="progress"){ const t=data.total||1,d=data.done||0; $("#lprogBar").style.width=Math.round(d/t*100)+"%"; const L={serp:"Recherche du top 10",infos:"Infos de la fiche",reviews:"Avis",grid:"Grille géographique"}; $("#lprogText").textContent=`${L[data.phase]||data.phase} — ${d}/${t}`; }
+          else if(ev==="done"){ $("#lprog").hidden=true; $("#listingOut").innerHTML=`<div class="card"><div class="toolbar" style="margin-top:0;margin-bottom:10px"><button class="sec" id="lpdf">📄 PDF de cet audit</button></div>${renderListing(data)}</div>`; $("#lpdf").onclick=()=>exportListingPdf(data); window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }
+          else if(ev==="error"){ $("#lprog").hidden=true; $("#listingOut").innerHTML=`<div class="card err">Erreur : ${esc(data.error)}</div>`; }
+        }
+      }
+    })
+    .catch(e => { $("#lprogText").textContent = "Erreur réseau : " + e; })
+    .finally(() => { $("#runListing").disabled = false; });
+});
+$("#clearAll").onclick = () => { if (confirm("Effacer tous les mini-audits enregistrés ?")) { audits = []; saveAudits(); refreshList(); } };
+
+// ── Lancer un mini-audit ────────────────────────────────────────────────────
 $("#run").addEventListener("click", () => {
   const keyword = $("#keyword").value.trim();
-  if (!keyword) { alert("Indique un métier."); return; }
-  const cities = parseCities($("#cities").value); // [] = défaut serveur
-  const payload = { keyword, cities, topN: 3, provider: (meta?.defaultProvider)||"valueserp" };
+  if (!keyword) { alert("Indique un métier / une requête."); return; }
+  const ovCities = parseCities($("#citiesOverride").value);
+  const cities = ovCities.length ? ovCities : (settings.cities || meta.topCities);
+  if (!cities.length) { alert("Aucune ville : configure la liste dans Paramètres."); return; }
+  const payload = {
+    keyword,
+    topN: parseInt($("#topN").value,10) || settings.topN || 3,
+    provider: $("#provider").value || settings.provider || meta.defaultProvider,
+    cities,
+    withReviews: $("#withReviews").checked || settings.reviews,
+    withCitations: $("#withCitations").checked || settings.citations,
+    withSiteMetrics: $("#withSiteMetrics").checked || settings.siteMetrics,
+    withHaloscan: $("#withHaloscan").checked || settings.haloscan,
+    withVision: ($("#withVision").checked || settings.vision) && meta.visionAvailable,
+  };
+  const title = $("#title").value.trim();
   $("#run").disabled = true; $("#out").innerHTML = "";
   $("#prog").hidden = false; $("#progText").textContent = "Démarrage…"; $("#progBar").style.width = "0%";
 
   fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) })
     .then(async resp => {
       const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = "";
-      for(;;){ const {value,done}=await reader.read(); if(done)break; buf+=dec.decode(value,{stream:true}); let idx;
-        while((idx=buf.indexOf("\n\n"))>=0){ const chunk=buf.slice(0,idx); buf=buf.slice(idx+2);
-          const ev=(chunk.match(/^event: (.*)$/m)||[])[1]; const dl=(chunk.match(/^data: (.*)$/m)||[])[1]; if(!dl)continue;
-          const data=JSON.parse(dl);
-          if (ev==="start"){ $("#progText").textContent=`Analyse de ${data.cities} ville(s)…`; }
-          else if (ev==="progress"){ const t=data.total||1,d=data.done||0; $("#progBar").style.width=Math.round(d/t*100)+"%"; $("#progText").textContent=`Recherche SERP — ${d}/${t}`+(data.city?` (${data.city})`:""); }
-          else if (ev==="done"){
-            $("#prog").hidden=true; $("#hint").hidden=false;
-            $("#out").innerHTML = `<div class="card">${renderAudit(data)}</div>`;
-            buildPdfView(data);
-            setTimeout(()=>window.print(), 300);
-          }
-          else if (ev==="error"){ $("#prog").hidden=true; $("#out").innerHTML=`<div class="card err">Erreur : ${esc(data.error)}</div>`; }
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        let idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
+          const ev = (chunk.match(/^event: (.*)$/m)||[])[1];
+          const dataLine = (chunk.match(/^data: (.*)$/m)||[])[1];
+          if (dataLine) handle(ev, JSON.parse(dataLine), title);
         }
       }
     })
     .catch(e => { $("#progText").textContent = "Erreur réseau : " + e; })
     .finally(() => { $("#run").disabled = false; });
 });
+
+function handle(ev, data, title) {
+  if (ev === "start") { $("#progText").textContent = `Audit de ${data.cities} ville(s)…`; }
+  else if (ev === "progress") {
+    const total = data.total || 1, done = data.done || 0;
+    $("#progBar").style.width = Math.round((done/total)*100) + "%";
+    const labels = { serp:"Recherche SERP", reviews:"Récupération des avis", citations:"Citations (SERP organique)", sitemetrics:"Métriques des sites", sitetech:"Sites — contrôles techniques", haloscan:"Haloscan (volume + sites)", photos:"Récupération des photos", vision:"Analyse des photos" };
+    $("#progText").textContent = `${labels[data.phase]||data.phase} — ${done}/${total}` + (data.city?` (${data.city})`:"") + (data.name?` (${data.name})`:"");
+  }
+  else if (ev === "done") { $("#prog").hidden = true; data._title = title || data.keyword; audits.push(data); saveAudits(); refreshList(); showOnScreen(data); }
+  else if (ev === "error") { $("#prog").hidden = true; $("#out").innerHTML = `<div class="card err">Erreur : ${esc(data.error)}</div>`; }
+}
 </script>
 </body>
 </html>
