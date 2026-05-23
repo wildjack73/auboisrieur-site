@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import config from "./config.mjs";
-import { runAudit, runListingAudit } from "./audit.mjs";
+import { runAudit, runListingAudit, runCategoriesAudit } from "./audit.mjs";
 import { visionConfigured } from "./vision.mjs";
 import { TOP_CITIES } from "./cities.mjs";
 
@@ -87,6 +87,26 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       emit("error", { error: String(e.message || e) });
     }
+    res.end();
+    return;
+  }
+
+  if (url.pathname === "/api/mini/categories" && req.method === "POST") {
+    let body;
+    try { body = await readBody(req); } catch { return send(res, 400, { error: "JSON invalide" }); }
+    const cities = Array.isArray(body.cities) && body.cities.length
+      ? body.cities.map(s => String(s).trim()).filter(Boolean)
+      : TOP_CITIES;
+    const opts = {
+      keyword: String(body.keyword || "").trim(),
+      cities, topN: Math.min(20, Math.max(1, parseInt(body.topN, 10) || 3)),
+      providerName: body.provider || config.defaultProvider,
+    };
+    res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", "Connection": "keep-alive" });
+    const emit = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    emit("start", { cities: cities.length, ...opts });
+    try { const report = await runCategoriesAudit({ ...opts, onProgress: p => emit("progress", p) }); emit("done", report); }
+    catch (e) { emit("error", { error: String(e.message || e) }); }
     res.end();
     return;
   }

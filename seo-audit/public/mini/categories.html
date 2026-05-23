@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini-audit Catégories — Objectif Top 3</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#262b36; --txt:#e6e9ef; --mut:#9aa3b2; --acc:#2563eb; --acc2:#36c98d; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:24px 20px 8px; max-width:780px; margin:0 auto; }
+  header .kicker { color:var(--acc); text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:700; }
+  header h1 { margin:6px 0 6px; font-size:24px; }
+  header p { margin:0 0 14px; color:var(--mut); font-size:14px; }
+  main { max-width:780px; margin:0 auto; padding:0 20px 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:12px 0 5px; }
+  .hint { font-weight:400; font-size:12px; color:var(--mut); }
+  input, textarea { width:100%; background:#0c0e13; border:1px solid var(--line); color:var(--txt); border-radius:7px; padding:9px 11px; font:inherit; }
+  textarea { min-height:130px; resize:vertical; }
+  .btn { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:11px 22px; font:inherit; font-weight:600; cursor:pointer; margin-top:14px; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .progress { margin-top:14px; font-size:13px; color:var(--mut); }
+  .bar { height:8px; background:#0c0e13; border-radius:5px; overflow:hidden; margin-top:6px; }
+  .bar > i { display:block; height:100%; background:var(--acc); width:0; transition:width .25s; }
+  .err { color:#ff7a7a; font-size:13px; }
+  .ok { color:var(--acc2); font-size:13px; }
+  h2 { font-size:16px; margin:0 0 10px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+  .reco { background:#0c2018; border:1px solid #1f4636; border-radius:8px; padding:12px 14px; color:#9be8c4; font-size:15px; margin:10px 0 14px; }
+  .reco b { color:#cdf3df; }
+  .kw { display:flex; align-items:center; gap:8px; margin:4px 0; font-size:13px; }
+  .kw .t { width:240px; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .kw .b { flex:1; height:14px; background:#0c0e13; border-radius:3px; overflow:hidden; }
+  .kw .b > i { display:block; height:100%; background:var(--acc); }
+  .kw .n { width:84px; flex:none; text-align:right; color:var(--mut); font-variant-numeric:tabular-nums; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mut); font-weight:600; }
+  .tip { background:#1c1a10; border:1px solid #2e2a18; border-radius:8px; padding:10px 14px; font-size:13px; color:#e8d9a8; line-height:1.45; margin-top:14px; }
+  .tip b { color:#ffd86b; }
+  .nav { font-size:12px; color:var(--mut); margin-top:18px; text-align:center; }
+  .nav a { color:var(--mut); margin:0 6px; }
+
+  /* ── vue PDF ──────────────────────────────────────────────────── */
+  #printArea { display:none; }
+  @media print {
+    @page { size:A4; margin:18mm 14mm; }
+    body { background:#fff; color:#1f2733; font:11px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+    body > header, body > main { display:none !important; }
+    #printArea { display:block; --p:#13294b; --accent:#2563eb; --accent-l:#eaf1fc; --accent-b:#cddff5; --ink:#1f2733; --muted:#6b7585; --line:#dce3ec; --zebra:#f6f8fb; --hi:#b8862b; --hi-l:#fbf3e1; }
+    #printArea .cover { display:flex; flex-direction:column; min-height:240mm; }
+    #printArea .cover .band { height:8px; background:var(--accent); border-radius:4px; width:80mm; margin-bottom:20mm; }
+    #printArea .cover .kicker { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:10px; margin-bottom:8px; }
+    #printArea .cover h1 { font-size:32px; line-height:1.12; color:var(--p); margin:0 0 10px; font-weight:800; }
+    #printArea .cover .lead { font-size:13px; color:#1d3f6e; max-width:140mm; line-height:1.5; }
+    #printArea .cover .facts { margin-top:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    #printArea .cover .facts div { background:var(--zebra); border:1px solid var(--line); border-radius:5px; padding:10px 12px; }
+    #printArea .cover .facts b { display:block; font-size:18px; color:var(--p); }
+    #printArea .cover .facts span { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    #printArea .chap-h { background:var(--p); color:#fff; border-radius:5px; padding:9px 13px; margin:0 0 14px; display:flex; align-items:baseline; gap:10px; }
+    #printArea .chap-h .num { background:var(--accent); color:#fff; font-weight:800; font-size:11px; border-radius:4px; padding:2px 8px; }
+    #printArea .chap-h .ttl { font-size:15px; font-weight:700; }
+    #printArea .chap-h .sub { margin-left:auto; font-size:9px; color:#aebfda; }
+    #printArea .reco { background:var(--accent-l); border:1px solid var(--accent-b); border-radius:5px; padding:10px 13px; color:#123a66; font-size:11.5px; }
+    #printArea h2 { font-size:11.5px; color:var(--p); font-weight:800; text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px; padding-bottom:3px; border-bottom:2px solid var(--accent-b); page-break-after:avoid; }
+    #printArea .kw { font-size:9.5px; margin:3px 0; }
+    #printArea .kw .t { width:60mm; color:var(--ink); }
+    #printArea .kw .b { background:#e8eef6; border-radius:2px; height:11px; }
+    #printArea .kw .b > i { background:var(--accent); }
+    #printArea .kw .n { color:var(--muted); }
+    #printArea table { font-size:9px; }
+    #printArea thead { display:table-header-group; }
+    #printArea tr { break-inside:avoid; }
+    #printArea th { background:var(--accent-l); color:var(--p); text-transform:uppercase; font-size:8px; letter-spacing:.04em; padding:5px 7px; text-align:left; border-bottom:1px solid var(--accent-b); }
+    #printArea td { padding:4px 7px; border-bottom:1px solid var(--line); vertical-align:top; }
+    #printArea tbody tr:nth-child(even) td { background:var(--zebra); }
+    #printArea .tip { background:var(--hi-l); border:1px solid #ecdcc0; color:#5b4a1e; border-radius:5px; padding:8px 11px; font-size:10px; margin-top:12px; break-inside:avoid; }
+    #printArea .tip b { color:#7a5a1a; }
+    #printArea .cover { page-break-after:always; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Objectif Top 3 · mini-audit n°1</div>
+  <h1>Catégorie de la fiche</h1>
+  <p>La catégorie principale de la fiche est le réglage le plus important du référencement local. Cette analyse vous donne <b>la catégorie principale et les secondaires à mettre</b> pour un métier donné, en regardant ce que font les 3 premières fiches sur des centaines de villes.</p>
+</header>
+<main>
+  <div class="card">
+    <label>Métier (sans la ville)</label>
+    <input type="text" id="keyword" placeholder="ex : expert comptable, plombier, coiffeur…" autofocus>
+    <label>Villes <span class="hint">(une par ligne — vide = ~198 villes par défaut)</span></label>
+    <textarea id="cities" placeholder="Paris&#10;Lyon&#10;Marseille&#10;…"></textarea>
+    <button id="run" class="btn">Lancer le mini-audit catégories</button>
+    <span id="ok" class="ok" hidden style="margin-left:10px">PDF prêt — choisis « Enregistrer au format PDF »</span>
+    <div class="progress" id="prog" hidden><span id="progText">…</span><div class="bar"><i id="progBar"></i></div></div>
+  </div>
+  <div id="out"></div>
+  <p class="nav"><a href="/">Accueil</a> · <a href="/index-advanced.html">Audit complet (avancé)</a></p>
+</main>
+<div id="printArea"></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const parseCities = t => t.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean);
+const bars = items => !items?.length ? '<p class="err">Aucune donnée.</p>' :
+  items.map(it => {
+    const max = items[0].count || 1;
+    const term = it.term || it.combo;
+    return `<div class="kw"><span class="t" title="${esc(term)}">${esc(term)}</span><span class="b"><i style="width:${Math.round(it.count/max*100)}%"></i></span><span class="n">${it.fiches!=null?it.fiches+" fiches":it.count}${it.pct!=null?` · ${it.pct}%`:""}</span></div>`;
+  }).join("");
+
+function render(r){
+  const c = r.categoryCombos, N = r.topN;
+  return `
+    <div class="card">
+      <h2>Recommandation</h2>
+      ${c?.recommendation ? `<div class="reco">★ <b>${esc(c.recommendation)}</b></div>` : ""}
+      <p class="hint">Basé sur ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} villes${r.errors.length?` (${r.errors.length} villes en erreur)`:""}.</p>
+    </div>
+    <div class="card">
+      <h2>Combinaisons de catégories du top ${N} <span class="hint">(${c.weighting})</span></h2>
+      ${bars(c.combos.map(x => ({term:x.combo, count:x.count, fiches:x.fiches, pct:x.pct})))}
+    </div>
+    <div class="card">
+      <h2>Catégories prises isolément</h2>
+      ${bars(r.categories)}
+    </div>
+    <div class="card">
+      <h2>Échantillon des fiches du top ${N}</h2>
+      <table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead>
+      <tbody>${r.sample.map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>
+    </div>
+    <div class="tip"><b>💡 Conseil</b> Mettez exactement la catégorie principale ci-dessus. N'ajoutez des catégories secondaires que si elles correspondent à un vrai service que vous proposez — sinon ça brouille le signal et ça peut faire <i>baisser</i> le classement.</div>`;
+}
+
+function buildPdf(r){
+  const c = r.categoryCombos, N = r.topN;
+  const now = new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
+  const cover = `<div class="cover">
+    <div class="band"></div>
+    <div class="kicker">Objectif Top 3 · mini-audit n°1 — Catégorie de la fiche</div>
+    <h1>« ${esc(r.keyword)} »</h1>
+    <p class="lead">Quelle catégorie principale (et secondaires) mettre sur votre fiche pour vous rapprocher du top 3, d'après ce que font ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} villes.</p>
+    <div class="facts">
+      <div><b>${r.businesses.total}</b><span>fiches analysées</span></div>
+      <div><b>${r.cities.requested}</b><span>villes</span></div>
+      <div><b>Top ${N}</b><span>profondeur</span></div>
+      <div><b>${esc(c?.mainCategory||"—")}</b><span>catégorie reco</span></div>
+      <div><b>${(c?.secondaryCategories?.length||0)}</b><span>secondaires reco</span></div>
+      <div><b>${now}</b><span>date du rapport</span></div>
+    </div></div>
+    <div class="chap-h"><span class="num">01</span><span class="ttl">Catégorie de la fiche — « ${esc(r.keyword)} »</span><span class="sub">${r.cities.requested} villes · ${now}</span></div>
+    ${c?.recommendation ? `<div class="reco">★ ${esc(c.recommendation)}</div>` : ""}
+    <h2>Combinaisons de catégories du top ${N}</h2>${bars(c.combos.map(x=>({term:x.combo,count:x.count,fiches:x.fiches,pct:x.pct})))}
+    <h2>Catégories prises isolément</h2>${bars(r.categories)}
+    <h2>Échantillon des fiches du top ${N}</h2>
+    <table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead>
+    <tbody>${r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>
+    <div class="tip"><b>💡 Conseil</b> Mettez exactement la catégorie principale ci-dessus. N'ajoutez des catégories secondaires que si elles correspondent à un vrai service que vous proposez — sinon ça brouille le signal.</div>`;
+  $("#printArea").innerHTML = cover;
+  document.title = `Catégorie « ${r.keyword} » — Objectif Top 3 — ${now}`;
+}
+
+$("#run").addEventListener("click", () => {
+  const keyword = $("#keyword").value.trim();
+  if (!keyword) { alert("Indique un métier."); return; }
+  const cities = parseCities($("#cities").value);
+  const payload = { keyword, cities, topN: 3 };
+  $("#run").disabled = true; $("#out").innerHTML = ""; $("#ok").hidden = true;
+  $("#prog").hidden = false; $("#progText").textContent = "Démarrage…"; $("#progBar").style.width = "0%";
+  fetch("/api/mini/categories", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) })
+    .then(async resp => {
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = "";
+      for(;;){ const {value,done}=await reader.read(); if(done)break; buf+=dec.decode(value,{stream:true}); let idx;
+        while((idx=buf.indexOf("\n\n"))>=0){ const chunk=buf.slice(0,idx); buf=buf.slice(idx+2);
+          const ev=(chunk.match(/^event: (.*)$/m)||[])[1]; const dl=(chunk.match(/^data: (.*)$/m)||[])[1]; if(!dl)continue;
+          const data=JSON.parse(dl);
+          if (ev==="start"){ $("#progText").textContent = `Analyse de ${data.cities} ville(s)…`; }
+          else if (ev==="progress"){ const t=data.total||1,d=data.done||0; $("#progBar").style.width=Math.round(d/t*100)+"%"; $("#progText").textContent=`Recherche SERP — ${d}/${t}` + (data.city?` (${data.city})`:""); }
+          else if (ev==="done"){ $("#prog").hidden=true; $("#ok").hidden=false; $("#out").innerHTML=render(data); buildPdf(data); setTimeout(()=>window.print(), 350); }
+          else if (ev==="error"){ $("#prog").hidden=true; $("#out").innerHTML=`<div class="card err">Erreur : ${esc(data.error)}</div>`; }
+        }
+      }
+    })
+    .catch(e => { $("#progText").textContent = "Erreur réseau : " + e; })
+    .finally(() => { $("#run").disabled = false; });
+});
+</script>
+</body>
+</html>

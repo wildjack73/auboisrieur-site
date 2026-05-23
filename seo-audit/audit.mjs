@@ -606,7 +606,42 @@ function citationsAnalysis(byCity) {
   return { citiesScanned, domains: domains.slice(0, 60), mustSubmit: domains.filter(d => d.pct >= 50).slice(0, 30) };
 }
 
-// ── Audit principal ─────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  Mini-audit #1 — CATÉGORIES
+//  Reprend les fondations posées pour démarrer "audit par audit".
+//  Sortie minimale : la catégorie principale + les secondaires à mettre,
+//  le détail des combinaisons, le sample. Pas d'enrichissement business_info :
+//  la catégorie est déjà dans le local pack (ValueSERP `business_type`,
+//  DataForSEO `category`). Donc 1 requête SERP par ville, rapide.
+// ════════════════════════════════════════════════════════════════════════════
+export async function runCategoriesAudit({ keyword, cities, providerName = config.defaultProvider, topN = 3, onProgress = () => {} }) {
+  if (!keyword || !keyword.trim()) throw new Error("Mot-clé (métier) requis.");
+  if (!Array.isArray(cities) || !cities.length) throw new Error("Liste de villes requise.");
+  const provider = PROVIDERS[providerName];
+  if (!provider) throw new Error(`Fournisseur inconnu : ${providerName}`);
+  const list = cities.slice(0, config.maxCitiesPerAudit);
+  const businesses = []; const errors = [];
+  for (let i = 0; i < list.length; i++) {
+    onProgress({ phase: "serp", city: list[i], done: i, total: list.length });
+    try { const top = await provider.localPack(keyword, list[i], topN); for (const b of top) businesses.push(b); }
+    catch (e) { errors.push({ city: list[i], error: String(e.message || e) }); }
+    onProgress({ phase: "serp", city: list[i], done: i + 1, total: list.length });
+  }
+  const combos = categoryComboAnalysis(businesses, topN);
+  const tally = weightedCategoryTally(businesses, topN);
+  return {
+    mode: "categories",
+    keyword, topN, generatedAt: new Date().toISOString(), provider: providerName,
+    cities: { requested: list.length, withResults: list.length - errors.length },
+    businesses: { total: businesses.length, withCategory: businesses.filter(b => b.category).length },
+    categoryCombos: combos,
+    categories: tally,
+    sample: businesses.slice(0, 60).map(b => ({ city: b.city, rank: b.rank, name: b.name, category: b.category, rating: b.rating ?? null, reviewsCount: b.reviewsCount ?? null })),
+    errors,
+  };
+}
+
+// ── Audit principal (mode complet — historique) ─────────────────────────────
 // opts: { keyword, cities[], topN, providerName, withReviews, withVision, withCitations, onProgress }
 export async function runAudit(opts) {
   const {
