@@ -1,0 +1,32 @@
+# Render Blueprint — déploie "Objectif Top 3" en service Web Node, auto-deploy
+# à chaque push sur la branche claude/google-seo-audit-tool-JjUmc.
+#
+# Pour le brancher la 1re fois : signe-toi sur https://dashboard.render.com avec
+# ton GitHub, clique "New +" → "Blueprint" → choisis ce repo + la branche.
+# Render lit ce fichier et provisionne tout.
+
+services:
+  - type: web
+    name: objectif-top-3
+    runtime: node
+    rootDir: seo-audit
+    plan: free
+    branch: claude/google-seo-audit-tool-JjUmc
+    autoDeploy: true
+    buildCommand: "echo no-deps"
+    startCommand: "node server.mjs"
+    healthCheckPath: /api/meta
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      # Les clés API ont déjà des valeurs par défaut dans config.mjs.
+      # Si tu veux les surcharger, ajoute-les ici (ou via le dashboard Render
+      # → service → Environment), c'est plus propre que de les laisser en dur.
+      # - key: VALUESERP_API_KEY
+      #   sync: false
+      # - key: GOOGLE_VISION_API_KEY
+      #   sync: false
+      # - key: DATAFORSEO_LOGIN
+      #   sync: false
+      # - key: DATAFORSEO_PASSWORD
+      #   sync: false
