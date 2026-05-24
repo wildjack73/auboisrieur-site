@@ -113,20 +113,25 @@ const bars = items => !items?.length ? '<p class="err">Aucune donnée.</p>' :
 
 function render(r){
   const c = r.categoryCombos, N = r.topN;
+  // si toutes les "combinaisons" sont mono-catégorie (pas de ";"), les deux blocs
+  // sont identiques aux catégories isolées → on n'en montre qu'un seul.
+  const hasSecondaries = c.combos.some(x => x.combo.includes(";"));
+  const categoriesView = hasSecondaries
+    ? `<div class="card"><h2>Combinaisons exactes (principale ; secondaires) du top ${N} <span class="hint">(${c.weighting})</span></h2>${bars(c.combos.map(x => ({term:x.combo, count:x.count, fiches:x.fiches, pct:x.pct})))}</div>
+       <div class="card"><h2>Catégories principales (toutes positions)</h2>${bars(r.categories)}</div>`
+    : `<div class="card"><h2>Catégories du top ${N} <span class="hint">(${c.weighting})</span></h2>
+       <p class="hint" style="margin:0 0 10px">Chaque fiche du top ${N} n'a qu'une seule catégorie sur Google — il n'y a donc qu'un seul classement à regarder.</p>${bars(r.categories)}</div>`;
   return `
     <div class="card">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <button class="btn" id="pdfBtn">📄 Générer le PDF</button>
+        <span class="hint">Le PDF reprend exactement le contenu ci-dessous, mis en page A4.</span>
+      </div>
       <h2>Recommandation</h2>
       ${c?.recommendation ? `<div class="reco">★ <b>${esc(c.recommendation)}</b></div>` : ""}
       <p class="hint">Basé sur ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} villes${r.errors.length?` (${r.errors.length} villes en erreur)`:""}.</p>
     </div>
-    <div class="card">
-      <h2>Combinaisons de catégories du top ${N} <span class="hint">(${c.weighting})</span></h2>
-      ${bars(c.combos.map(x => ({term:x.combo, count:x.count, fiches:x.fiches, pct:x.pct})))}
-    </div>
-    <div class="card">
-      <h2>Catégories prises isolément</h2>
-      ${bars(r.categories)}
-    </div>
+    ${categoriesView}
     <div class="card">
       <h2>Échantillon des fiches du top ${N}</h2>
       <table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead>
@@ -137,12 +142,16 @@ function render(r){
 
 function buildPdf(r){
   const c = r.categoryCombos, N = r.topN;
+  const hasSecondaries = c.combos.some(x => x.combo.includes(";"));
   const now = new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
+  const categoriesView = hasSecondaries
+    ? `<h2>Combinaisons exactes (principale ; secondaires) du top ${N}</h2>${bars(c.combos.map(x=>({term:x.combo,count:x.count,fiches:x.fiches,pct:x.pct})))}<h2>Catégories principales (toutes positions)</h2>${bars(r.categories)}`
+    : `<h2>Catégories du top ${N}</h2>${bars(r.categories)}`;
   const cover = `<div class="cover">
     <div class="band"></div>
     <div class="kicker">Objectif Top 3 · mini-audit n°1 — Catégorie de la fiche</div>
     <h1>« ${esc(r.keyword)} »</h1>
-    <p class="lead">Quelle catégorie principale (et secondaires) mettre sur votre fiche pour vous rapprocher du top 3, d'après ce que font ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} villes.</p>
+    <p class="lead">Quelle catégorie mettre sur votre fiche Google Business Profile pour vous rapprocher du top 3, d'après ce que font ${r.businesses.total} fiches du top ${N} sur ${r.cities.requested} villes.</p>
     <div class="facts">
       <div><b>${r.businesses.total}</b><span>fiches analysées</span></div>
       <div><b>${r.cities.requested}</b><span>villes</span></div>
@@ -153,8 +162,7 @@ function buildPdf(r){
     </div></div>
     <div class="chap-h"><span class="num">01</span><span class="ttl">Catégorie de la fiche — « ${esc(r.keyword)} »</span><span class="sub">${r.cities.requested} villes · ${now}</span></div>
     ${c?.recommendation ? `<div class="reco">★ ${esc(c.recommendation)}</div>` : ""}
-    <h2>Combinaisons de catégories du top ${N}</h2>${bars(c.combos.map(x=>({term:x.combo,count:x.count,fiches:x.fiches,pct:x.pct})))}
-    <h2>Catégories prises isolément</h2>${bars(r.categories)}
+    ${categoriesView}
     <h2>Échantillon des fiches du top ${N}</h2>
     <table><thead><tr><th>Ville</th><th>#</th><th>Nom</th><th>Note</th><th>Avis</th><th>Catégorie</th></tr></thead>
     <tbody>${r.sample.slice(0,40).map(b=>`<tr><td>${esc(b.city)}</td><td>${b.rank}</td><td>${esc(b.name)}</td><td>${b.rating??"—"}</td><td>${b.reviewsCount??"—"}</td><td>${esc(b.category||"—")}</td></tr>`).join("")}</tbody></table>
@@ -162,6 +170,8 @@ function buildPdf(r){
   $("#printArea").innerHTML = cover;
   document.title = `Catégorie « ${r.keyword} » — Objectif Top 3 — ${now}`;
 }
+
+function openPdf(r){ buildPdf(r); window.print(); }
 
 $("#run").addEventListener("click", () => {
   const keyword = $("#keyword").value.trim();
@@ -179,7 +189,15 @@ $("#run").addEventListener("click", () => {
           const data=JSON.parse(dl);
           if (ev==="start"){ $("#progText").textContent = `Analyse de ${data.cities} ville(s)…`; }
           else if (ev==="progress"){ const t=data.total||1,d=data.done||0; $("#progBar").style.width=Math.round(d/t*100)+"%"; $("#progText").textContent=`Recherche SERP — ${d}/${t}` + (data.city?` (${data.city})`:""); }
-          else if (ev==="done"){ $("#prog").hidden=true; $("#ok").hidden=false; $("#out").innerHTML=render(data); buildPdf(data); setTimeout(()=>window.print(), 350); }
+          else if (ev==="done"){
+            $("#prog").hidden=true; $("#ok").hidden=false;
+            $("#out").innerHTML=render(data);
+            buildPdf(data);
+            const btn = document.getElementById("pdfBtn");
+            if (btn) btn.onclick = () => openPdf(data);
+            // tentative d'auto-ouverture du dialogue d'impression (peut etre bloquee par le navigateur)
+            setTimeout(()=>{ try { window.print(); } catch {} }, 350);
+          }
           else if (ev==="error"){ $("#prog").hidden=true; $("#out").innerHTML=`<div class="card err">Erreur : ${esc(data.error)}</div>`; }
         }
       }
