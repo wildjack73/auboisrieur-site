@@ -1,0 +1,92 @@
+name: Deploy Objectif Top 3 to VPS
+
+on:
+  push:
+    branches: [claude/google-seo-audit-tool-JjUmc, master]
+    paths:
+      - "seo-audit/**"
+      - ".github/workflows/deploy-objectif-top-3.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        env:
+          VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 91.121.223.36 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to VPS
+        env:
+          DATAFORSEO_LOGIN:     ${{ secrets.DATAFORSEO_LOGIN }}
+          DATAFORSEO_PASSWORD:  ${{ secrets.DATAFORSEO_PASSWORD }}
+          VALUESERP_API_KEY:    ${{ secrets.VALUESERP_API_KEY }}
+          GOOGLE_VISION_API_KEY: ${{ secrets.GOOGLE_VISION_API_KEY }}
+          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+          SERPAPI_KEY:          ${{ secrets.SERPAPI_KEY }}
+          HALOSCAN_API_KEY:     ${{ secrets.HALOSCAN_API_KEY }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 debian@91.121.223.36 \
+            DATAFORSEO_LOGIN="$DATAFORSEO_LOGIN" \
+            DATAFORSEO_PASSWORD="$DATAFORSEO_PASSWORD" \
+            VALUESERP_API_KEY="$VALUESERP_API_KEY" \
+            GOOGLE_VISION_API_KEY="$GOOGLE_VISION_API_KEY" \
+            GOOGLE_TRANSLATE_API_KEY="$GOOGLE_TRANSLATE_API_KEY" \
+            SERPAPI_KEY="$SERPAPI_KEY" \
+            HALOSCAN_API_KEY="$HALOSCAN_API_KEY" \
+            'bash -s' <<'REMOTE'
+            set -e
+            APP_DIR=/var/www/objectif-top-3
+            REPO=https://github.com/wildjack73/auboisrieur-site.git
+            BRANCH=claude/google-seo-audit-tool-JjUmc
+
+            echo "→ Préparation du dossier $APP_DIR"
+            if [ ! -d "$APP_DIR/.git" ]; then
+              sudo mkdir -p "$APP_DIR"
+              sudo chown -R debian:debian "$APP_DIR"
+              git clone -b "$BRANCH" "$REPO" "$APP_DIR"
+            else
+              cd "$APP_DIR"
+              git fetch origin "$BRANCH"
+              git reset --hard "origin/$BRANCH"
+            fi
+
+            cd "$APP_DIR/seo-audit"
+
+            # Cle API en environnement (surcharge les valeurs par defaut de config.mjs)
+            mkdir -p "$HOME/.config"
+            cat > "$HOME/.config/objectif-top-3.env" <<ENV
+            DATAFORSEO_LOGIN=$DATAFORSEO_LOGIN
+            DATAFORSEO_PASSWORD=$DATAFORSEO_PASSWORD
+            VALUESERP_API_KEY=$VALUESERP_API_KEY
+            GOOGLE_VISION_API_KEY=$GOOGLE_VISION_API_KEY
+            GOOGLE_TRANSLATE_API_KEY=$GOOGLE_TRANSLATE_API_KEY
+            SERPAPI_KEY=$SERPAPI_KEY
+            HALOSCAN_API_KEY=$HALOSCAN_API_KEY
+            PORT=8787
+            ENV
+            chmod 600 "$HOME/.config/objectif-top-3.env"
+
+            # pm2 installe si necessaire
+            if ! command -v pm2 >/dev/null 2>&1; then
+              echo "→ Installation de pm2"
+              sudo npm install -g pm2
+            fi
+
+            # Demarrage / redemarrage du service
+            export $(grep -v '^#' "$HOME/.config/objectif-top-3.env" | xargs -d '\n')
+            if pm2 describe objectif-top-3 >/dev/null 2>&1; then
+              echo "→ Redemarrage de objectif-top-3"
+              pm2 restart objectif-top-3 --update-env
+            else
+              echo "→ Premier demarrage de objectif-top-3"
+              pm2 start server.mjs --name objectif-top-3 --update-env
+              pm2 save
+            fi
+            pm2 status objectif-top-3 | tail -3
+          REMOTE
