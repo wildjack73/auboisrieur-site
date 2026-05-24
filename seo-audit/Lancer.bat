@@ -7,66 +7,53 @@ echo ================================================
 echo   OBJECTIF TOP 3 - votre place sur le podium
 echo ================================================
 echo.
-echo Dossier de travail : %CD%
-echo.
 
-REM Verifie qu'on est dans le bon dossier
-if not exist "server.mjs" (
-  echo [ERREUR] Le fichier server.mjs est introuvable dans ce dossier.
-  echo.
-  echo Ce script doit etre dans le dossier "seo-audit" du projet,
-  echo a cote de server.mjs, audit.mjs, public/ etc.
-  echo.
-  echo Tu as probablement telecharge SEULEMENT le .bat au lieu du
-  echo projet complet. Telecharge le ZIP complet ici :
-  echo.
-  echo   https://github.com/wildjack73/auboisrieur-site/archive/refs/heads/claude/google-seo-audit-tool-JjUmc.zip
-  echo.
-  echo Decompresse-le, va dans le sous-dossier seo-audit, et
-  echo double-clique Lancer.bat depuis la.
-  echo.
-  pause
-  exit /b 1
-)
-
-REM Verifie que Node.js est installe
+REM ── Verifier Node ──────────────────────────────────────────────────────────
 where node >nul 2>nul
 if errorlevel 1 (
-  echo [ERREUR] Node.js n'est pas installe (ou pas dans le PATH).
-  echo.
-  echo Installe la version LTS depuis :
-  echo   https://nodejs.org/fr
-  echo.
-  echo Choisis l'installeur Windows (.msi), suivant/suivant/suivant.
-  echo Ensuite FERME toutes les fenetres PowerShell et relance ce script.
+  echo [X] Node.js n'est pas installe.
+  echo     Installe la version LTS sur https://nodejs.org/fr puis relance.
   echo.
   pause
   exit /b 1
 )
-
 echo Node.js detecte :
 node --version
+
+REM ── Mise a jour automatique depuis GitHub ──────────────────────────────────
+echo.
+echo Recherche de mises a jour...
+set "ZIP=%TEMP%\ot3-update.zip"
+set "EXT=%TEMP%\ot3-update-ext"
+if exist "%EXT%" rmdir /s /q "%EXT%"
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest 'https://github.com/wildjack73/auboisrieur-site/archive/refs/heads/claude/google-seo-audit-tool-JjUmc.zip' -OutFile '%ZIP%' -UseBasicParsing -ErrorAction Stop; Expand-Archive '%ZIP%' '%EXT%' -Force; exit 0 } catch { Write-Host '  Pas de connexion ou GitHub indisponible — on lance la version locale.'; exit 1 }"
+if not errorlevel 1 (
+  set "ROOT=%EXT%\auboisrieur-site-claude-google-seo-audit-tool-JjUmc"
+  if exist "%ROOT%\seo-audit\server.mjs" (
+    echo Application de la mise a jour...
+    REM On copie tout SAUF Lancer.bat (en cours d'execution) — il sera ecrase au prochain lancement via ce script lui-meme si on autorise. On garde la version locale du .bat.
+    robocopy "%ROOT%\seo-audit" "%CD%" /E /XF "Lancer.bat" /XO /R:1 /W:1 /NFL /NDL /NJH /NJS >nul
+    echo Mise a jour appliquee. Pour mettre a jour Lancer.bat lui-meme, recolle la commande PowerShell d'installation.
+  )
+)
+if exist "%ZIP%" del "%ZIP%"
+if exist "%EXT%" rmdir /s /q "%EXT%"
+
+REM ── Lancement ──────────────────────────────────────────────────────────────
 echo.
 echo Demarrage du serveur sur http://localhost:8787
-echo Le navigateur va s'ouvrir tout seul dans 4 secondes.
+echo Le navigateur va s'ouvrir dans 4 secondes.
 echo.
 echo --------------------------------------------------
 echo  IMPORTANT : ne ferme PAS cette fenetre.
 echo  C'est elle qui fait tourner l'outil.
-echo  Pour arreter : ferme cette fenetre ou appuie sur Ctrl+C.
+echo  Pour arreter : ferme cette fenetre.
 echo --------------------------------------------------
 echo.
 
-REM Ouvre le navigateur apres 4 secondes (delai pour laisser le serveur demarrer)
 start "" powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 4; Start-Process 'http://localhost:8787/mini/categories.html'"
-
-REM Lance le serveur (bloque tant que le serveur tourne)
 node server.mjs
 
 echo.
-echo --------------------------------------------------
-echo Le serveur s'est arrete (code: %errorlevel%).
-echo Si c'etait inattendu, copie ce qui s'est affiche au-dessus
-echo et envoie-le pour qu'on diagnostique.
-echo --------------------------------------------------
+echo Le serveur s'est arrete.
 pause
