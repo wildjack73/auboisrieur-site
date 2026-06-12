@@ -49,6 +49,12 @@ const fixes = [
   // Noms de domaine → catégorie dédiée (souvent mal rangés en Vins)
   `UPDATE lots SET category='Noms de domaine' WHERE title LIKE 'Nom de domaine%' OR clean_title LIKE 'Nom de domaine%'`,
 
+  // Motos dans Voitures Particulières → Motos & Scooters (Genre MTT/MTL = type officiel moto)
+  `UPDATE lots SET category='Motos & Scooters' WHERE category='Voitures Particulières' AND (
+    title LIKE '%Genre : MTT%' OR title LIKE '%Genre : MTL%' OR title LIKE '%Genre: MTT%'
+    OR (lower(title) LIKE '%harley%davidson%' AND title NOT LIKE '%pièces%' AND title NOT LIKE '%pieces%')
+  )`,
+
   // Jouets/voitures miniatures dans Objets d'art → Jouets & Modélisme
   `UPDATE lots SET category='Jouets & Modélisme' WHERE category='Objets d''art & Curiosités' AND (
     lower(title) LIKE '%dinky%' OR lower(title) LIKE '%modèle réduit%' OR lower(title) LIKE '%modele reduit%'
