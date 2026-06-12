@@ -46,6 +46,20 @@ const fixes = [
   // Montres dans Vins → Bijoux
   `UPDATE lots SET category='Bijoux & Pierres Précieuses' WHERE category='Vins & Spiritueux' AND (lower(title) LIKE '%montre%' OR lower(clean_title) LIKE '%montre%')`,
 
+  // Noms de domaine → catégorie dédiée (souvent mal rangés en Vins)
+  `UPDATE lots SET category='Noms de domaine' WHERE title LIKE 'Nom de domaine%' OR clean_title LIKE 'Nom de domaine%'`,
+
+  // Jouets/voitures miniatures dans Objets d'art → Jouets & Modélisme
+  `UPDATE lots SET category='Jouets & Modélisme' WHERE category='Objets d''art & Curiosités' AND (
+    lower(title) LIKE '%dinky%' OR lower(title) LIKE '%modèle réduit%' OR lower(title) LIKE '%modele reduit%'
+    OR lower(title) LIKE '%à pédale%' OR lower(title) LIKE '%miniature%' OR lower(title) LIKE '%jouet%'
+    OR title LIKE '%JEP %' OR title LIKE '%CIJ %' OR title LIKE '%DINKY%'
+    OR lower(title) LIKE '%solido%' OR lower(title) LIKE '%bburago%' OR lower(title) LIKE '%burago%'
+    OR lower(title) LIKE '%joustra%' OR lower(title) LIKE '%fleischmann%' OR lower(title) LIKE '%norev%'
+    OR lower(title) LIKE '%majorette%' OR lower(title) LIKE '%corgi%' OR lower(title) LIKE '%matchbox%'
+    OR lower(title) LIKE '%maquette%' OR lower(title) LIKE '%modèles réduits%'
+  )`,
+
   // Livres dans Numismatique
   `UPDATE lots SET category = 'Livres & Manuscrits' WHERE category = 'Numismatique' AND (
     title LIKE '%livre%' OR title LIKE '%Livre%' OR title LIKE '%ouvrage%'
