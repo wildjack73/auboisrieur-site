@@ -53,6 +53,7 @@ ${ADSENSE_ID ? `<script async src="https://pagead2.googlesyndication.com/pagead/
 <style>
 *{box-sizing:border-box}
 body{font-family:'Inter',system-ui,sans-serif;background:#09090f;color:#d4d4dc;-webkit-font-smoothing:antialiased}
+select{color-scheme:dark}option{background:#1a1a26;color:#fff}
 a{color:#818cf8;text-decoration:none}
 a:hover{color:#a5b4fc}
 .card{background:#14141e;border:1px solid rgba(255,255,255,0.05);border-radius:16px;overflow:hidden;transition:all 0.25s}
@@ -346,6 +347,13 @@ ${navHtml()}
           ${lot.ai_price_analysis ? `<p class="text-[0.78rem] text-gray-500 mt-2 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>${esc(lot.ai_price_analysis)}</p>` : ''}
         </div>
 
+        ${lot.estimate_low ? `
+        <div class="rounded-xl p-4 border border-amber-500/20" style="background:rgba(245,158,11,0.06)">
+          <div class="text-xs font-bold text-amber-400 mb-1 flex items-center gap-1">🏷️ Prix conseillé pour négocier</div>
+          <div class="text-2xl font-black text-white">${formatPrice(Math.round(lot.estimate_low*0.75))} – ${formatPrice(Math.round(lot.estimate_high*0.9))} €</div>
+          <div class="text-[0.7rem] text-gray-500 mt-1">Une offre 10–25% sous l'estimation est souvent acceptée sur un invendu. Contactez la maison de vente pour proposer votre prix.</div>
+        </div>` : ''}
+
         <!-- Contact -->
         ${lot.org_name ? `
         <div class="rounded-xl p-4 bg-white/[0.02] border border-white/[0.04]">
@@ -374,6 +382,31 @@ ${navHtml()}
     </aside>
   </div>
 </article>
+
+<div class="max-w-7xl mx-auto px-4 md:px-6 pb-12">
+  <h2 class="text-xl font-bold text-white mb-6">Lots similaires</h2>
+  <div id="similarGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"></div>
+</div>
+<script>
+(function(){
+  var cat=${JSON.stringify(lot.category||"")}, cur=${JSON.stringify(lot.slug||"")};
+  if(!cat)return;
+  fetch("/api/search?cat="+encodeURIComponent(cat)+"&sort=deal&limit=8").then(function(r){return r.json()}).then(function(j){
+    var g=document.getElementById("similarGrid");if(!g)return;var n=0;
+    (j.results||[]).forEach(function(d){
+      if(d.s===cur||n>=6)return;n++;
+      var b=d.ds>=3?'<span class="badge deal-fire" style="position:absolute;top:8px;right:8px">🔥</span>':d.ds>=2?'<span class="badge deal-super" style="position:absolute;top:8px;right:8px">⭐</span>':d.ds>=1?'<span class="badge deal-good" style="position:absolute;top:8px;right:8px">✓</span>':'';
+      var h='<a href="/lot/'+d.s+'.html" class="card block relative" style="text-decoration:none">';
+      if(d.img)h+='<div style="aspect-ratio:4/3;overflow:hidden;background:#0d0d14;border-radius:12px 12px 0 0"><img src="'+d.img+'" loading="lazy" style="width:100%;height:100%;object-fit:cover"></div>';
+      h+=b+'<div style="padding:10px"><div style="color:#e4e4ec;font-size:0.75rem;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+(d.t||"Lot")+'</div>';
+      if(d.p)h+='<div style="color:#818cf8;font-size:0.8rem;font-weight:600;margin-top:3px">'+d.p.toLocaleString("fr-FR")+' €</div>';
+      h+='</div></a>';
+      g.insertAdjacentHTML("beforeend",h);
+    });
+    if(n===0)g.parentNode.style.display="none";
+  }).catch(function(){g.parentNode.style.display="none";});
+})();
+</script>
 
 ${footerHtml()}
 </body></html>`;
