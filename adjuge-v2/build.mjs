@@ -633,7 +633,7 @@ ${navHtml()}
   <!-- Top deals -->
   <section class="py-12">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-xl font-bold text-white flex items-center gap-2">🔥 Meilleures affaires</h2>
+      <a href="/bonnes-affaires.html" class="group"><h2 class="text-xl font-bold text-white flex items-center gap-2 group-hover:text-amber-400 transition">🔥 Meilleures affaires</h2></a>
       <a href="/bonnes-affaires.html" class="text-sm text-indigo-400 hover:text-indigo-300 transition font-medium">Voir tout →</a>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -646,7 +646,7 @@ ${navHtml()}
   <!-- Recent lots -->
   <section id="lots" class="py-12 border-t border-white/[0.04]">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-xl font-bold text-white">Derniers invendus</h2>
+      <a href="/recherche.html" class="group"><h2 class="text-xl font-bold text-white group-hover:text-indigo-400 transition">Derniers invendus</h2></a>
       <a href="/recherche.html" class="text-sm text-indigo-400 hover:text-indigo-300 transition font-medium flex items-center gap-1">⚙️ Filtrer (prix, catégorie, affaires) →</a>
     </div>
     <div class="flex items-center gap-2 mb-4">
