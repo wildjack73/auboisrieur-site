@@ -177,7 +177,7 @@ function footerHtml() {
 function catImgPath(catName) {
   const s = catName.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
   const imgPath = path.join(SITE_DIR, "img", "cat", s + ".jpg");
-  if (fs.existsSync(imgPath)) return "/img/cat/" + s + ".jpg";
+  if (fs.existsSync(imgPath)) return "/img/cat/" + s + ".jpg?v=2";
   return "";
 }
 
@@ -611,7 +611,7 @@ ${navHtml()}
     </div>
     <script>function filterByDate(p){document.querySelectorAll(".date-btn").forEach(function(b){var a=b.dataset.d===p;b.style.background=a?"rgba(99,102,241,0.15)":"rgba(255,255,255,0.03)";b.style.color=a?"#818cf8":"#9ca3af";b.style.borderColor=a?"rgba(99,102,241,0.2)":"rgba(255,255,255,0.05)"});var now=new Date();document.querySelectorAll("[data-date]").forEach(function(el){if(p==="all"){el.style.display="";return}var d=el.dataset.date;if(!d){el.style.display="none";return}var diff=(now-new Date(d+"T12:00:00"))/86400000;if(p==="today")el.style.display=diff<1?"":"none";else if(p==="3d")el.style.display=diff<3?"":"none";else if(p==="week")el.style.display=diff<7?"":"none"})}</script>
     <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
-      ${cats.slice(0, 12).map(c => { const s = slugify(c.category); const img = fs.existsSync(path.join(SITE_DIR,"img","cat",s+".jpg")) ? "/img/cat/"+s+".jpg" : ""; return `<a href="/categorie/${s}.html" class="group relative rounded-xl overflow-hidden aspect-square block">${img?`<img src="${img}" alt="${esc(c.category)}" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">`:`<div class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-purple-900/40"></div>`}<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div><div class="absolute bottom-0 left-0 right-0 p-2"><div class="text-white text-[0.72rem] font-semibold leading-tight line-clamp-2">${esc(c.category)}</div><div class="text-gray-300 text-[0.6rem]">${c.cnt.toLocaleString("fr-FR")} lots</div></div></a>`; }).join("")}
+      ${cats.slice(0, 12).map(c => { const s = slugify(c.category); const img = fs.existsSync(path.join(SITE_DIR,"img","cat",s+".jpg")) ? "/img/cat/"+s+".jpg?v=2" : ""; return `<a href="/categorie/${s}.html" class="group relative rounded-xl overflow-hidden aspect-square block">${img?`<img src="${img}" alt="${esc(c.category)}" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">`:`<div class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-purple-900/40"></div>`}<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div><div class="absolute bottom-0 left-0 right-0 p-2"><div class="text-white text-[0.72rem] font-semibold leading-tight line-clamp-2">${esc(c.category)}</div><div class="text-gray-300 text-[0.6rem]">${c.cnt.toLocaleString("fr-FR")} lots</div></div></a>`; }).join("")}
     </div>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       ${recent.map(l => lotCard(l)).join("")}
@@ -1177,7 +1177,7 @@ function build() {
       const hasImg = fs.existsSync(imgFile);
       return `<a href="/categorie/${slugify(c.category)}.html" class="card block group overflow-hidden">
         ${hasImg
-          ? `<div class="aspect-[3/2] overflow-hidden bg-[#0d0d14]"><img src="/img/cat/${imgSlug}.jpg" alt="${esc(c.category)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"></div>`
+          ? `<div class="aspect-[3/2] overflow-hidden bg-[#0d0d14]"><img src="/img/cat/${imgSlug}.jpg?v=2" alt="${esc(c.category)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"></div>`
           : `<div class="aspect-[3/2] bg-gradient-to-br from-indigo-900/30 to-purple-900/30 flex items-center justify-center"><span class="text-3xl text-gray-600">📦</span></div>`}
         <div class="p-4 flex items-center justify-between">
           <span class="text-sm text-gray-300 group-hover:text-white transition font-medium">${esc(c.category)}</span>
