@@ -60,7 +60,8 @@ jobs:
               const sale = d.sale || {};
               const org = sale.organization || item.organization || {};
               const addr = sale.address || org.address || {};
-              const raw = item.description || '';
+              // Interencheres moved lot text out of item.description into *_translations.fr-FR.
+              const raw = item.description || item.description_translations?.['fr-FR'] || item.title_translations?.['fr-FR'] || item.description_translations?.['fr'] || item.title_translations?.['fr'] || '';
               const cat = item._originalCategory || item.category?.name || '';
               const sold = item.pricing?.auctioned?.price != null;
               const price = item.pricing?.auctioned?.price || 0;
