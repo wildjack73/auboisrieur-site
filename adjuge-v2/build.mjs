@@ -233,7 +233,7 @@ function buildLotPage(lot) {
   return `${htmlHead(
     `${title} — Invendu aux enchères | Adjugé`,
     metaDesc,
-    `${hasRealTitle ? "" : "<meta name=\"robots\" content=\"noindex,follow\">"}${photos[0] ? `<meta property="og:image" content="${photos[0]}">` : ''}
+    `${((lot.ai_title&&lot.ai_title.length>2)||(lot.clean_title&&lot.clean_title.length>2)||(lot.title&&lot.title.length>2)) ? "" : "<meta name=\"robots\" content=\"noindex,follow\">"}${photos[0] ? `<meta property="og:image" content="${photos[0]}">` : ''}
     <script type="application/ld+json">${JSON.stringify({
       "@context": "https://schema.org",
       "@type": "Product",
