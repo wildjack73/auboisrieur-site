@@ -18,6 +18,8 @@ function search(p) {
   if (p.maxp>0) { where.push("f.price<=?"); params.push(p.maxp); }
   if (p.deals) where.push("f.score>=1");
   if (p.maison) { where.push("l.org_name=?"); params.push(p.maison); }
+  // Recency filter: auction date within the last N days
+  if (p.days>0) { where.push("f.sdate >= date('now', ?)"); params.push("-"+p.days+" days"); }
   const sql0 = `SELECT f.id,f.slug,f.title,f.category,f.city,f.price,f.thumb,f.score,f.sdate${terms.length?",f.rank AS rnk":""} FROM lots_fts f${join}`;
   const whereSql = where.length ? " WHERE "+where.join(" AND ") : "";
   let order;
@@ -39,6 +41,7 @@ http.createServer((req,res)=>{
     const results = search({
       q:g("q"), cat:g("cat"), city:g("city"), maison:g("maison"), sort:g("sort"),
       minp:parseInt(g("minp"))||0, maxp:parseInt(g("maxp"))||0,
+      days:parseInt(g("days"))||0,
       deals:g("deals")==="1",
       limit:Math.min(parseInt(g("limit"))||48,100), offset:parseInt(g("offset"))||0
     });

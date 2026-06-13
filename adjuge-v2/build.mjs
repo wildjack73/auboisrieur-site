@@ -649,13 +649,13 @@ ${navHtml()}
       <a href="/recherche.html" class="group"><h2 class="text-xl font-bold text-white group-hover:text-indigo-400 transition">Derniers invendus</h2></a>
       <a href="/recherche.html" class="text-sm text-indigo-400 hover:text-indigo-300 transition font-medium flex items-center gap-1">⚙️ Filtrer (prix, catégorie, affaires) →</a>
     </div>
-    <div class="flex items-center gap-2 mb-4">
-      <button onclick="filterByDate('all')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/20" data-d="all">Tous</button>
-      <button onclick="filterByDate('today')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-d="today">Aujourd'hui</button>
-      <button onclick="filterByDate('3d')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-d="3d">3 jours</button>
-      <button onclick="filterByDate('week')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-d="week">7 jours</button>
+    <div class="flex items-center flex-wrap gap-2 mb-4">
+      <span class="text-sm text-gray-500 mr-1">Mis aux enchères :</span>
+      <a href="/recherche.html?days=1&sort=recent" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-300 border border-white/[0.05] hover:bg-indigo-500/15 hover:text-indigo-300 hover:border-indigo-500/20 transition">Dernier jour</a>
+      <a href="/recherche.html?days=3&sort=recent" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-300 border border-white/[0.05] hover:bg-indigo-500/15 hover:text-indigo-300 hover:border-indigo-500/20 transition">3 derniers jours</a>
+      <a href="/recherche.html?days=7&sort=recent" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-300 border border-white/[0.05] hover:bg-indigo-500/15 hover:text-indigo-300 hover:border-indigo-500/20 transition">7 derniers jours</a>
+      <a href="/recherche.html?sort=recent" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-300 border border-white/[0.05] hover:bg-indigo-500/15 hover:text-indigo-300 hover:border-indigo-500/20 transition">Tout voir</a>
     </div>
-    <script>function filterByDate(p){document.querySelectorAll(".date-btn").forEach(function(b){var a=b.dataset.d===p;b.style.background=a?"rgba(99,102,241,0.15)":"rgba(255,255,255,0.03)";b.style.color=a?"#818cf8":"#9ca3af";b.style.borderColor=a?"rgba(99,102,241,0.2)":"rgba(255,255,255,0.05)"});var now=new Date();document.querySelectorAll("[data-date]").forEach(function(el){if(p==="all"){el.style.display="";return}var d=el.dataset.date;if(!d){el.style.display="none";return}var diff=(now-new Date(d+"T12:00:00"))/86400000;if(p==="today")el.style.display=diff<1?"":"none";else if(p==="3d")el.style.display=diff<3?"":"none";else if(p==="week")el.style.display=diff<7?"":"none"})}</script>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       ${recent.map(l => lotCard(l)).join("")}
     </div>

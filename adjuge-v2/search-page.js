@@ -8,6 +8,23 @@
   // Maison context (when arriving from a maison-de-vente page): set once, kept across filters.
   var initParams=new URLSearchParams(location.search);
   var maison=initParams.get("maison")||"";
+  var days=parseInt(initParams.get("days"))||0;
+
+  function daysLabel(n){return n===1?"dernier jour":n+" derniers jours";}
+
+  function setupDaysChip(){
+    var el=document.getElementById("sdayschip");
+    if(!days){ if(el)el.remove(); return; }
+    var h1=document.querySelector("h1"); if(!h1) return;
+    if(!el){
+      el=document.createElement("div"); el.id="sdayschip";
+      el.style.cssText="margin:-0.25rem 0 1rem;font-size:0.85rem;color:#9ca3af";
+      h1.parentNode.insertBefore(el, (document.getElementById("smaison")||h1).nextSibling);
+    }
+    el.innerHTML='📅 Mis aux enchères : <strong style="color:#e4e4ec">'+daysLabel(days)+'</strong> · '+
+      '<a href="#" id="sdaysclear" style="color:#818cf8">Toutes les dates</a>';
+    document.getElementById("sdaysclear").addEventListener("click",function(e){e.preventDefault();days=0;setupDaysChip();apply();});
+  }
 
   function slugify(t){return String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").substring(0,80);}
 
@@ -52,6 +69,7 @@
     if(smaxp.value)p.set("maxp",smaxp.value);
     if(sdeals.checked)p.set("deals","1");
     if(maison)p.set("maison",maison);
+    if(days)p.set("days",days);
     return p;
   }
 
@@ -85,7 +103,7 @@
   [sc,sso].forEach(function(el){el.addEventListener("change",apply)});
   [sminp,smaxp].forEach(function(el){el.addEventListener("input",function(){clearTimeout(timer);timer=setTimeout(apply,500)})});
   sdeals.addEventListener("change",apply);
-  if(sreset)sreset.addEventListener("click",function(){sq.value="";sc.value="";sso.value="recent";sminp.value="";smaxp.value="";sdeals.checked=false;apply();});
+  if(sreset)sreset.addEventListener("click",function(){sq.value="";sc.value="";sso.value="recent";sminp.value="";smaxp.value="";sdeals.checked=false;days=0;setupDaysChip();apply();});
 
   // Init from URL
   if(initParams.get("q"))sq.value=initParams.get("q");
@@ -95,5 +113,6 @@
   if(initParams.get("maxp"))smaxp.value=initParams.get("maxp");
   if(initParams.get("deals")==="1")sdeals.checked=true;
   setupMaisonBanner();
+  setupDaysChip();
   apply();
 })();
