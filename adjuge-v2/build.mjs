@@ -58,9 +58,9 @@ a:hover{color:#a5b4fc}
 .card{background:#14141e;border:1px solid rgba(255,255,255,0.05);border-radius:16px;overflow:hidden;transition:all 0.25s}
 .card:hover{border-color:rgba(129,140,248,0.15);box-shadow:0 12px 40px rgba(0,0,0,0.4)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:700;letter-spacing:0.02em}
-.deal-fire{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#000}
-.deal-super{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.2)}
-.deal-good{background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.15)}
+.deal-fire{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#000;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+.deal-super{background:#2563eb;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.45)}
+.deal-good{background:#16a34a;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.45)}
 .prose{line-height:1.8;color:#a1a1b0}
 .prose p{margin-bottom:1rem}
 .prose strong{color:#e4e4ec}
