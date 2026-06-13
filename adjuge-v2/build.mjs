@@ -415,8 +415,17 @@ ${footerHtml()}
 
 function buildFallbackDesc(lot) {
   const parts = [];
-  const raw = (lot.description||"").split("\n").slice(1).join(" ").trim();
-  if (raw.length > 20) parts.push(raw.substring(0, 500));
+  // Use the full lot description (Interencheres now sends it complete in one line).
+  // Older data had a redundant title on line 1; only skip it when the text is clearly
+  // multi-line AND the first line duplicates the title.
+  let raw = (lot.description||"").replace(/\r/g, "").trim();
+  const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length > 1 && lot.clean_title && lines[0].slice(0, 30) === String(lot.clean_title).slice(0, 30)) {
+    raw = lines.slice(1).join(" ").trim();
+  } else {
+    raw = lines.join(" ").trim();
+  }
+  if (raw.length > 20) parts.push(raw.substring(0, 600));
   if (lot.category && lot.category !== "Autre") parts.push(`Ce lot appartient à la catégorie ${lot.category}.`);
   if (lot.estimate_low) parts.push(`Son estimation se situe entre ${formatPrice(lot.estimate_low)} et ${formatPrice(lot.estimate_high)} €.`);
   if (lot.starting_price) parts.push(`La mise à prix était de ${formatPrice(lot.starting_price)} €.`);
