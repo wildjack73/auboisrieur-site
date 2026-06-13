@@ -198,7 +198,7 @@ function lotCard(lot) {
     ? `<div class="text-sm text-gray-400">Mise à prix : ${formatPrice(lot.starting_price)} €</div>`
     : '';
 
-  return `<a href="/lot/${esc(lot.slug)}.html" class="card block group relative" data-date="${lot.sale_date||''}">
+  return `<a href="/lot/${esc(lot.slug)}.html" class="card block group relative" data-date="${lot.sale_date||''}" data-score="${lot.ai_deal_score||0}" data-price="${lot.estimate_high||0}">
   ${lot.thumb
     ? `<div class="aspect-[4/3] overflow-hidden bg-[#0d0d14]"><img src="${esc(lot.thumb)}" alt="${esc(title)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"></div>`
     : `<div class="aspect-[4/3] bg-[#0d0d14] flex items-center justify-center"><svg class="w-12 h-12 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>`}
@@ -709,7 +709,7 @@ ${footerHtml()}
 
 // ─── Bonnes affaires page ────────────────────────────────────────────────────
 function buildBonnesAffaires(db) {
-  const deals = db.prepare("SELECT * FROM lots WHERE sold=0 AND ai_deal_score>=1 ORDER BY ai_deal_score DESC, estimate_high DESC").all();
+  const deals = db.prepare("SELECT * FROM lots WHERE sold=0 AND ai_deal_score>=1 ORDER BY sale_date DESC, ai_deal_score DESC").all();
 
   return `${htmlHead(
     "Bonnes affaires aux enchères — Lots invendus analysés | Adjugé",
@@ -722,9 +722,27 @@ ${navHtml()}
   <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">🔥 Bonnes affaires</h1>
   <p class="text-gray-400 mb-8">${deals.length} lots identifiés comme de bonnes opportunités par notre analyse (prix marché, enchères passées, eBay).</p>
   ${adSlot()}
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+  <div class="flex items-center gap-2 mb-6 flex-wrap">
+    <button onclick="sortDeals('recent')" class="sort-btn px-4 py-2 rounded-lg text-sm font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/20" data-s="recent">🆕 Récentes</button>
+    <button onclick="sortDeals('score')" class="sort-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-s="score">🔥 Meilleures décotes</button>
+    <button onclick="sortDeals('price')" class="sort-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-s="price">💰 Plus chères</button>
+  </div>
+  <div id="dealsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
     ${deals.map(l => lotCard(l)).join("")}
   </div>
+  <script>
+  function sortDeals(mode){
+    document.querySelectorAll(".sort-btn").forEach(function(b){var a=b.dataset.s===mode;b.style.background=a?"rgba(99,102,241,0.15)":"rgba(255,255,255,0.03)";b.style.color=a?"#818cf8":"#9ca3af";b.style.borderColor=a?"rgba(99,102,241,0.2)":"rgba(255,255,255,0.05)"});
+    var g=document.getElementById("dealsGrid");
+    var cards=Array.prototype.slice.call(g.children);
+    cards.sort(function(x,y){
+      if(mode==="recent"){return (y.dataset.date||"").localeCompare(x.dataset.date||"") || (y.dataset.score-x.dataset.score);}
+      if(mode==="score"){return (y.dataset.score-x.dataset.score) || (y.dataset.date||"").localeCompare(x.dataset.date||"");}
+      if(mode==="price"){return (y.dataset.price-x.dataset.price);}
+    });
+    cards.forEach(function(c){g.appendChild(c)});
+  }
+  </script>
   <div class="mt-12 prose text-sm max-w-3xl">
     <h2 class="text-lg font-bold text-white mb-3">Comment sont identifiées les bonnes affaires ?</h2>
     <p>Chaque lot invendu est analysé en croisant trois sources : les prix de ventes aux enchères similaires dans notre base, les prix sur eBay France, et les prix du marché via Google Shopping. Un algorithme attribue un score de 0 (sans intérêt) à 3 (affaire exceptionnelle) en fonction de la décote par rapport au prix marché.</p>
