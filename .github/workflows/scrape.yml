@@ -133,8 +133,11 @@ jobs:
         env:
           VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          ssh -i ~/.ssh/vps_key debian@91.121.223.36 "cd /var/www/adjuge && cat data/lots.json | node scripts/ingest.mjs && node scripts/fix-cats-post-ingest.mjs && node scripts/clean-ai.mjs && node scripts/regen-slugs.mjs && node scripts/auto-score.mjs && node scripts/build.mjs && node scripts/split-sitemap.mjs && node scripts/setup-fts.mjs && node scripts/gen-carte.mjs && node scripts/gen-recherche-cats.mjs && node scripts/gen-maisons.mjs && node scripts/gen-sitemap-maisons.mjs"
-          echo "✅ Site rebuilt + sitemap + search + map + filters"
-          # Launch AI scoring in background for new lots > 200€ (non-blocking)
-          ssh -i ~/.ssh/vps_key debian@91.121.223.36 "cd /var/www/adjuge && SCORE_BUDGET=500 OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}' EBAY_CLIENT_ID='${{ secrets.EBAY_CLIENT_ID }}' EBAY_CLIENT_SECRET='${{ secrets.EBAY_CLIENT_SECRET }}' DATAFORSEO_LOGIN='${{ secrets.DATAFORSEO_LOGIN }}' DATAFORSEO_PASSWORD='${{ secrets.DATAFORSEO_PASSWORD }}' nohup node scripts/score.mjs > /tmp/score-auto.log 2>&1 &"
-          echo "🤖 AI scoring launched in background (500 lots)"
+          # Run the whole pipeline asynchronously on the VPS (nohup) so it is NOT
+          # bound by the GitHub Actions 30-min step timeout — a full rebuild of
+          # ~186k pages + gen-maisons exceeds 30 min and was being cancelled
+          # mid-build (leaving a stale site / invalid sitemap and skipping scoring).
+          # flock -n prevents overlapping runs; secrets are passed as env vars so
+          # score.mjs (last step) picks them up.
+          ssh -i ~/.ssh/vps_key debian@91.121.223.36 "cd /var/www/adjuge && SCORE_BUDGET=500 OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}' EBAY_CLIENT_ID='${{ secrets.EBAY_CLIENT_ID }}' EBAY_CLIENT_SECRET='${{ secrets.EBAY_CLIENT_SECRET }}' DATAFORSEO_LOGIN='${{ secrets.DATAFORSEO_LOGIN }}' DATAFORSEO_PASSWORD='${{ secrets.DATAFORSEO_PASSWORD }}' nohup flock -n /tmp/pipeline.lock bash -c 'cat data/lots.json | node scripts/ingest.mjs && node scripts/fix-cats-post-ingest.mjs && node scripts/clean-ai.mjs && node scripts/regen-slugs.mjs && node scripts/auto-score.mjs && node scripts/build.mjs && node scripts/split-sitemap.mjs && node scripts/setup-fts.mjs && node scripts/gen-carte.mjs && node scripts/gen-recherche-cats.mjs && node scripts/gen-maisons.mjs && node scripts/gen-sitemap-maisons.mjs && node scripts/score.mjs' > /tmp/pipeline.log 2>&1 &"
+          echo "✅ Pipeline lancé sur le VPS (async nohup+flock) : ingest→build→sitemap→fts→carte→maisons→score"
