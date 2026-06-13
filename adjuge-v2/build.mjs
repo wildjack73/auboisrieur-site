@@ -58,10 +58,10 @@ a{color:#818cf8;text-decoration:none}
 a:hover{color:#a5b4fc}
 .card{background:#14141e;border:1px solid rgba(255,255,255,0.05);border-radius:16px;overflow:hidden;transition:all 0.25s}
 .card:hover{border-color:rgba(129,140,248,0.15);box-shadow:0 12px 40px rgba(0,0,0,0.4)}
-.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:700;letter-spacing:0.02em}
-.deal-fire{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#000;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
-.deal-super{background:#2563eb;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.45)}
-.deal-good{background:#16a34a;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.45)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border-radius:8px;font-size:0.74rem;font-weight:800;letter-spacing:0.02em;box-shadow:0 2px 10px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.25)}
+.deal-fire{background:linear-gradient(135deg,#fbbf24,#f97316);color:#1a1200}
+.deal-super{background:#2563eb;color:#fff}
+.deal-good{background:#16a34a;color:#fff}
 .prose{line-height:1.8;color:#a1a1b0}
 .prose p{margin-bottom:1rem}
 .prose strong{color:#e4e4ec}
