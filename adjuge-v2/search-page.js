@@ -5,6 +5,28 @@
   if(!grid||!sq) return;
   var offset=0, loading=false, exhausted=false;
 
+  // Maison context (when arriving from a maison-de-vente page): set once, kept across filters.
+  var initParams=new URLSearchParams(location.search);
+  var maison=initParams.get("maison")||"";
+
+  function slugify(t){return String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").substring(0,80);}
+
+  function setupMaisonBanner(){
+    if(!maison) return;
+    document.title="Invendus de "+maison+" | Adjugé";
+    var h1=document.querySelector("h1");
+    if(h1) h1.textContent="Invendus de "+maison;
+    if(!document.getElementById("smaison")){
+      var b=document.createElement("div");
+      b.id="smaison";
+      b.style.cssText="margin:-0.5rem 0 1rem;font-size:0.85rem;color:#9ca3af";
+      b.innerHTML='🏛️ Vous filtrez les invendus de <strong style="color:#e4e4ec">'+maison+'</strong> · '+
+        '<a href="/maison/'+slugify(maison)+'.html" style="color:#818cf8">Voir la fiche maison</a> · '+
+        '<a href="/recherche.html" style="color:#818cf8">Voir tous les invendus</a>';
+      h1&&h1.parentNode.insertBefore(b,h1.nextSibling);
+    }
+  }
+
   function lotHtml(d){
     var badge="";
     if(d.ds>=3)badge='<span class="badge deal-fire" style="position:absolute;top:8px;right:8px">🔥 TOP</span>';
@@ -29,6 +51,7 @@
     if(sminp.value)p.set("minp",sminp.value);
     if(smaxp.value)p.set("maxp",smaxp.value);
     if(sdeals.checked)p.set("deals","1");
+    if(maison)p.set("maison",maison);
     return p;
   }
 
@@ -65,12 +88,12 @@
   if(sreset)sreset.addEventListener("click",function(){sq.value="";sc.value="";sso.value="recent";sminp.value="";smaxp.value="";sdeals.checked=false;apply();});
 
   // Init from URL
-  var params=new URLSearchParams(location.search);
-  if(params.get("q"))sq.value=params.get("q");
-  if(params.get("cat"))sc.value=params.get("cat");
-  if(params.get("sort"))sso.value=params.get("sort"); else sso.value="recent";
-  if(params.get("minp"))sminp.value=params.get("minp");
-  if(params.get("maxp"))smaxp.value=params.get("maxp");
-  if(params.get("deals")==="1")sdeals.checked=true;
+  if(initParams.get("q"))sq.value=initParams.get("q");
+  if(initParams.get("cat"))sc.value=initParams.get("cat");
+  if(initParams.get("sort"))sso.value=initParams.get("sort"); else sso.value=maison?"deal":"recent";
+  if(initParams.get("minp"))sminp.value=initParams.get("minp");
+  if(initParams.get("maxp"))smaxp.value=initParams.get("maxp");
+  if(initParams.get("deals")==="1")sdeals.checked=true;
+  setupMaisonBanner();
   apply();
 })();

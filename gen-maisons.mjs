@@ -80,7 +80,7 @@ ${catLinks?`<div class="flex flex-wrap gap-2">${catLinks}</div>`:""}
 </div>
 <h2 class="text-lg font-bold text-white mb-4">${fp(m.unsold)} lots invendus${ville?` à ${ville}`:""}</h2>
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">${lotCards}</div>
-${m.unsold>36?`<div class="text-center mt-8"><a href="/recherche.html" class="inline-block px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition text-sm">Voir tous les invendus →</a></div>`:""}
+${m.unsold>36?`<div class="text-center mt-8"><a href="/recherche.html?maison=${encodeURIComponent(m.org_name)}&sort=deal" class="inline-block px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition text-sm">Voir les ${fp(m.unsold)} invendus de cette maison →</a></div>`:""}
 <section class="mt-12 max-w-3xl">
 <h2 class="text-lg font-bold text-white mb-3">Acheter un invendu chez ${esc(m.org_name)}</h2>
 <div class="faq"><h3>Comment acheter un lot invendu chez ${esc(m.org_name)} ?</h3><p>Contactez directement la maison${m.org_phone?` au ${esc(m.org_phone)}`:""}${m.org_email?` ou par email`:""} pour connaître la disponibilité et faire une offre. Les invendus se négocient souvent 10 à 25% sous l'estimation.</p></div>
