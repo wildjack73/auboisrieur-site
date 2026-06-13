@@ -584,6 +584,17 @@ ${navHtml()}
     </a>
   </section>
 
+  <!-- Parcourir par catégorie -->
+  <section class="py-10">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-bold text-white flex items-center gap-2">🗂️ Parcourir par catégorie</h2>
+      <a href="/categories.html" class="text-sm text-indigo-400 hover:text-indigo-300 transition font-medium">Toutes les catégories →</a>
+    </div>
+    <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
+      ${cats.slice(0, 12).map(c => { const s = slugify(c.category); const img = fs.existsSync(path.join(SITE_DIR,"img","cat",s+".jpg")) ? "/img/cat/"+s+".jpg?v=2" : ""; return `<a href="/categorie/${s}.html" class="group relative rounded-xl overflow-hidden aspect-square block">${img?`<img src="${img}" alt="${esc(c.category)}" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">`:`<div class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-purple-900/40"></div>`}<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div><div class="absolute bottom-0 left-0 right-0 p-2"><div class="text-white text-[0.72rem] font-semibold leading-tight line-clamp-2">${esc(c.category)}</div><div class="text-gray-300 text-[0.6rem]">${c.cnt.toLocaleString("fr-FR")} lots</div></div></a>`; }).join("")}
+    </div>
+  </section>
+
   ${topDeals.length > 0 ? `
   <!-- Top deals -->
   <section class="py-12">
@@ -602,6 +613,7 @@ ${navHtml()}
   <section id="lots" class="py-12 border-t border-white/[0.04]">
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-xl font-bold text-white">Derniers invendus</h2>
+      <a href="/recherche.html" class="text-sm text-indigo-400 hover:text-indigo-300 transition font-medium flex items-center gap-1">⚙️ Filtrer (prix, catégorie, affaires) →</a>
     </div>
     <div class="flex items-center gap-2 mb-4">
       <button onclick="filterByDate('all')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/20" data-d="all">Tous</button>
@@ -610,9 +622,6 @@ ${navHtml()}
       <button onclick="filterByDate('week')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-d="week">7 jours</button>
     </div>
     <script>function filterByDate(p){document.querySelectorAll(".date-btn").forEach(function(b){var a=b.dataset.d===p;b.style.background=a?"rgba(99,102,241,0.15)":"rgba(255,255,255,0.03)";b.style.color=a?"#818cf8":"#9ca3af";b.style.borderColor=a?"rgba(99,102,241,0.2)":"rgba(255,255,255,0.05)"});var now=new Date();document.querySelectorAll("[data-date]").forEach(function(el){if(p==="all"){el.style.display="";return}var d=el.dataset.date;if(!d){el.style.display="none";return}var diff=(now-new Date(d+"T12:00:00"))/86400000;if(p==="today")el.style.display=diff<1?"":"none";else if(p==="3d")el.style.display=diff<3?"":"none";else if(p==="week")el.style.display=diff<7?"":"none"})}</script>
-    <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
-      ${cats.slice(0, 12).map(c => { const s = slugify(c.category); const img = fs.existsSync(path.join(SITE_DIR,"img","cat",s+".jpg")) ? "/img/cat/"+s+".jpg?v=2" : ""; return `<a href="/categorie/${s}.html" class="group relative rounded-xl overflow-hidden aspect-square block">${img?`<img src="${img}" alt="${esc(c.category)}" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">`:`<div class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-purple-900/40"></div>`}<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div><div class="absolute bottom-0 left-0 right-0 p-2"><div class="text-white text-[0.72rem] font-semibold leading-tight line-clamp-2">${esc(c.category)}</div><div class="text-gray-300 text-[0.6rem]">${c.cnt.toLocaleString("fr-FR")} lots</div></div></a>`; }).join("")}
-    </div>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       ${recent.map(l => lotCard(l)).join("")}
     </div>

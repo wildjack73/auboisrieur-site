@@ -1,8 +1,9 @@
 (function(){
   var sq=document.getElementById("sq"), sc=document.getElementById("sc"), sso=document.getElementById("sso");
+  var sminp=document.getElementById("sminp"), smaxp=document.getElementById("smaxp"), sdeals=document.getElementById("sdeals"), sreset=document.getElementById("sreset");
   var grid=document.getElementById("sgrid"), more=document.getElementById("smore"), countEl=document.getElementById("scount");
   if(!grid||!sq) return;
-  var offset=0, loading=false, exhausted=false, curQ="", curCat="", curSort="";
+  var offset=0, loading=false, exhausted=false;
 
   function lotHtml(d){
     var badge="";
@@ -14,32 +15,41 @@
     else h+='<div style="aspect-ratio:4/3;background:#0d0d14;display:flex;align-items:center;justify-content:center;border-radius:12px 12px 0 0;color:#374151">📷</div>';
     h+=badge+'<div style="padding:12px"><h3 style="color:#e4e4ec;font-size:0.82rem;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+(d.t||"Lot")+'</h3>';
     if(d.p)h+='<div style="color:#818cf8;font-size:0.85rem;font-weight:600;margin-top:4px">'+d.p.toLocaleString("fr-FR")+' €</div>';
-    if(d.c)h+='<div style="color:#6b7280;font-size:0.7rem;margin-top:4px">'+d.c+'</div>';
-    if(d.v)h+='<div style="color:#6b7280;font-size:0.65rem">📍 '+d.v+'</div>';
+    if(d.d)h+='<div style="color:rgba(251,146,60,0.7);font-size:0.65rem;margin-top:4px">📅 Invendu le '+d.d.split("-").reverse().join("/")+'</div>';
+    if(d.c)h+='<div style="color:#6b7280;font-size:0.7rem">'+d.c+(d.v?' · 📍 '+d.v:'')+'</div>';
     h+='</div></a>';
     return h;
+  }
+
+  function buildUrl(){
+    var p=new URLSearchParams();
+    if(sq.value.trim())p.set("q",sq.value.trim());
+    if(sc.value)p.set("cat",sc.value);
+    if(sso.value)p.set("sort",sso.value);
+    if(sminp.value)p.set("minp",sminp.value);
+    if(smaxp.value)p.set("maxp",smaxp.value);
+    if(sdeals.checked)p.set("deals","1");
+    return p;
   }
 
   function fetchPage(reset){
     if(loading||(exhausted&&!reset))return;
     loading=true;
     if(reset){offset=0;exhausted=false;}
-    var url="/api/search?q="+encodeURIComponent(curQ)+"&cat="+encodeURIComponent(curCat)+"&sort="+curSort+"&limit=48&offset="+offset;
-    fetch(url).then(function(r){return r.json()}).then(function(j){
+    var p=buildUrl(); p.set("limit","48"); p.set("offset",offset);
+    fetch("/api/search?"+p.toString()).then(function(r){return r.json()}).then(function(j){
       if(reset)grid.innerHTML="";
       (j.results||[]).forEach(function(d){grid.insertAdjacentHTML("beforeend",lotHtml(d))});
       offset+=(j.results||[]).length;
       if(!j.results||j.results.length<48)exhausted=true;
-      countEl.textContent = curQ ? (offset + (exhausted?"":"+") + " résultat"+(offset>1?"s":"")+" pour « "+curQ+" »") : (offset + (exhausted?"":"+") + " lots");
-      more.style.display = exhausted ? "none" : "block";
+      countEl.textContent=offset+(exhausted?"":"+")+" résultat"+(offset>1?"s":"");
+      more.style.display=exhausted?"none":"block";
       loading=false;
-    }).catch(function(){loading=false;countEl.textContent="Erreur de recherche";});
+    }).catch(function(){loading=false;countEl.textContent="Erreur";});
   }
 
-  function doSearch(){
-    curQ=sq.value.trim(); curCat=sc.value; curSort=sso.value;
-    var p=new URLSearchParams();
-    if(curQ)p.set("q",curQ);
+  function apply(){
+    var p=buildUrl();
     history.replaceState(null,"",p.toString()?"?"+p:location.pathname);
     fetchPage(true);
   }
@@ -48,11 +58,19 @@
   obs.observe(more);
 
   var timer;
-  sq.addEventListener("input",function(){clearTimeout(timer);timer=setTimeout(doSearch,300)});
-  sc.addEventListener("change",doSearch);
-  sso.addEventListener("change",doSearch);
+  sq.addEventListener("input",function(){clearTimeout(timer);timer=setTimeout(apply,300)});
+  [sc,sso].forEach(function(el){el.addEventListener("change",apply)});
+  [sminp,smaxp].forEach(function(el){el.addEventListener("input",function(){clearTimeout(timer);timer=setTimeout(apply,500)})});
+  sdeals.addEventListener("change",apply);
+  if(sreset)sreset.addEventListener("click",function(){sq.value="";sc.value="";sso.value="recent";sminp.value="";smaxp.value="";sdeals.checked=false;apply();});
 
+  // Init from URL
   var params=new URLSearchParams(location.search);
-  if(params.get("q")){sq.value=params.get("q");}
-  doSearch();
+  if(params.get("q"))sq.value=params.get("q");
+  if(params.get("cat"))sc.value=params.get("cat");
+  if(params.get("sort"))sso.value=params.get("sort"); else sso.value="recent";
+  if(params.get("minp"))sminp.value=params.get("minp");
+  if(params.get("maxp"))smaxp.value=params.get("maxp");
+  if(params.get("deals")==="1")sdeals.checked=true;
+  apply();
 })();
