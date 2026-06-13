@@ -25,6 +25,7 @@ function dateFr(iso) {
 }
 function todayFr() { return new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}); }
 function slugify(t) { return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").substring(0,80); }
+function dateFrShort(iso){if(!iso)return "";var d=iso.split("-");return d.length===3?d[2]+"/"+d[1]+"/"+d[0]:iso}
 
 // ─── HTML Shell ──────────────────────────────────────────────────────────────
 function htmlHead(title, desc, extra="", canonical="") {
@@ -32,6 +33,9 @@ function htmlHead(title, desc, extra="", canonical="") {
 <html lang="fr" class="dark">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MDW75MLB');</script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">
@@ -65,21 +69,24 @@ a:hover{color:#a5b4fc}
 @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
 .pulse-dot{animation:pulse-dot 2s ease-in-out infinite}
 </style>
+<link rel="stylesheet" href="/hero-flip.css">
 </head>`;
 }
 
 function navHtml() {
-  return `<nav class="sticky top-0 z-50 backdrop-blur-2xl bg-[#09090f]/85 border-b border-white/[0.04]">
+  return `<!-- GTM noscript --><noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MDW75MLB" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><nav class="sticky top-0 z-50 backdrop-blur-2xl bg-[#09090f]/85 border-b border-white/[0.04]">
 <div class="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between h-16">
   <a href="/" class="flex items-center gap-2.5 group">
     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-black shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow">A</div>
-    <span class="text-xl font-extrabold tracking-tight text-white">Adjugé<span class="text-indigo-400">!</span> <span class="text-red-400">In</span>vendu<span class="text-amber-400">!</span></span>
+    <span class="text-xl font-extrabold tracking-tight text-white">Adjugé<span class="text-indigo-400">!</span> <span class="text-[#39FF14]">In</span>vendu<span class="text-amber-400">!</span></span>
   </a>
   <div class="hidden md:flex items-center gap-1 text-[0.82rem]">
     <a href="/" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/[0.04] transition font-medium">Invendus</a>
     <a href="/categories.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/[0.04] transition font-medium">Catégories</a>
     <a href="/villes.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/[0.04] transition font-medium">Villes</a>
-    <a href="/comment-ca-marche.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/[0.04] transition font-medium">Comment ça marche</a>
+    <a href="/maisons.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/[0.04] transition font-medium">Maisons</a>
+    <a href="/carte.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/[0.04] transition font-medium">Carte</a>
+      <a href="/blog.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/[0.04] transition font-medium">Blog</a>
     <a href="/bonnes-affaires.html" class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-400 hover:text-amber-300 transition font-semibold text-xs">🔥 Bonnes affaires</a>
   </div>
   <div class="flex items-center gap-3">
@@ -98,6 +105,9 @@ function navHtml() {
     <a href="/" class="px-4 py-3 rounded-lg text-gray-300 hover:bg-white/[0.04] transition text-sm">Invendus</a>
     <a href="/categories.html" class="px-4 py-3 rounded-lg text-gray-300 hover:bg-white/[0.04] transition text-sm">Catégories</a>
     <a href="/villes.html" class="px-4 py-3 rounded-lg text-gray-300 hover:bg-white/[0.04] transition text-sm">Villes</a>
+    <a href="/maisons.html" class="px-4 py-3 rounded-lg text-gray-300 hover:bg-white/[0.04] transition text-sm">Maisons de vente</a>
+    <a href="/carte.html" class="px-4 py-3 rounded-lg text-gray-300 hover:bg-white/[0.04] transition text-sm">Carte</a>
+    <a href="/blog.html" class="px-4 py-3 rounded-lg text-gray-300 hover:bg-white/[0.04] transition text-sm">Blog</a>
     <a href="/bonnes-affaires.html" class="px-4 py-3 rounded-lg text-amber-400 hover:bg-amber-500/10 transition text-sm font-semibold">🔥 Bonnes affaires</a>
   </div>
 </div>
@@ -133,10 +143,10 @@ function footerHtml() {
     <div>
       <h4 class="text-sm font-semibold text-white mb-3">Guides</h4>
       <div class="flex flex-col gap-2 text-sm text-gray-500">
-        <a href="/guide/acheter-invendu-encheres.html" class="hover:text-gray-300 transition">Acheter un invendu</a>
-        <a href="/guide/negocier-maison-vente.html" class="hover:text-gray-300 transition">Négocier avec une maison de vente</a>
-        <a href="/guide/evaluer-objet-encheres.html" class="hover:text-gray-300 transition">Évaluer un objet</a>
-        <a href="/guide/acheter-objet-invendu-encheres.html" class="hover:text-gray-300 transition">Acheter un invendu</a>
+        <a href="/guide/acheter-invendu-enchères.html" class="hover:text-gray-300 transition">Acheter un invendu</a>
+        <a href="/guide/négocier-maison-vente.html" class="hover:text-gray-300 transition">Négocier avec une maison de vente</a>
+        <a href="/guide/evaluer-objet-enchères.html" class="hover:text-gray-300 transition">Évaluer un objet</a>
+        <a href="/guide/acheter-objet-invendu-enchères.html" class="hover:text-gray-300 transition">Acheter un invendu</a>
       </div>
     </div>
     <div>
@@ -153,12 +163,26 @@ function footerHtml() {
     <p class="mt-1">Les photos et descriptions proviennent des catalogues des maisons de vente. Adjugé n'organise aucune vente.</p>
   </div>
 </div>
-</footer>`;
+
+<script src="/hero-flip.js"></script>
+<script src="/search.js"></script>
+</footer>
+<div id="lightbox" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);cursor:zoom-out;align-items:center;justify-content:center"><img id="lightbox-img" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px"></div>
+<script>function openLightbox(src){var lb=document.getElementById("lightbox");var img=document.getElementById("lightbox-img");img.src=src.replace("/fit-in/400x400/","/fit-in/1200x1200/");lb.style.display="flex"}</script>
+`;
 }
 
 // ─── Lot Card ────────────────────────────────────────────────────────────────
+
+function catImgPath(catName) {
+  const s = catName.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const imgPath = path.join(SITE_DIR, "img", "cat", s + ".jpg");
+  if (fs.existsSync(imgPath)) return "/img/cat/" + s + ".jpg";
+  return "";
+}
+
 function lotCard(lot) {
-  const title = lot.ai_title || lot.clean_title;
+  const title = (lot.ai_title && lot.title && lot.title.length > 5) ? lot.ai_title : (lot.clean_title || lot.title || lot.category || "Lot invendu");
   const ds = lot.ai_deal_score || 0;
   const dealBadge = ds >= 3
     ? `<span class="badge deal-fire absolute top-3 right-3 shadow-lg">🔥 TOP AFFAIRE</span>`
@@ -174,7 +198,7 @@ function lotCard(lot) {
     ? `<div class="text-sm text-gray-400">Mise à prix : ${formatPrice(lot.starting_price)} €</div>`
     : '';
 
-  return `<a href="/lot/${esc(lot.slug)}.html" class="card block group relative">
+  return `<a href="/lot/${esc(lot.slug)}.html" class="card block group relative" data-date="${lot.sale_date||''}">
   ${lot.thumb
     ? `<div class="aspect-[4/3] overflow-hidden bg-[#0d0d14]"><img src="${esc(lot.thumb)}" alt="${esc(title)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"></div>`
     : `<div class="aspect-[4/3] bg-[#0d0d14] flex items-center justify-center"><svg class="w-12 h-12 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>`}
@@ -182,6 +206,7 @@ function lotCard(lot) {
   <div class="p-4 space-y-2">
     <h3 class="text-[0.82rem] font-semibold text-white leading-snug line-clamp-2">${esc(title)}</h3>
     ${est}
+    ${lot.sale_date ? `<div class="text-[0.68rem] text-orange-400/70 flex items-center gap-1">📅 Invendu le ${dateFrShort(lot.sale_date)}</div>` : ''}
     <div class="flex items-center justify-between text-[0.7rem] text-gray-500 pt-1">
       <span class="truncate max-w-[60%]">${esc(lot.category || '')}</span>
       ${lot.city ? `<span class="flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>${esc(lot.city)}</span>` : ''}
@@ -193,7 +218,7 @@ function lotCard(lot) {
 // ─── Lot Page ────────────────────────────────────────────────────────────────
 function buildLotPage(lot) {
   const photos = JSON.parse(lot.photos || "[]");
-  const title = lot.ai_title || lot.clean_title;
+  const title = (lot.ai_title && lot.title && lot.title.length > 5) ? lot.ai_title : (lot.clean_title || lot.title || lot.category || "Lot invendu");
   const desc = lot.ai_desc || buildFallbackDesc(lot);
   const ds = lot.ai_deal_score >= 0 ? lot.ai_deal_score : 0;
   const DEAL_LABELS = ["Sans intérêt particulier", "Bonne affaire", "Super affaire", "Affaire exceptionnelle"];
@@ -388,24 +413,74 @@ ${navHtml()}
 <section class="relative overflow-hidden border-b border-white/[0.04]">
   <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.15),transparent)]"></div>
   <div class="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-24 relative">
+    <div class="grid lg:grid-cols-2 gap-8 items-center">
+    <div>
     <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-gray-400 text-xs mb-6">
       <span class="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
       Mis à jour le ${todayFr()}
     </div>
     <h1 class="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-5 tracking-tight">
-      Le seul outil qui recense<br>les <span class="gradient-text">invendus aux enchères</span>
+      On trouve.<br>On analyse.<br><span class="gradient-text">Vous négociez.</span>
     </h1>
     <p class="text-base md:text-lg text-gray-400 max-w-2xl mb-4 leading-relaxed">
       <strong class="text-white">${formatPrice(stats.unsold)}</strong> lots invendus aux enchères publiques françaises, analysés et notés par notre algorithme.
-      Chaque objet est comparé aux prix du marché (eBay, enchères passées) pour identifier les vraies bonnes affaires.
+      Chaque objet est comparé aux prix du marche (eBay, enchères passées) pour identifier les vraies bonnes affaires.
     </p>
     <p class="text-sm text-gray-500 max-w-2xl mb-8 leading-relaxed">
       Adjugé recense les objets qui n'ont pas trouvé preneur lors des ventes aux enchères en France.
-      Véhicules, bijoux, art, mobilier, matériel professionnel — contactez directement la maison de vente pour négocier un prix avantageux.
+      Véhicules, bijoux, art, mobilier, matériel professionnel - contactez directement la maison de vente pour négocier un prix avantageux.
     </p>
     <div class="flex flex-wrap gap-3">
       <a href="#lots" class="px-7 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-indigo-500/25 text-sm">Explorer les invendus</a>
       <a href="/bonnes-affaires.html" class="px-7 py-3.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white rounded-xl font-semibold transition text-sm">🔥 ${scoredCount.cnt}+ bonnes affaires</a>
+    </div>
+    </div>
+    <div class="hidden lg:flex justify-center">
+      <div class="flip-container">
+        <div class="flip-card">
+          <div class="flip-front">
+            <img src="${topDeals[0]?.thumb || ''}" alt="" style="width:100%;height:260px;object-fit:cover">
+            <div style="padding:20px">
+              <div class="flex items-center gap-2 mb-3">
+                <span style="padding:3px 10px;border-radius:20px;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.3);color:#f97316;font-size:0.65rem;font-weight:700">Invendu</span>
+                <span style="font-size:0.6rem;color:#6b7280">${topDeals[0]?.category || ''}</span>
+              </div>
+              <h4 style="color:#fff;font-weight:800;font-size:0.95rem;line-height:1.3;margin-bottom:12px">${(topDeals[0]?.ai_title || topDeals[0]?.clean_title || '').substring(0,50)}</h4>
+              <div style="font-size:0.6rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Estimation</div>
+              <div style="font-size:1.4rem;font-weight:900;color:#818cf8">${formatPrice(topDeals[0]?.estimate_low || 0)} - ${formatPrice(topDeals[0]?.estimate_high || 0)} &euro;</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:0.65rem;color:#6b7280">
+                <span>📍 ${topDeals[0]?.city || ''}</span>
+              </div>
+              <div class="flip-hint">↻ Notre analyse...</div>
+            </div>
+          </div>
+          <div class="flip-back">
+            <div style="padding:24px;height:100%;display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <span style="padding:4px 12px;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#000;font-size:0.7rem;font-weight:800">🔥 Top Affaire</span>
+                <span style="color:#4ade80;font-weight:800">-40%</span>
+              </div>
+              <h4 style="color:#fff;font-weight:700;font-size:0.9rem;margin-bottom:16px">${(topDeals[0]?.ai_title || topDeals[0]?.clean_title || '').substring(0,50)}</h4>
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <span style="color:#6b7280;font-size:0.75rem">🏛️ Estimation</span>
+                  <span style="color:#818cf8;font-weight:700">${formatPrice(topDeals[0]?.estimate_low || 0)} &euro;</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <span style="color:#6b7280;font-size:0.75rem">🛒 Prix marché</span>
+                  <span style="color:#d4d4dc;font-weight:700">~${formatPrice(Math.round((topDeals[0]?.estimate_high || 0) * 1.4))} &euro;</span>
+                </div>
+              </div>
+              <div style="border-radius:12px;padding:16px;margin-top:12px;border:1px solid rgba(245,158,11,0.2);background:rgba(245,158,11,0.06)">
+                <div style="font-size:0.7rem;font-weight:700;color:#f59e0b;margin-bottom:4px">🏷️ Prix conseillé</div>
+                <div style="font-size:1.2rem;font-weight:900;color:#fff">${formatPrice(Math.round((topDeals[0]?.estimate_low || 0) * 0.8))} - ${formatPrice(Math.round((topDeals[0]?.estimate_high || 0) * 0.9))} &euro;</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute;bottom:-20px;right:0;padding:6px 14px;border-radius:20px;border:1px solid rgba(99,102,241,0.2);background:rgba(99,102,241,0.06);color:#818cf8;font-size:0.7rem;font-weight:600">3 sources de prix</div>
+    </div>
     </div>
   </div>
 </section>
@@ -463,17 +538,17 @@ ${navHtml()}
       <div class="rounded-xl p-5 bg-green-500/5 border border-green-500/10 text-center">
         <div class="text-3xl mb-2">🟢</div>
         <div class="font-bold text-green-400 text-sm">Bonne affaire</div>
-        <div class="text-[0.7rem] text-gray-600 mt-1">Décote 30-50%</div>
+        <div class="text-[0.7rem] text-gray-600 mt-1">Décote ~10%</div>
       </div>
       <div class="rounded-xl p-5 bg-blue-500/5 border border-blue-500/10 text-center">
         <div class="text-3xl mb-2">⭐</div>
         <div class="font-bold text-blue-400 text-sm">Super affaire</div>
-        <div class="text-[0.7rem] text-gray-600 mt-1">Décote 50-70%</div>
+        <div class="text-[0.7rem] text-gray-600 mt-1">Décote 10-25%</div>
       </div>
       <div class="rounded-xl p-5 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-center">
         <div class="text-3xl mb-2">🔥</div>
         <div class="font-bold text-amber-400 text-sm">Exceptionnelle</div>
-        <div class="text-[0.7rem] text-gray-600 mt-1">Décote > 70%</div>
+        <div class="text-[0.7rem] text-gray-600 mt-1">Décote > 25%</div>
       </div>
     </div>
 
@@ -484,6 +559,30 @@ ${navHtml()}
 </section>
 
 <div class="max-w-7xl mx-auto px-4 md:px-6">
+
+  <!-- Accès rapide -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 -mt-6 mb-4 relative z-10">
+    <a href="/bonnes-affaires.html" class="rounded-2xl p-4 bg-gradient-to-br from-amber-500/15 to-orange-500/10 border border-amber-500/25 hover:border-amber-500/50 transition group">
+      <div class="text-2xl mb-1">🔥</div>
+      <div class="font-bold text-amber-300 text-sm group-hover:text-amber-200">Bonnes affaires</div>
+      <div class="text-[0.7rem] text-gray-500">Les meilleures décotes</div>
+    </a>
+    <a href="#lots" class="rounded-2xl p-4 bg-white/[0.03] border border-white/[0.06] hover:border-indigo-500/40 transition group">
+      <div class="text-2xl mb-1">🆕</div>
+      <div class="font-bold text-white text-sm group-hover:text-indigo-300">Derniers invendus</div>
+      <div class="text-[0.7rem] text-gray-500">Ajoutés aujourd'hui</div>
+    </a>
+    <a href="/categories.html" class="rounded-2xl p-4 bg-white/[0.03] border border-white/[0.06] hover:border-indigo-500/40 transition group">
+      <div class="text-2xl mb-1">🗂️</div>
+      <div class="font-bold text-white text-sm group-hover:text-indigo-300">Catégories</div>
+      <div class="text-[0.7rem] text-gray-500">Parcourir par type</div>
+    </a>
+    <a href="/carte.html" class="rounded-2xl p-4 bg-white/[0.03] border border-white/[0.06] hover:border-emerald-500/40 transition group">
+      <div class="text-2xl mb-1">📍</div>
+      <div class="font-bold text-white text-sm group-hover:text-emerald-300">Près de chez moi</div>
+      <div class="text-[0.7rem] text-gray-500">Voir la carte</div>
+    </a>
+  </section>
 
   ${topDeals.length > 0 ? `
   <!-- Top deals -->
@@ -504,12 +603,20 @@ ${navHtml()}
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-xl font-bold text-white">Derniers invendus</h2>
     </div>
-    <div class="flex flex-wrap gap-2 mb-6">
-      ${cats.slice(0, 10).map(c => `<a href="/categorie/${slugify(c.category)}.html" class="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05] text-xs text-gray-400 hover:text-white hover:bg-white/[0.06] transition">${esc(c.category)} <span class="text-gray-600">${c.cnt}</span></a>`).join("")}
+    <div class="flex items-center gap-2 mb-4">
+      <button onclick="filterByDate('all')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/20" data-d="all">Tous</button>
+      <button onclick="filterByDate('today')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-d="today">Aujourd'hui</button>
+      <button onclick="filterByDate('3d')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-d="3d">3 jours</button>
+      <button onclick="filterByDate('week')" class="date-btn px-4 py-2 rounded-lg text-sm font-medium bg-white/[0.03] text-gray-400 border border-white/[0.05]" data-d="week">7 jours</button>
+    </div>
+    <script>function filterByDate(p){document.querySelectorAll(".date-btn").forEach(function(b){var a=b.dataset.d===p;b.style.background=a?"rgba(99,102,241,0.15)":"rgba(255,255,255,0.03)";b.style.color=a?"#818cf8":"#9ca3af";b.style.borderColor=a?"rgba(99,102,241,0.2)":"rgba(255,255,255,0.05)"});var now=new Date();document.querySelectorAll("[data-date]").forEach(function(el){if(p==="all"){el.style.display="";return}var d=el.dataset.date;if(!d){el.style.display="none";return}var diff=(now-new Date(d+"T12:00:00"))/86400000;if(p==="today")el.style.display=diff<1?"":"none";else if(p==="3d")el.style.display=diff<3?"":"none";else if(p==="week")el.style.display=diff<7?"":"none"})}</script>
+    <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+      ${cats.slice(0, 12).map(c => { const s = slugify(c.category); const img = fs.existsSync(path.join(SITE_DIR,"img","cat",s+".jpg")) ? "/img/cat/"+s+".jpg" : ""; return `<a href="/categorie/${s}.html" class="group relative rounded-xl overflow-hidden aspect-square block">${img?`<img src="${img}" alt="${esc(c.category)}" loading="lazy" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">`:`<div class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-purple-900/40"></div>`}<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div><div class="absolute bottom-0 left-0 right-0 p-2"><div class="text-white text-[0.72rem] font-semibold leading-tight line-clamp-2">${esc(c.category)}</div><div class="text-gray-300 text-[0.6rem]">${c.cnt.toLocaleString("fr-FR")} lots</div></div></a>`; }).join("")}
     </div>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       ${recent.map(l => lotCard(l)).join("")}
     </div>
+    <div class="text-center mt-8"><a href="/recherche.html" class="inline-block px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-indigo-500/25 text-sm">Voir tous les invendus →</a></div>
   </section>
 
   ${adSlot()}
@@ -546,7 +653,7 @@ ${footerHtml()}
 // ─── Category page ───────────────────────────────────────────────────────────
 function buildCategoryPage(db, cat) {
   const slug = slugify(cat.category);
-  const lots = db.prepare("SELECT * FROM lots WHERE sold=0 AND category=? ORDER BY ai_deal_score DESC, sale_date DESC LIMIT 200").all(cat.category);
+  const lots = db.prepare("SELECT * FROM lots WHERE sold=0 AND category=? ORDER BY ai_deal_score DESC, sale_date DESC LIMIT 500").all(cat.category);
   const avgEst = db.prepare("SELECT AVG(estimate_low) as avg FROM lots WHERE sold=0 AND category=? AND estimate_low>0").get(cat.category);
 
   return `${htmlHead(
@@ -578,7 +685,7 @@ ${footerHtml()}
 // ─── Ville page ──────────────────────────────────────────────────────────────
 function buildVillePage(db, ville) {
   const slug = slugify(ville.city);
-  const lots = db.prepare("SELECT * FROM lots WHERE sold=0 AND city=? ORDER BY ai_deal_score DESC, sale_date DESC LIMIT 200").all(ville.city);
+  const lots = db.prepare("SELECT * FROM lots WHERE sold=0 AND city=? ORDER BY ai_deal_score DESC, sale_date DESC LIMIT 500").all(ville.city);
 
   return `${htmlHead(
     `Invendus aux enchères à ${ville.city} | Adjugé`,
@@ -747,7 +854,7 @@ function buildGuideAcheter() {
   return guideLayout(
     "Comment acheter un lot invendu aux enchères | Adjugé",
     "Guide complet pour acheter un lot invendu aux enchères publiques en France. Démarches, conseils et pièges à éviter.",
-    "/guide/acheter-invendu-encheres.html",
+    "/guide/acheter-invendu-enchères.html",
     `<h1 class="text-3xl font-black text-white mb-6">Comment acheter un lot invendu aux enchères</h1>
     <p class="text-lg text-gray-400 mb-8">Les lots invendus aux enchères représentent des opportunités méconnues du grand public. Voici tout ce que vous devez savoir pour en profiter.</p>
 
@@ -796,7 +903,7 @@ function buildGuideNegocier() {
   return guideLayout(
     "Comment négocier avec une maison de vente aux enchères | Adjugé",
     "Conseils pratiques pour négocier l'achat d'un lot invendu auprès d'un commissaire-priseur.",
-    "/guide/negocier-maison-vente.html",
+    "/guide/négocier-maison-vente.html",
     `<h1 class="text-3xl font-black text-white mb-6">Comment négocier avec une maison de vente</h1>
     <p class="text-lg text-gray-400 mb-8">Le commissaire-priseur a tout intérêt à vendre les lots invendus. Voici comment aborder la négociation pour obtenir le meilleur prix.</p>
 
@@ -840,7 +947,7 @@ function buildGuideEvaluer() {
   return guideLayout(
     "Comment évaluer un objet vendu aux enchères | Adjugé",
     "Apprenez à estimer la valeur d'un objet aux enchères. Méthodes, outils et conseils d'experts.",
-    "/guide/evaluer-objet-encheres.html",
+    "/guide/evaluer-objet-enchères.html",
     `<h1 class="text-3xl font-black text-white mb-6">Comment évaluer un objet aux enchères</h1>
     <p class="text-lg text-gray-400 mb-8">Savoir estimer la valeur d'un objet est essentiel pour identifier les bonnes affaires. Voici les méthodes utilisées par les professionnels.</p>
 
@@ -882,7 +989,7 @@ function buildGuideInvenduAchat() {
   return guideLayout(
     "Peut-on acheter un objet aux enchères s'il a été invendu ? | Adjugé ! Invendu !",
     "Oui ! Un lot invendu aux enchères reste disponible. Découvrez comment l'acheter, à quel prix et auprès de qui.",
-    "/guide/acheter-objet-invendu-encheres.html",
+    "/guide/acheter-objet-invendu-enchères.html",
     `<h1 class="text-3xl font-black text-white mb-6">Peut-on acheter un objet aux enchères s'il a été invendu ?</h1>
     <p class="text-lg text-gray-400 mb-8"><strong class="text-white">Oui, absolument.</strong> C'est même l'une des meilleures façons d'acquérir des objets à prix avantageux. Voici tout ce qu'il faut savoir.</p>
 
@@ -969,6 +1076,47 @@ function buildPolitiqueConfidentialite() {
 }
 
 // ─── Build all ───────────────────────────────────────────────────────────────
+
+const DEPT_TO_REGION={"01":"ARA","02":"HDF","03":"ARA","04":"PACA","05":"PACA","06":"PACA","07":"ARA","08":"GE","09":"OCC","10":"GE","11":"OCC","12":"OCC","13":"PACA","14":"NOR","15":"ARA","16":"NAQ","17":"NAQ","18":"CVL","19":"NAQ","21":"BFC","22":"BRE","23":"NAQ","24":"NAQ","25":"BFC","26":"ARA","27":"NOR","28":"CVL","29":"BRE","30":"OCC","31":"OCC","32":"OCC","33":"NAQ","34":"OCC","35":"BRE","36":"CVL","37":"CVL","38":"ARA","39":"BFC","40":"NAQ","41":"CVL","42":"ARA","43":"ARA","44":"PDL","45":"CVL","46":"OCC","47":"NAQ","48":"OCC","49":"PDL","50":"NOR","51":"GE","52":"GE","53":"PDL","54":"GE","55":"GE","56":"BRE","57":"GE","58":"BFC","59":"HDF","60":"HDF","61":"NOR","62":"HDF","63":"ARA","64":"NAQ","65":"OCC","66":"OCC","67":"GE","68":"GE","69":"ARA","70":"BFC","71":"BFC","72":"PDL","73":"ARA","74":"ARA","75":"IDF","76":"NOR","77":"IDF","78":"IDF","79":"NAQ","80":"HDF","81":"OCC","82":"OCC","83":"PACA","84":"PACA","85":"PDL","86":"NAQ","87":"NAQ","88":"GE","89":"BFC","90":"BFC","91":"IDF","92":"IDF","93":"IDF","94":"IDF","95":"IDF","97":"OM","98":"OM","99":"ETR"};
+const REGION_NAMES={"ARA":"Auvergne-Rhône-Alpes","HDF":"Hauts-de-France","PACA":"Provence-Alpes-Côte d'Azur","GE":"Grand Est","OCC":"Occitanie","NAQ":"Nouvelle-Aquitaine","NOR":"Normandie","CVL":"Centre-Val de Loire","BFC":"Bourgogne-Franche-Comté","BRE":"Bretagne","PDL":"Pays de la Loire","IDF":"Île-de-France","OM":"Outre-mer","ETR":"Étranger"};
+const REGION_GRADS={"ARA":"from-blue-600 to-cyan-600","HDF":"from-amber-600 to-orange-600","PACA":"from-sky-500 to-blue-500","GE":"from-rose-600 to-pink-600","OCC":"from-orange-500 to-red-500","NAQ":"from-emerald-600 to-teal-600","NOR":"from-indigo-600 to-purple-600","CVL":"from-lime-600 to-green-600","BFC":"from-violet-600 to-fuchsia-600","BRE":"from-cyan-600 to-blue-600","PDL":"from-teal-500 to-emerald-500","IDF":"from-purple-600 to-indigo-600","OM":"from-pink-500 to-rose-500","ETR":"from-gray-600 to-gray-700"};
+
+function buildVillesHtml(cities) {
+  console.log("    buildVillesHtml:", cities.length, "cities");
+  console.log("    First city:", JSON.stringify(cities[0]));
+  const regionMap = {};
+  cities.forEach(ci => {
+    const dept = (ci.postcode || "").substring(0, 2);
+    const rk = DEPT_TO_REGION[dept] || "ETR";
+    if (!regionMap[rk]) regionMap[rk] = [];
+    regionMap[rk].push(ci);
+  });
+  const sorted = Object.entries(regionMap).sort((a, b) => {
+    const tA = a[1].reduce((s, x) => s + x.cnt, 0);
+    const tB = b[1].reduce((s, x) => s + x.cnt, 0);
+    return tB - tA;
+  });
+  let html = "";
+  sorted.forEach(([rk, villes]) => {
+    if (rk === "ETR") return;
+    const rName = REGION_NAMES[rk] || rk;
+    const total = villes.reduce((s, x) => s + x.cnt, 0);
+    const grad = REGION_GRADS[rk] || "from-gray-600 to-gray-700";
+    html += '<div class="mb-10">';
+    html += '<div class="flex items-center gap-3 mb-4"><div class="w-1 h-6 rounded-full bg-gradient-to-b ' + grad + '"></div>';
+    html += '<h2 class="text-lg font-bold text-white">' + esc(rName) + '</h2>';
+    html += '<span class="text-sm text-gray-500">' + total + ' lots</span></div>';
+    html += '<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">';
+    villes.forEach(ci => {
+      html += '<a href="/ville/' + slugify(ci.city) + '.html" class="block rounded-xl overflow-hidden bg-gradient-to-br ' + grad + ' p-4 hover:scale-[1.02] transition-transform">';
+      html += '<div class="text-white font-bold text-sm">' + esc(ci.city) + '</div>';
+      html += '<div class="text-white/70 text-xs mt-1">' + ci.cnt + ' invendus</div></a>';
+    });
+    html += '</div></div>';
+  });
+  return html;
+}
+
 function build() {
   console.log("\n🏗️  Adjugé v2 — Build Pro\n");
   const db = new Database(DB_PATH, { readonly: true });
@@ -1004,18 +1152,28 @@ function build() {
 <body>${navHtml()}
 <div class="max-w-7xl mx-auto px-4 md:px-6 py-8">
   <h1 class="text-2xl font-bold text-white mb-6">Catégories</h1>
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-    ${cats.map(c => `<a href="/categorie/${slugify(c.category)}.html" class="flex items-center justify-between px-5 py-4 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] transition group">
-      <span class="text-sm text-gray-300 group-hover:text-white transition font-medium">${esc(c.category)}</span>
-      <span class="text-xs text-gray-600 bg-white/[0.04] px-2.5 py-1 rounded-full">${c.cnt}</span>
-    </a>`).join("")}
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    ${cats.map(c => {
+      const imgSlug = slugify(c.category);
+      const imgFile = path.join(SITE_DIR, "img", "cat", imgSlug + ".jpg");
+      const hasImg = fs.existsSync(imgFile);
+      return `<a href="/categorie/${slugify(c.category)}.html" class="card block group overflow-hidden">
+        ${hasImg
+          ? `<div class="aspect-[3/2] overflow-hidden bg-[#0d0d14]"><img src="/img/cat/${imgSlug}.jpg" alt="${esc(c.category)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"></div>`
+          : `<div class="aspect-[3/2] bg-gradient-to-br from-indigo-900/30 to-purple-900/30 flex items-center justify-center"><span class="text-3xl text-gray-600">📦</span></div>`}
+        <div class="p-4 flex items-center justify-between">
+          <span class="text-sm text-gray-300 group-hover:text-white transition font-medium">${esc(c.category)}</span>
+          <span class="text-xs text-gray-600 bg-white/[0.04] px-2.5 py-1 rounded-full">${c.cnt}</span>
+        </div>
+      </a>`;
+    }).join("")}
   </div>
 </div>
 ${footerHtml()}</body></html>`);
   console.log("  ✅ categories.html");
 
   // Ville pages
-  const cities = db.prepare("SELECT city, COUNT(*) as cnt FROM lots WHERE sold=0 AND city!='' GROUP BY city ORDER BY cnt DESC").all();
+  const cities = db.prepare("SELECT city, MAX(postcode) as postcode, COUNT(*) as cnt FROM lots WHERE sold=0 AND length(city)>0 GROUP BY city ORDER BY cnt DESC").all();
   for (const v of cities) {
     fs.writeFileSync(path.join(SITE_DIR, "ville", `${slugify(v.city)}.html`), buildVillePage(db, v));
   }
@@ -1026,12 +1184,7 @@ ${footerHtml()}</body></html>`);
 <body>${navHtml()}
 <div class="max-w-7xl mx-auto px-4 md:px-6 py-8">
   <h1 class="text-2xl font-bold text-white mb-6">Invendus par ville</h1>
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-    ${cities.map(c => `<a href="/ville/${slugify(c.city)}.html" class="flex items-center justify-between px-5 py-4 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] transition group">
-      <span class="text-sm text-gray-300 group-hover:text-white transition font-medium">${esc(c.city)}</span>
-      <span class="text-xs text-gray-600 bg-white/[0.04] px-2.5 py-1 rounded-full">${c.cnt}</span>
-    </a>`).join("")}
-  </div>
+  ${buildVillesHtml(cities)}
 </div>
 ${footerHtml()}</body></html>`);
   console.log("  ✅ villes.html");
@@ -1041,10 +1194,10 @@ ${footerHtml()}</body></html>`);
   fs.writeFileSync(path.join(SITE_DIR, "mentions-legales.html"), buildMentionsLegales());
   fs.writeFileSync(path.join(SITE_DIR, "a-propos.html"), buildAPropos());
   fs.writeFileSync(path.join(SITE_DIR, "comment-ca-marche.html"), buildCommentCaMarche());
-  fs.writeFileSync(path.join(SITE_DIR, "guide/acheter-invendu-encheres.html"), buildGuideAcheter());
-  fs.writeFileSync(path.join(SITE_DIR, "guide/negocier-maison-vente.html"), buildGuideNegocier());
-  fs.writeFileSync(path.join(SITE_DIR, "guide/evaluer-objet-encheres.html"), buildGuideEvaluer());
-  fs.writeFileSync(path.join(SITE_DIR, "guide/acheter-objet-invendu-encheres.html"), buildGuideInvenduAchat());
+  fs.writeFileSync(path.join(SITE_DIR, "guide/acheter-invendu-enchères.html"), buildGuideAcheter());
+  fs.writeFileSync(path.join(SITE_DIR, "guide/négocier-maison-vente.html"), buildGuideNegocier());
+  fs.writeFileSync(path.join(SITE_DIR, "guide/evaluer-objet-enchères.html"), buildGuideEvaluer());
+  fs.writeFileSync(path.join(SITE_DIR, "guide/acheter-objet-invendu-enchères.html"), buildGuideInvenduAchat());
   fs.writeFileSync(path.join(SITE_DIR, "politique-confidentialite.html"), buildPolitiqueConfidentialite());
   console.log("  ✅ pages statiques + guides");
 
@@ -1057,10 +1210,10 @@ ${footerHtml()}</body></html>`);
 <url><loc>${SITE_URL}/categories.html</loc><changefreq>weekly</changefreq></url>
 <url><loc>${SITE_URL}/villes.html</loc><changefreq>weekly</changefreq></url>
 <url><loc>${SITE_URL}/comment-ca-marche.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>${SITE_URL}/guide/acheter-invendu-encheres.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>${SITE_URL}/guide/negocier-maison-vente.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>${SITE_URL}/guide/evaluer-objet-encheres.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>${SITE_URL}/guide/acheter-objet-invendu-encheres.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+<url><loc>${SITE_URL}/guide/acheter-invendu-enchères.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>${SITE_URL}/guide/négocier-maison-vente.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>${SITE_URL}/guide/evaluer-objet-enchères.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>${SITE_URL}/guide/acheter-objet-invendu-enchères.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
 <url><loc>${SITE_URL}/a-propos.html</loc><changefreq>monthly</changefreq></url>
 ${cats.map(c => `<url><loc>${SITE_URL}/categorie/${slugify(c.category)}.html</loc><changefreq>daily</changefreq></url>`).join("\n")}
 ${cities.map(c => `<url><loc>${SITE_URL}/ville/${slugify(c.city)}.html</loc><changefreq>daily</changefreq></url>`).join("\n")}
