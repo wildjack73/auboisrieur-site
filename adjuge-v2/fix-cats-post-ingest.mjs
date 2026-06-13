@@ -90,8 +90,7 @@ const fixes = [
   `UPDATE lots SET city = 'Brasles' WHERE city = 'BRASLES'`,
   `UPDATE lots SET city = 'Lyon' WHERE city = 'LYON'`,
 
-  // Delete lots without any usable content (no title AND no description)
-  `DELETE FROM lots WHERE sold=0 AND (title IS NULL OR length(title)<3) AND (clean_title IS NULL OR length(clean_title)<3) AND (ai_title IS NULL OR length(ai_title)<3) AND (description IS NULL OR length(description)<3)`,
+  // (Plus de DELETE — les lots sans titre sont gardés en noindex pour éviter les 404 sur des URLs déjà indexées)
 ];
 
 let total = 0;

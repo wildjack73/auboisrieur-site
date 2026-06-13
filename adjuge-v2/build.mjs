@@ -184,6 +184,7 @@ function catImgPath(catName) {
 
 function lotCard(lot) {
   const title = (lot.ai_title && lot.title && lot.title.length > 5) ? lot.ai_title : (lot.clean_title || lot.title || lot.category || "Lot invendu");
+  const hasRealTitle = !!((lot.ai_title && lot.ai_title.length > 2) || (lot.clean_title && lot.clean_title.length > 2) || (lot.title && lot.title.length > 2));
   const ds = lot.ai_deal_score || 0;
   const dealBadge = ds >= 3
     ? `<span class="badge deal-fire absolute top-3 right-3 shadow-lg">🔥 TOP AFFAIRE</span>`
@@ -232,7 +233,7 @@ function buildLotPage(lot) {
   return `${htmlHead(
     `${title} — Invendu aux enchères | Adjugé`,
     metaDesc,
-    `${photos[0] ? `<meta property="og:image" content="${photos[0]}">` : ''}
+    `${hasRealTitle ? "" : "<meta name=\"robots\" content=\"noindex,follow\">"}${photos[0] ? `<meta property="og:image" content="${photos[0]}">` : ''}
     <script type="application/ld+json">${JSON.stringify({
       "@context": "https://schema.org",
       "@type": "Product",
@@ -1262,7 +1263,7 @@ ${footerHtml()}</body></html>`);
   console.log("  ✅ pages statiques + guides");
 
   // Sitemap
-  const allSlugs = db.prepare("SELECT slug FROM lots WHERE sold=0").all();
+  const allSlugs = db.prepare("SELECT slug FROM lots WHERE sold=0 AND (length(COALESCE(ai_title,''))>2 OR length(COALESCE(clean_title,''))>2 OR length(COALESCE(title,''))>2)").all();
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url><loc>${SITE_URL}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
