@@ -83,8 +83,19 @@
       (j.results||[]).forEach(function(d){grid.insertAdjacentHTML("beforeend",lotHtml(d))});
       offset+=(j.results||[]).length;
       if(!j.results||j.results.length<48)exhausted=true;
-      countEl.textContent=offset+(exhausted?"":"+")+" résultat"+(offset>1?"s":"");
       more.style.display=exhausted?"none":"block";
+      if(offset===0){
+        countEl.textContent="Aucun résultat";
+        grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:3rem 1rem;color:#9ca3af">'+
+          '<div style="font-size:2.5rem;margin-bottom:.5rem">🔍</div>'+
+          '<div style="font-size:1.05rem;color:#e4e4ec;font-weight:700;margin-bottom:.35rem">Aucun lot ne correspond</div>'+
+          '<div style="font-size:.9rem;margin-bottom:1.2rem">Essayez un autre mot-clé, élargissez la fourchette de prix, ou retirez des filtres.</div>'+
+          '<button id="semptyreset" style="padding:.6rem 1.4rem;border-radius:.6rem;background:#4f46e5;color:#fff;font-weight:600;border:none;cursor:pointer">Réinitialiser les filtres</button>'+
+          '</div>';
+        var eb=document.getElementById("semptyreset"); if(eb&&sreset)eb.addEventListener("click",function(){sreset.click();});
+      } else {
+        countEl.textContent=offset+(exhausted?"":"+")+" résultat"+(offset>1?"s":"");
+      }
       loading=false;
     }).catch(function(){loading=false;countEl.textContent="Erreur";});
   }
