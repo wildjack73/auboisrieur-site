@@ -13,6 +13,18 @@ import { execSync } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// Trim a description to <= max chars WITHOUT cutting mid-word: prefer the last
+// sentence end, else the last space. Avoids the "...Avec son écrin, ses docu" cut.
+function clampDesc(s, max = 1400) {
+  s = String(s || "").trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const dot = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  if (dot > max * 0.5) return cut.slice(0, dot + 1).trim();
+  const sp = cut.lastIndexOf(" ");
+  return (sp > 0 ? cut.slice(0, sp) : cut).trim() + "…";
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "..", "data", "adjuge.db");
 
@@ -252,7 +264,7 @@ Réponds en JSON strict:
         update.run({
           id: lot.id,
           ai_title: (ai.title || lot.clean_title).substring(0, 150),
-          ai_desc: (ai.desc || "").substring(0, 800),
+          ai_desc: clampDesc(ai.desc, 1400),
           ai_deal_score: Math.min(3, Math.max(0, parseInt(ai.deal_score) || 0)),
           ai_deal_analysis: (ai.deal_analysis || "").substring(0, 500),
           ai_price_analysis: (Number(ai.market_price) > 0) ? `Prix marché estimé : ~${formatPrice(Number(ai.market_price))} €` : "",
